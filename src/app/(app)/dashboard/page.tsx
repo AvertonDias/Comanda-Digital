@@ -12,7 +12,7 @@ export default function DashboardPage() {
       </header>
       <main className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <StatsCards />
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <RevenueChart />
             <RecentOrders />
         </div>

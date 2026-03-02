@@ -31,7 +31,7 @@ const chartConfig = {
 
 export function RevenueChart() {
   return (
-    <Card className="lg:col-span-4">
+    <Card className="lg:col-span-2">
       <CardHeader>
         <CardTitle>Visão Geral do Faturamento</CardTitle>
       </CardHeader>

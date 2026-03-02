@@ -26,8 +26,8 @@ export default function SettingsPage() {
       </header>
       <main className="flex-1 overflow-y-auto p-4 md:p-8">
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="profile">Perfil do Restaurante</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
+            <TabsTrigger value="profile">Perfil</TabsTrigger>
             <TabsTrigger value="users">Usuários</TabsTrigger>
             <TabsTrigger value="printers">Impressoras</TabsTrigger>
             <TabsTrigger value="categories">Categorias</TabsTrigger>
@@ -59,14 +59,14 @@ export default function SettingsPage() {
           {/* Users Tab */}
           <TabsContent value="users">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <CardTitle>Usuários</CardTitle>
                   <CardDescription>
                     Gerencie os garçons e administradores do sistema.
                   </CardDescription>
                 </div>
-                 <Button>
+                 <Button className="w-full sm:w-auto">
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Novo Usuário
                 </Button>
@@ -80,14 +80,14 @@ export default function SettingsPage() {
           {/* Printers Tab */}
           <TabsContent value="printers">
              <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                  <div>
                     <CardTitle>Impressoras e Setores</CardTitle>
                     <CardDescription>
                     Configure as impressoras e os setores de produção.
                     </CardDescription>
                  </div>
-                 <Button>
+                 <Button className="w-full sm:w-auto">
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Nova Impressora
                 </Button>
@@ -101,14 +101,14 @@ export default function SettingsPage() {
           {/* Categories Tab */}
           <TabsContent value="categories">
              <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                  <div>
                     <CardTitle>Categorias do Cardápio</CardTitle>
                     <CardDescription>
                     Organize os itens do seu cardápio em categorias.
                     </CardDescription>
                  </div>
-                 <Button>
+                 <Button className="w-full sm:w-auto">
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Nova Categoria
                 </Button>

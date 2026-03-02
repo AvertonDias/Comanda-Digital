@@ -36,7 +36,7 @@ const recentSales = [
 
 export function RecentOrders() {
   return (
-    <Card className="lg:col-span-3">
+    <Card className="lg:col-span-1">
         <CardHeader>
             <CardTitle>Pedidos Recentes</CardTitle>
             <CardDescription>Você teve 265 pedidos este mês.</CardDescription>

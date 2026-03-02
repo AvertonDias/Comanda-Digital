@@ -20,9 +20,10 @@ import {
 } from "@/components/ui/table";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { DUMMY_CUSTOMERS } from "@/lib/placeholder-data";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 function AddCustomerForm() {
     return (
@@ -54,7 +55,6 @@ function AddCustomerForm() {
     )
 }
 
-
 export default function CustomersPage() {
   return (
     <div className="flex flex-col h-screen">
@@ -76,7 +76,38 @@ export default function CustomersPage() {
         </Dialog>
       </header>
       <main className="flex-1 overflow-y-auto p-4 md:p-8">
-        <div className="rounded-lg border">
+        {/* Mobile View - Cards */}
+        <div className="grid gap-4 md:hidden">
+          {DUMMY_CUSTOMERS.map((customer) => (
+            <Card key={customer.id}>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-lg">{customer.name}</CardTitle>
+                  <Button variant="outline" size="sm">
+                      <Edit className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Telefone:</span>
+                  <span>{customer.phone}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total de Pedidos:</span>
+                  <span>{customer.totalOrders}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Cliente Desde:</span>
+                  <span>{format(new Date(customer.createdAt), "dd/MM/yy", { locale: ptBR })}</span>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Desktop View - Table */}
+        <div className="rounded-lg border hidden md:block">
             <Table>
                 <TableHeader>
                     <TableRow>
