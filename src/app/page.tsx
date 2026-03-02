@@ -1,10 +1,26 @@
+'use client';
+
+import { useUser } from '@/firebase';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { UtensilsCrossed } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
-export default function Home() {
+function LoadingScreen() {
+  return (
+    <div className="flex items-center justify-center h-screen">
+      <div className="flex flex-col items-center gap-4 p-4">
+        <UtensilsCrossed className="h-12 w-12 text-primary animate-pulse" />
+        <p className="text-muted-foreground">Carregando...</p>
+      </div>
+    </div>
+  );
+}
+
+function LandingPage() {
   const heroImage = PlaceHolderImages.find((img) => img.id === 'landing-hero');
 
   return (
@@ -71,4 +87,25 @@ export default function Home() {
       </footer>
     </div>
   );
+}
+
+export default function Home() {
+    const { user, isUserLoading } = useUser();
+    const router = useRouter();
+
+    useEffect(() => {
+        // If the user is authenticated and loading is finished, redirect to dashboard.
+        if (!isUserLoading && user) {
+            router.replace('/dashboard');
+        }
+    }, [user, isUserLoading, router]);
+
+    // While checking for user auth, show a loading screen.
+    // Also covers the brief moment before redirection happens for a logged-in user.
+    if (isUserLoading || user) {
+        return <LoadingScreen />;
+    }
+
+    // If loading is finished and there's no user, show the landing page.
+    return <LandingPage />;
 }
