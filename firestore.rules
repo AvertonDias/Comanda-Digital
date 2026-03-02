@@ -48,6 +48,12 @@ service cloud.firestore {
 
     // --- Regras por Coleção ---
 
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create, update: if isOwner(userId);
+      allow delete: if false;
+    }
+
     match /restaurants/{restaurantId} {
       allow get: if isRestaurantStaff(restaurantId);
       allow create: if false; // Deve ser criado por um processo confiável
@@ -56,7 +62,7 @@ service cloud.firestore {
 
     match /users/{userId}/restaurantRoles/{restaurantId} {
       allow get: if isOwner(userId) || isRestaurantAdmin(restaurantId);
-      allow list: if isOwner(userId);
+      allow list: if isOwner(userId) || isRestaurantAdmin(restaurantId); // Admins can list users of their restaurant
       // Apenas admins podem criar/gerenciar papéis para seu restaurante
       allow create, update, delete: if isRestaurantAdmin(restaurantId)
                                       && request.resource.data.restaurantId == restaurantId;
@@ -110,5 +116,3 @@ service cloud.firestore {
     }
   }
 }
-
-    

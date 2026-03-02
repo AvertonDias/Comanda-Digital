@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, useUser, useFirestore } from '@/firebase';
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, updateProfile } from 'firebase/auth';
 import { collection, doc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { UtensilsCrossed } from 'lucide-react';
 import Link from 'next/link';
@@ -25,6 +25,7 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 export default function RegisterPage() {
   const [restaurantName, setRestaurantName] = useState('');
+  const [userName, setUserName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -44,11 +45,11 @@ export default function RegisterPage() {
 
   const handleRegister = async (e: FormEvent) => {
     e.preventDefault();
-    if (!restaurantName) {
+    if (!restaurantName || !userName) {
         toast({
             variant: "destructive",
             title: "Erro de Validação",
-            description: "Por favor, informe o nome do restaurante.",
+            description: "Por favor, preencha todos os campos.",
         });
         return;
     }
@@ -64,9 +65,13 @@ export default function RegisterPage() {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
+
+      // Update user profile in Auth
+      await updateProfile(user, { displayName: userName });
       
       const batch = writeBatch(firestore);
       
+      // 1. Create Restaurant
       const restaurantRef = doc(collection(firestore, "restaurants"));
       batch.set(restaurantRef, {
           name: restaurantName,
@@ -74,7 +79,16 @@ export default function RegisterPage() {
           status: 'ativo',
           createdAt: serverTimestamp()
       });
+
+      // 2. Create User Profile
+      const userProfileRef = doc(firestore, `users/${user.uid}`);
+      batch.set(userProfileRef, {
+        name: userName,
+        email: user.email,
+        avatarUrl: user.photoURL || ''
+      });
       
+      // 3. Create User Role for the new restaurant
       const userRoleRef = doc(firestore, `users/${user.uid}/restaurantRoles/${restaurantRef.id}`);
       batch.set(userRoleRef, {
           userId: user.uid,
@@ -87,7 +101,7 @@ export default function RegisterPage() {
       
       toast({
         title: 'Conta e Restaurante criados!',
-        description: 'Sua conta e seu restaurante foram criados com sucesso. Faça o login para continuar.',
+        description: 'Seu restaurante foi criado com sucesso. Faça o login para continuar.',
       });
       router.push('/login');
     } catch (error: any) {
@@ -153,6 +167,18 @@ export default function RegisterPage() {
                 required 
                 value={restaurantName}
                 onChange={(e) => setRestaurantName(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+             <div className="space-y-2">
+              <Label htmlFor="userName">Seu Nome</Label>
+              <Input 
+                id="userName" 
+                type="text" 
+                placeholder="Ex: José da Silva" 
+                required 
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
                 disabled={isLoading}
               />
             </div>

@@ -10,6 +10,10 @@
           "type": "string",
           "description": "O nome oficial do restaurante."
         },
+        "phone": {
+          "type": "string",
+          "description": "Telefone de contato do restaurante."
+        },
         "plan": {
           "type": "string",
           "description": "O plano de assinatura associado ao restaurante (e.g., 'basico', 'pro', 'premium')."
@@ -25,6 +29,29 @@
         }
       },
       "required": ["name", "plan", "status", "createdAt"]
+    },
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
+      "type": "object",
+      "description": "Dados públicos de perfil de um usuário.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "O nome de exibição do usuário."
+        },
+        "email": {
+          "type": "string",
+          "description": "O endereço de e-mail do usuário.",
+          "format": "email"
+        },
+        "avatarUrl": {
+          "type": "string",
+          "description": "URL da foto de perfil do usuário.",
+          "format": "uri"
+        }
+      },
+      "required": ["name", "email"]
     },
     "RestaurantUser": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -330,6 +357,16 @@
         }
       },
       {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/entities/UserProfile"
+          },
+          "description": "Coleção de perfis públicos de usuários."
+        }
+      },
+      {
         "path": "/users/{userId}/restaurantRoles/{restaurantId}",
         "definition": {
           "entityName": "RestaurantUser",
@@ -423,5 +460,3 @@
     "reasoning": "A nova estrutura do Firestore espelha o blueprint fornecido, com uma clara separação de dados por restaurante para multi-tenancy. Acesso é controlado via papéis de usuário (RestaurantUser) armazenados em uma coleção separada para permitir que um usuário tenha diferentes papéis em diferentes restaurantes, uma abordagem escalável para RBAC. Todas as coleções específicas de um restaurante são aninhadas sob '/restaurants/{restaurantId}', garantindo isolamento de dados e simplificando as regras de segurança."
   }
 }
-
-    
