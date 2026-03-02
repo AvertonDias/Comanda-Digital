@@ -1,3 +1,4 @@
+import { AppHeader } from "@/components/layout/app-header";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,11 +20,11 @@ import { PlusCircle } from "lucide-react";
 
 export default function SettingsPage() {
   return (
-    <div className="flex flex-col h-screen">
-      <header className="flex h-16 shrink-0 items-center gap-4 border-b bg-background px-4 md:px-6">
+    <div className="flex flex-col h-screen bg-background">
+      <AppHeader>
         <SidebarTrigger className="md:hidden" />
         <h1 className="text-xl font-semibold">Configurações</h1>
-      </header>
+      </AppHeader>
       <main className="flex-1 overflow-y-auto p-4 md:p-8">
         <Tabs defaultValue="profile" className="w-full">
           <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">

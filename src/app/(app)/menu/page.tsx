@@ -1,3 +1,4 @@
+import { AppHeader } from '@/components/layout/app-header';
 import { Button } from '@/components/ui/button';
 import { PlusCircle } from 'lucide-react';
 import { DUMMY_MENU_ITEMS, DUMMY_CATEGORIES } from '@/lib/placeholder-data';
@@ -11,8 +12,8 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 export default function MenuPage() {
   return (
-    <div className="flex flex-col h-screen">
-      <header className="flex h-16 shrink-0 items-center gap-4 border-b bg-background px-4 md:px-6">
+    <div className="flex flex-col h-screen bg-background">
+      <AppHeader>
         <SidebarTrigger className="md:hidden" />
         <h1 className="text-xl font-semibold">Cardápio</h1>
         <div className="ml-auto">
@@ -31,7 +32,7 @@ export default function MenuPage() {
             </DialogContent>
           </Dialog>
         </div>
-      </header>
+      </AppHeader>
       <main className="flex-1 overflow-y-auto p-4 md:p-6">
         <Tabs defaultValue={DUMMY_CATEGORIES[0].id} className="w-full">
           <ScrollArea className="w-full whitespace-nowrap rounded-md">

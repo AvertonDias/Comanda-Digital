@@ -10,9 +10,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <AppSidebar />
           </Sidebar>
           <SidebarInset>
-              <div className="min-h-screen flex flex-col">
-                  {children}
-              </div>
+              {children}
           </SidebarInset>
       </SidebarProvider>
     </AuthGuard>

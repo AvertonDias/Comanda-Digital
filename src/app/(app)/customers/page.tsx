@@ -1,3 +1,4 @@
+import { AppHeader } from "@/components/layout/app-header";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -57,8 +58,8 @@ function AddCustomerForm() {
 
 export default function CustomersPage() {
   return (
-    <div className="flex flex-col h-screen">
-      <header className="flex h-16 shrink-0 items-center gap-4 border-b bg-background px-4 md:px-6">
+    <div className="flex flex-col h-screen bg-background">
+      <AppHeader>
         <SidebarTrigger className="md:hidden" />
         <div className="flex-1">
             <h1 className="text-xl font-semibold">Clientes</h1>
@@ -74,7 +75,7 @@ export default function CustomersPage() {
                 <AddCustomerForm />
             </DialogContent>
         </Dialog>
-      </header>
+      </AppHeader>
       <main className="flex-1 overflow-y-auto p-4 md:p-8">
         {/* Mobile View - Cards */}
         <div className="grid gap-4 md:hidden">
