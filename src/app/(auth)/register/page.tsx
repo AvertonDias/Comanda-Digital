@@ -4,8 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth, useUser } from '@/firebase';
+import { useAuth, useUser, useFirestore } from '@/firebase';
 import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { collection, doc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { UtensilsCrossed } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -23,10 +24,12 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   );
 
 export default function RegisterPage() {
+  const [restaurantName, setRestaurantName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const auth = useAuth();
+  const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
@@ -41,20 +44,50 @@ export default function RegisterPage() {
 
   const handleRegister = async (e: FormEvent) => {
     e.preventDefault();
+    if (!restaurantName) {
+        toast({
+            variant: "destructive",
+            title: "Erro de Validação",
+            description: "Por favor, informe o nome do restaurante.",
+        });
+        return;
+    }
     if (password !== confirmPassword) {
       toast({
         variant: "destructive",
-        title: "Erro",
+        title: "Erro de Validação",
         description: "As senhas não coincidem.",
       });
       return;
     }
     setIsSubmitting(true);
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      
+      const batch = writeBatch(firestore);
+      
+      const restaurantRef = doc(collection(firestore, "restaurants"));
+      batch.set(restaurantRef, {
+          name: restaurantName,
+          plan: 'basico',
+          status: 'ativo',
+          createdAt: serverTimestamp()
+      });
+      
+      const userRoleRef = doc(firestore, `users/${user.uid}/restaurantRoles/${restaurantRef.id}`);
+      batch.set(userRoleRef, {
+          userId: user.uid,
+          restaurantId: restaurantRef.id,
+          role: 'admin',
+          isActive: true
+      });
+      
+      await batch.commit();
+      
       toast({
-        title: 'Conta criada!',
-        description: 'Sua conta foi criada com sucesso. Faça o login para continuar.',
+        title: 'Conta e Restaurante criados!',
+        description: 'Sua conta e seu restaurante foram criados com sucesso. Faça o login para continuar.',
       });
       router.push('/login');
     } catch (error: any) {
@@ -78,9 +111,11 @@ export default function RegisterPage() {
   const handleGoogleSignIn = async () => {
     setIsSubmitting(true);
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      // The useEffect will handle the redirect on successful login/registration
+      toast({
+        variant: 'destructive',
+        title: 'Funcionalidade em desenvolvimento',
+        description: 'O cadastro com Google para criar um novo restaurante ainda não está completo. Por favor, use o e-mail e senha.',
+      });
     } catch (error: any) {
       console.error("Google Sign-In Error:", error);
       toast({
@@ -101,20 +136,32 @@ export default function RegisterPage() {
         <div className="inline-flex justify-center p-2">
             <UtensilsCrossed className="h-8 w-8 text-primary" />
         </div>
-        <CardTitle className="text-2xl font-bold">Crie sua conta</CardTitle>
+        <CardTitle className="text-2xl font-bold">Crie a conta do seu Restaurante</CardTitle>
         <CardDescription>
-          Preencha os campos abaixo para se cadastrar.
+          Comece a gerenciar seu negócio. O primeiro usuário será o administrador.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleRegister}>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="restaurantName">Nome do Restaurante</Label>
+              <Input 
+                id="restaurantName" 
+                type="text" 
+                placeholder="Ex: Pizzaria do Zé" 
+                required 
+                value={restaurantName}
+                onChange={(e) => setRestaurantName(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Seu Email (Admin)</Label>
               <Input 
                 id="email" 
                 type="email" 
-                placeholder="m@example.com" 
+                placeholder="admin@pizzaria.com" 
                 required 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -144,7 +191,7 @@ export default function RegisterPage() {
               />
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Cadastrando...' : 'Cadastrar'}
+              {isLoading ? 'Cadastrando...' : 'Criar Restaurante'}
             </Button>
           </div>
         </form>
@@ -155,7 +202,7 @@ export default function RegisterPage() {
             </div>
             <div className="relative flex justify-center text-xs uppercase">
                 <span className="bg-background px-2 text-muted-foreground">
-                Ou continue com
+                Ou
                 </span>
             </div>
         </div>
@@ -175,5 +222,3 @@ export default function RegisterPage() {
     </Card>
   );
 }
-
-    
