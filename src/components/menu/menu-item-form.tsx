@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useActionState } from 'react';
+import { useEffect } from 'react';
+import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -62,44 +63,44 @@ export function MenuItemForm() {
   return (
     <form action={formAction}>
       <div className="grid gap-4 py-4">
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="dishName" className="text-right">
+        <div className="grid grid-cols-1 md:grid-cols-4 items-center gap-4">
+          <Label htmlFor="dishName" className="md:text-right">
             Nome
           </Label>
-          <Input id="dishName" name="dishName" className="col-span-3" />
+          <Input id="dishName" name="dishName" className="md:col-span-3" />
         </div>
 
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="ingredients" className="text-right">
+        <div className="grid grid-cols-1 md:grid-cols-4 items-center gap-4">
+          <Label htmlFor="ingredients" className="md:text-right">
             Ingredientes
           </Label>
-          <div className="col-span-3">
+          <div className="md:col-span-3">
             <Input id="ingredients" name="ingredients" placeholder="Separe por vírgulas: queijo, presunto, etc." />
           </div>
         </div>
 
-        <div className="grid grid-cols-4 items-start gap-4">
-            <Label htmlFor="description" className="text-right pt-2">
+        <div className="grid grid-cols-1 md:grid-cols-4 items-start gap-4">
+            <Label htmlFor="description" className="md:text-right md:pt-2">
                 Descrição
             </Label>
-            <div className="col-span-3 space-y-2">
+            <div className="md:col-span-3 space-y-2">
                 <Textarea id="description" name="description" className="min-h-[100px]" />
                 <GenerateButton />
             </div>
         </div>
 
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="price" className="text-right">
+        <div className="grid grid-cols-1 md:grid-cols-4 items-center gap-4">
+          <Label htmlFor="price" className="md:text-right">
             Preço
           </Label>
-          <Input id="price" name="price" type="number" step="0.01" className="col-span-3" />
+          <Input id="price" name="price" type="number" step="0.01" className="md:col-span-3" />
         </div>
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="category" className="text-right">
+        <div className="grid grid-cols-1 md:grid-cols-4 items-center gap-4">
+          <Label htmlFor="category" className="md:text-right">
             Categoria
           </Label>
           <Select name="category">
-            <SelectTrigger className="col-span-3">
+            <SelectTrigger className="md:col-span-3">
               <SelectValue placeholder="Selecione uma categoria" />
             </SelectTrigger>
             <SelectContent>
@@ -109,12 +110,12 @@ export function MenuItemForm() {
             </SelectContent>
           </Select>
         </div>
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="sector" className="text-right">
+        <div className="grid grid-cols-1 md:grid-cols-4 items-center gap-4">
+          <Label htmlFor="sector" className="md:text-right">
             Setor Impressão
           </Label>
           <Select name="sector">
-            <SelectTrigger className="col-span-3">
+            <SelectTrigger className="md:col-span-3">
               <SelectValue placeholder="Selecione um setor" />
             </SelectTrigger>
             <SelectContent>
