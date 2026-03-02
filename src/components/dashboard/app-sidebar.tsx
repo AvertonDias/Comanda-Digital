@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useAuth, useUser } from "@/firebase";
 import { signOut } from "firebase/auth";
+import Link from "next/link";
 
 const menuItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -60,13 +61,14 @@ export function AppSidebar() {
                     {menuItems.map((item) => (
                          <SidebarMenuItem key={item.href}>
                              <SidebarMenuButton
-                                 href={item.href}
                                  asChild
                                  isActive={isActive(item.href)}
                                  tooltip={{ children: item.label, side: "right" }}
                              >
-                                 <item.icon />
-                                 <span>{item.label}</span>
+                                 <Link href={item.href}>
+                                    <item.icon />
+                                    <span>{item.label}</span>
+                                 </Link>
                              </SidebarMenuButton>
                          </SidebarMenuItem>
                     ))}
