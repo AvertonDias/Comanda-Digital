@@ -8,11 +8,11 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 
 const STATUS_CONFIG: Record<OrderStatus, { title: string; color: string }> = {
-    'Aberto': { title: 'Abertos', color: 'bg-blue-500' },
-    'Preparando': { title: 'Em Preparação', color: 'bg-yellow-500' },
-    'Pronto': { title: 'Prontos para Entrega', color: 'bg-green-500' },
-    'Finalizado': { title: 'Finalizados', color: 'bg-gray-500' },
-    'Cancelado': { title: 'Cancelados', color: 'bg-red-500' },
+    'aberto': { title: 'Abertos', color: 'bg-blue-500' },
+    'preparando': { title: 'Em Preparação', color: 'bg-yellow-500' },
+    'pronto': { title: 'Prontos para Entrega', color: 'bg-green-500' },
+    'finalizado': { title: 'Finalizados', color: 'bg-gray-500' },
+    'cancelado': { title: 'Cancelados', color: 'bg-red-500' },
 };
 
 const OrderCard = ({ order }: { order: Order }) => {
@@ -24,13 +24,13 @@ const OrderCard = ({ order }: { order: Order }) => {
                     <span className="text-sm font-normal text-muted-foreground">#{order.id.slice(-4)}</span>
                 </CardTitle>
                 <CardDescription>
-                    {formatDistanceToNow(order.createdAt, { addSuffix: true, locale: ptBR })}
+                    {formatDistanceToNow(new Date(order.createdAt), { addSuffix: true, locale: ptBR })}
                 </CardDescription>
             </CardHeader>
             <CardContent>
                 <ul className="space-y-1 text-sm">
                     {order.items.map(item => (
-                        <li key={item.menuItemId} className="flex justify-between">
+                        <li key={item.id} className="flex justify-between">
                             <span>{item.quantity}x {item.name}</span>
                         </li>
                     ))}
@@ -69,7 +69,7 @@ const KanbanColumn = ({ title, orders, status, color }: { title: string, orders:
 }
 
 export function OrderKanbanBoard() {
-  const statusesToShow: OrderStatus[] = ['Aberto', 'Preparando', 'Pronto'];
+  const statusesToShow: OrderStatus[] = ['aberto', 'preparando', 'pronto'];
   
   return (
     <div className="flex space-x-4 h-full">
@@ -85,3 +85,5 @@ export function OrderKanbanBoard() {
     </div>
   );
 }
+
+    

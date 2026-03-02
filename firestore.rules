@@ -1,239 +1,114 @@
 /**
- * Core Philosophy: This ruleset implements a multi-tenant, role-based access control (RBAC) model.
- * All data is scoped to a specific restaurant, and a user's access to that data is determined by
- * their assigned role for that particular restaurant.
+ * Filosofia: Este conjunto de regras implementa um modelo de controle de acesso baseado em papéis (RBAC) para um sistema multi-restaurante.
+ * O acesso a qualquer dado de um restaurante é determinado pelo papel do usuário naquele restaurante específico.
  *
- * Data Structure: The primary data is organized under /restaurants/{restaurantId}, creating a secure
- * sandbox for each restaurant's information (menus, orders, tables, etc.). User permissions are managed
- * in a separate collection, /users/{userId}/restaurantRoles/{restaurantId}, which maps a user's
- * auth UID to their role within a specific restaurant. This structure allows for efficient and
- * secure role lookups.
+ * Estrutura de Dados: Os dados são organizados sob /restaurants/{restaurantId}, criando um ambiente seguro para cada restaurante.
+ * As permissões de usuário são gerenciadas em /users/{userId}/restaurantRoles/{restaurantId}, que mapeia um UID de autenticação
+ * a um papel dentro de um restaurante, permitindo uma verificação de permissão eficiente e segura.
  *
- * Key Security Decisions: Access to any resource under /restaurants/{restaurantId} requires a get()
- * call to the user's corresponding role document to verify their permissions. Reads of public-facing data
- * like menu items are allowed for any user, while write operations are strictly limited to authorized
- * restaurant staff. This provides a balance between public accessibility for customers and secure
- * management for staff. Restaurant creation is assumed to be handled by a trusted backend process.
- *
- * Denormalization for Authorization: The rules heavily rely on two denormalization patterns. First, the
- * `restaurantId` is included in the path of all restaurant-specific data, making security checks fast
- * and avoiding extra reads on parent documents. Second, the dedicated /users/{userId}/restaurantRoles
- * collection denormalizes user permissions, allowing for a single, performant `get()` to authorize
- * access to an entire restaurant's data tree.
+ * Decisões de Segurança: O acesso a qualquer recurso de um restaurante requer uma chamada get() ao documento de papel do usuário
+ * para verificar suas permissões. Leituras de dados públicos (cardápio) são permitidas para qualquer usuário, enquanto
+ * operações de escrita são estritamente limitadas a administradores ou funcionários autorizados do restaurante.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- Helper Functions ---
+    // --- Funções Auxiliares ---
 
-    /**
-     * Checks if a user is authenticated.
-     */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /**
-     * Checks if the authenticated user's UID matches the provided userId.
-     */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /**
-     * Retrieves the user's role document for a specific restaurant.
-     * Returns the role data object or null if not found.
-     */
     function getRestaurantRoleData(restaurantId) {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)/restaurantRoles/$(restaurantId)).data;
     }
 
-    /**
-     * Checks if the user is an active staff member (any role) for a given restaurant.
-     */
     function isRestaurantStaff(restaurantId) {
       let roleData = getRestaurantRoleData(restaurantId);
       return isSignedIn() && roleData != null && roleData.isActive == true;
     }
 
-    /**
-     * Checks if the user is an active 'Admin' for a given restaurant.
-     */
     function isRestaurantAdmin(restaurantId) {
       let roleData = getRestaurantRoleData(restaurantId);
-      return isRestaurantStaff(restaurantId) && roleData.role == 'Admin';
+      return isRestaurantStaff(restaurantId) && roleData.role == 'admin';
     }
-
-    /**
-     * Validates that new data is correctly linked to its parent restaurant via path.
-     * This is an authorization-critical check to prevent data misplacement.
-     */
+    
     function isNewDataLinkedToRestaurant(restaurantId) {
       return request.resource.data.restaurantId == restaurantId;
     }
-
-    /**
-     * Validates that a new OrderItem is correctly linked to its parent order via path.
-     */
-    function isNewOrderItemLinkedToOrder(orderId) {
-      return request.resource.data.orderId == orderId;
-    }
-
-    /**
-     * Enforces that the restaurantId link on a document is immutable.
-     */
+    
     function isRestaurantIdImmutable() {
       return request.resource.data.restaurantId == resource.data.restaurantId;
     }
 
-    /**
-     * Enforces that the orderId link on an OrderItem document is immutable.
-     */
-    function isOrderIdImmutable() {
-      return request.resource.data.orderId == resource.data.orderId;
-    }
+    // --- Regras por Coleção ---
 
-
-    /**
-     * @description Rules for restaurant profile documents.
-     * @path /restaurants/{restaurantId}
-     * @allow (get) An authenticated staff member of 'restaurant-abc' reads their own restaurant's profile.
-     * @deny (update) A user with a 'Waiter' role tries to update the restaurant's name.
-     * @principle Enforces RBAC; only Admins can modify core restaurant details.
-     */
     match /restaurants/{restaurantId} {
-      allow get, list: if isRestaurantStaff(restaurantId);
-      allow create: if false;
-      allow update, delete: if isRestaurantAdmin(restaurantId) && resource != null;
+      allow get: if isRestaurantStaff(restaurantId);
+      allow create: if false; // Deve ser criado por um processo confiável
+      allow update, delete: if isRestaurantAdmin(restaurantId);
     }
 
-    /**
-     * @description Manages user roles within specific restaurants.
-     * @path /users/{userId}/restaurantRoles/{restaurantId}
-     * @allow (get) A user ('user-123') reads their own role document at /users/user-123/restaurantRoles/restaurant-abc.
-     * @allow (create) An Admin for 'restaurant-abc' creates a new 'Waiter' role for another user in that restaurant.
-     * @deny (create) A user tries to assign themselves an 'Admin' role.
-     * @principle Combines ownership for reads with role-based admin controls for writes, securing role management.
-     */
     match /users/{userId}/restaurantRoles/{restaurantId} {
       allow get: if isOwner(userId) || isRestaurantAdmin(restaurantId);
       allow list: if isOwner(userId);
-      allow create: if isRestaurantAdmin(restaurantId) && request.resource.data.id == userId && request.resource.data.restaurantId == restaurantId;
-      allow update: if isRestaurantAdmin(restaurantId) && resource != null && request.resource.data.id == resource.data.id && request.resource.data.restaurantId == resource.data.restaurantId;
-      allow delete: if isRestaurantAdmin(restaurantId) && resource != null;
+      // Apenas admins podem criar/gerenciar papéis para seu restaurante
+      allow create, update, delete: if isRestaurantAdmin(restaurantId)
+                                      && request.resource.data.restaurantId == restaurantId;
     }
 
-    /**
-     * @description Publicly readable menu categories. Only staff can manage them.
-     * @path /restaurants/{restaurantId}/menuItemCategories/{menuItemCategoryId}
-     * @allow (get) Any user, including unauthenticated ones, can read a menu category.
-     * @deny (create) An unauthenticated user tries to add a new category.
-     * @principle Implements a "Public Read, Restricted Write" pattern for public-facing data.
-     */
-    match /restaurants/{restaurantId}/menuItemCategories/{menuItemCategoryId} {
+    // O cardápio é público para leitura, mas apenas funcionários podem editar
+    match /restaurants/{restaurantId}/menuItemCategories/{categoryId} {
       allow get, list: if true;
-      allow create: if isRestaurantStaff(restaurantId) && isNewDataLinkedToRestaurant(restaurantId);
-      allow update: if isRestaurantStaff(restaurantId) && resource != null && isRestaurantIdImmutable();
-      allow delete: if isRestaurantStaff(restaurantId) && resource != null;
+      allow create, update, delete: if isRestaurantStaff(restaurantId);
     }
 
-    /**
-     * @description Publicly readable menu items. Only staff can manage them.
-     * @path /restaurants/{restaurantId}/menuItems/{menuItemId}
-     * @allow (list) Any user, including unauthenticated ones, can list all menu items for a restaurant.
-     * @deny (update) A staff member from 'restaurant-xyz' tries to change the price of an item in 'restaurant-abc'.
-     * @principle Implements a "Public Read, Restricted Write" pattern and validates relational integrity on writes.
-     */
-    match /restaurants/{restaurantId}/menuItems/{menuItemId} {
+    match /restaurants/{restaurantId}/menuItems/{itemId} {
       allow get, list: if true;
-      allow create: if isRestaurantStaff(restaurantId) && isNewDataLinkedToRestaurant(restaurantId);
-      allow update: if isRestaurantStaff(restaurantId) && resource != null && isRestaurantIdImmutable();
-      allow delete: if isRestaurantStaff(restaurantId) && resource != null;
+      allow create, update, delete: if isRestaurantStaff(restaurantId);
     }
-
-    /**
-     * @description Internal print sector data. Accessible only by staff.
-     * @path /restaurants/{restaurantId}/printSectors/{printSectorId}
-     * @allow (get) A 'Waiter' from 'restaurant-abc' reads the 'Kitchen' print sector document.
-     * @deny (get) Any user not associated with 'restaurant-abc' tries to read its print sectors.
-     * @principle Enforces strict RBAC for internal operational data.
-     */
-    match /restaurants/{restaurantId}/printSectors/{printSectorId} {
+    
+    // Setores e Impressoras são dados de configuração interna
+    match /restaurants/{restaurantId}/printSectors/{sectorId} {
       allow get, list: if isRestaurantStaff(restaurantId);
-      allow create: if isRestaurantStaff(restaurantId) && isNewDataLinkedToRestaurant(restaurantId);
-      allow update: if isRestaurantStaff(restaurantId) && resource != null && isRestaurantIdImmutable();
-      allow delete: if isRestaurantStaff(restaurantId) && resource != null;
+      allow create, update, delete: if isRestaurantAdmin(restaurantId);
     }
 
-    /**
-     * @description Internal printer configurations. Accessible only by staff.
-     * @path /restaurants/{restaurantId}/printers/{printerId}
-     * @allow (create) An 'Admin' from 'restaurant-abc' adds a new printer configuration.
-     * @deny (list) A customer or anonymous user tries to list the restaurant's printers.
-     * @principle Enforces strict RBAC for internal operational data.
-     */
     match /restaurants/{restaurantId}/printers/{printerId} {
       allow get, list: if isRestaurantStaff(restaurantId);
-      allow create: if isRestaurantStaff(restaurantId) && isNewDataLinkedToRestaurant(restaurantId);
-      allow update: if isRestaurantStaff(restaurantId) && resource != null && isRestaurantIdImmutable();
-      allow delete: if isRestaurantStaff(restaurantId) && resource != null;
+      allow create, update, delete: if isRestaurantAdmin(restaurantId);
     }
 
-    /**
-     * @description Restaurant table information. Accessible only by staff.
-     * @path /restaurants/{restaurantId}/tables/{tableId}
-     * @allow (update) A 'Waiter' updates the status of a table from 'Free' to 'Occupied'.
-     * @deny (get) A staff member from another restaurant tries to read table data.
-     * @principle Enforces strict RBAC for internal operational data.
-     */
+    // Mesas são gerenciadas por funcionários
     match /restaurants/{restaurantId}/tables/{tableId} {
       allow get, list: if isRestaurantStaff(restaurantId);
-      allow create: if isRestaurantStaff(restaurantId) && isNewDataLinkedToRestaurant(restaurantId);
-      allow update: if isRestaurantStaff(restaurantId) && resource != null && isRestaurantIdImmutable();
-      allow delete: if isRestaurantStaff(restaurantId) && resource != null;
+      allow create, update, delete: if isRestaurantStaff(restaurantId);
     }
 
-    /**
-     * @description Customer information. Accessible only by staff.
-     * @path /restaurants/{restaurantId}/customers/{customerId}
-     * @allow (list) A staff member lists all customers for their restaurant.
-     * @deny (create) An anonymous user tries to create a customer profile.
-     * @principle Enforces strict RBAC for sensitive customer data.
-     */
+    // Clientes são gerenciados por funcionários
     match /restaurants/{restaurantId}/customers/{customerId} {
       allow get, list: if isRestaurantStaff(restaurantId);
-      allow create: if isRestaurantStaff(restaurantId) && isNewDataLinkedToRestaurant(restaurantId);
-      allow update: if isRestaurantStaff(restaurantId) && resource != null && isRestaurantIdImmutable();
-      allow delete: if isRestaurantStaff(restaurantId) && resource != null;
+      allow create, update, delete: if isRestaurantStaff(restaurantId);
     }
 
-    /**
-     * @description Customer orders. Accessible only by staff.
-     * @path /restaurants/{restaurantId}/orders/{orderId}
-     * @allow (get, list, create, update, delete) A staff member performs any operation on an order for their restaurant.
-     * @deny (get) Any user not associated with the restaurant tries to read an order.
-     * @principle Enforces strict RBAC for core transactional data.
-     */
+    // Pedidos são o coração do sistema, gerenciados por funcionários
     match /restaurants/{restaurantId}/orders/{orderId} {
-      allow get, list: if isRestaurantStaff(restaurantId);
-      allow create: if isRestaurantStaff(restaurantId) && isNewDataLinkedToRestaurant(restaurantId);
-      allow update: if isRestaurantStaff(restaurantId) && resource != null && isRestaurantIdImmutable();
-      allow delete: if isRestaurantStaff(restaurantId) && resource != null;
+      allow get, list, create, update: if isRestaurantStaff(restaurantId);
+      // Apenas admins podem deletar pedidos (ou deve ser cancelado?)
+      allow delete: if isRestaurantAdmin(restaurantId);
 
-      /**
-       * @description Items within an order. Access is inherited from the parent order's restaurant.
-       * @path /restaurants/{restaurantId}/orders/{orderId}/orderItems/{orderItemId}
-       * @allow (create) A staff member adds a new item to an existing order.
-       * @deny (update) A staff member tries to move an order item to a different order by changing its `orderId`.
-       * @principle Secures nested documents based on the parent's context and ensures relational integrity.
-       */
-      match /orderItems/{orderItemId} {
-        allow get, list: if isRestaurantStaff(restaurantId);
-        allow create: if isRestaurantStaff(restaurantId) && isNewOrderItemLinkedToOrder(orderId);
-        allow update: if isRestaurantStaff(restaurantId) && resource != null && isOrderIdImmutable();
-        allow delete: if isRestaurantStaff(restaurantId) && resource != null;
+      // Itens de um pedido
+      match /items/{orderItemId} {
+        allow get, list, create, update: if isRestaurantStaff(restaurantId);
+        allow delete: if isRestaurantAdmin(restaurantId);
       }
     }
   }
 }
+
+    

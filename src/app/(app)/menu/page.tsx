@@ -1,14 +1,12 @@
 import { Button } from '@/components/ui/button';
 import { PlusCircle } from 'lucide-react';
-import { DUMMY_MENU_ITEMS } from '@/lib/placeholder-data';
-import type { MenuItemCategory } from '@/lib/types';
+import { DUMMY_MENU_ITEMS, DUMMY_CATEGORIES } from '@/lib/placeholder-data';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MenuItemCard } from '@/components/menu/menu-item-card';
 import { MenuItemForm } from '@/components/menu/menu-item-form';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 
-const categories: MenuItemCategory[] = ['Lanches', 'Pizzas', 'Saladas', 'Sobremesas', 'Bebidas'];
 
 export default function MenuPage() {
   return (
@@ -34,18 +32,18 @@ export default function MenuPage() {
         </div>
       </header>
       <main className="flex-1 overflow-y-auto p-4 md:p-6">
-        <Tabs defaultValue="Lanches" className="w-full">
+        <Tabs defaultValue={DUMMY_CATEGORIES[0].id} className="w-full">
           <TabsList>
-            {categories.map((category) => (
-              <TabsTrigger key={category} value={category}>
-                {category}
+            {DUMMY_CATEGORIES.map((category) => (
+              <TabsTrigger key={category.id} value={category.id}>
+                {category.name}
               </TabsTrigger>
             ))}
           </TabsList>
-          {categories.map((category) => (
-            <TabsContent key={category} value={category}>
+          {DUMMY_CATEGORIES.map((category) => (
+            <TabsContent key={category.id} value={category.id}>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {DUMMY_MENU_ITEMS.filter((item) => item.category === category).map((item) => (
+                {DUMMY_MENU_ITEMS.filter((item) => item.categoryId === category.id).map((item) => (
                   <MenuItemCard key={item.id} item={item} />
                 ))}
               </div>
@@ -56,3 +54,5 @@ export default function MenuPage() {
     </div>
   );
 }
+
+    

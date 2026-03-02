@@ -7,14 +7,22 @@ type TableCardProps = {
     table: Table;
 };
 
+const statusConfig = {
+    'livre': { text: 'Livre', variant: 'default', className: 'bg-green-500 hover:bg-green-600' },
+    'ocupada': { text: 'Ocupada', variant: 'destructive', className: '' },
+    'fechando': { text: 'Fechando', variant: 'secondary', className: 'bg-yellow-500 hover:bg-yellow-600 text-white' },
+} as const;
+
+
 export function TableCard({ table }: TableCardProps) {
-    const isOccupied = table.status === 'Ocupada';
+    const config = statusConfig[table.status];
+
     return (
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-lg font-medium">{table.name}</CardTitle>
-                <Badge variant={isOccupied ? 'destructive' : 'default'} className={!isOccupied ? 'bg-green-500' : ''}>
-                    {table.status}
+                <Badge variant={config.variant} className={config.className}>
+                    {config.text}
                 </Badge>
             </CardHeader>
             <CardContent className="flex justify-between items-center">
@@ -24,3 +32,5 @@ export function TableCard({ table }: TableCardProps) {
         </Card>
     );
 }
+
+    

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sparkles } from 'lucide-react';
 import { generateDescriptionAction } from '@/app/actions/menu';
 import { useToast } from '@/hooks/use-toast';
+import { DUMMY_CATEGORIES, DUMMY_PRINT_SECTORS } from '@/lib/placeholder-data';
 
 const initialState = {
   message: '',
@@ -102,11 +103,9 @@ export function MenuItemForm() {
               <SelectValue placeholder="Selecione uma categoria" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Lanches">Lanches</SelectItem>
-              <SelectItem value="Pizzas">Pizzas</SelectItem>
-              <SelectItem value="Saladas">Saladas</SelectItem>
-              <SelectItem value="Sobremesas">Sobremesas</SelectItem>
-              <SelectItem value="Bebidas">Bebidas</SelectItem>
+              {DUMMY_CATEGORIES.map(category => (
+                <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -119,9 +118,9 @@ export function MenuItemForm() {
               <SelectValue placeholder="Selecione um setor" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Cozinha">Cozinha</SelectItem>
-              <SelectItem value="Bar">Bar</SelectItem>
-              <SelectItem value="Sobremesa">Sobremesa</SelectItem>
+              {DUMMY_PRINT_SECTORS.map(sector => (
+                <SelectItem key={sector.id} value={sector.id}>{sector.name}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -132,3 +131,5 @@ export function MenuItemForm() {
     </form>
   );
 }
+
+    
