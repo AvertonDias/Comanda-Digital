@@ -45,10 +45,10 @@ export default function Home() {
               <div className="flex flex-col justify-center space-y-4">
                 <div className="space-y-2">
                   <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none font-headline">
-                    Modernize seu restaurante com a Comanda Digital
+                    Comanda Mobile: Anote pedidos no celular e envie para a cozinha
                   </h1>
                   <p className="max-w-[600px] text-muted-foreground md:text-xl">
-                    Otimize seus pedidos, agilize o atendimento e ofereça uma experiência incrível para seus clientes. Tudo em um só lugar.
+                    Agilize o atendimento, reduza erros e impressione seus clientes com uma solução moderna e fácil de usar. Perfeito para garçons e atendentes.
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
