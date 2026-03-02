@@ -1,3 +1,17 @@
+
+export type UserProfile = {
+  name: string;
+  email: string;
+  avatarUrl?: string;
+};
+
+export type RestaurantUserRole = {
+    userId: string;
+    restaurantId: string;
+    role: 'admin' | 'waiter';
+    isActive: boolean;
+};
+
 export type RestaurantUser = {
   id: string; // Corresponds to Firebase Auth UID
   restaurantId: string;

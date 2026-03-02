@@ -101,9 +101,9 @@ export default function RegisterPage() {
       
       toast({
         title: 'Conta e Restaurante criados!',
-        description: 'Seu restaurante foi criado com sucesso. Faça o login para continuar.',
+        description: 'Você será redirecionado para o painel.',
       });
-      router.push('/login');
+      router.push('/dashboard');
     } catch (error: any) {
         console.error("Registration Error:", error);
         let description = 'Ocorreu um erro ao criar sua conta.';

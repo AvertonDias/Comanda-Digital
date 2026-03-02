@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
 import { collection, doc, query, where, updateDoc, collectionGroup } from "firebase/firestore";
-import type { RestaurantUser, Printer, MenuItemCategory, PrintSector } from "@/lib/types";
+import type { UserProfile, RestaurantUserRole, Printer, MenuItemCategory, PrintSector } from "@/lib/types";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -33,7 +33,7 @@ function useUserRestaurant() {
         return query(collection(firestore, `users/${user.uid}/restaurantRoles`));
     }, [user, firestore]);
 
-    const { data: roles, isLoading: areRolesLoading } = useCollection<{ restaurantId: string; role: 'admin' | 'waiter' }>(rolesQuery);
+    const { data: roles, isLoading: areRolesLoading } = useCollection<RestaurantUserRole>(rolesQuery);
 
     const restaurantInfo = useMemo(() => {
         if (!roles || roles.length === 0) return null;
@@ -125,11 +125,11 @@ function ProfileTab({ restaurantId }: { restaurantId: string }) {
 
 // ============== USERS TAB ==============
 
-function UserRow({ userRole }: { userRole: RestaurantUser }) {
+function UserRow({ userRole }: { userRole: RestaurantUserRole & { id: string } }) {
     const firestore = useFirestore();
     const { toast } = useToast();
     const userProfileRef = useMemoFirebase(() => doc(firestore, 'users', userRole.userId), [firestore, userRole.userId]);
-    const { data: userProfile, isLoading: isLoadingProfile } = useDoc(userProfileRef);
+    const { data: userProfile, isLoading: isLoadingProfile } = useDoc<UserProfile>(userProfileRef);
 
     const handleStatusChange = async (isActive: boolean) => {
         const userRoleRef = doc(firestore, `users/${userRole.userId}/restaurantRoles/${userRole.restaurantId}`);
@@ -141,37 +141,36 @@ function UserRow({ userRole }: { userRole: RestaurantUser }) {
             toast({ variant: "destructive", title: "Erro ao atualizar status." });
         }
     };
-
-    const combinedUser = {
-        ...userRole,
-        name: userProfile?.name || 'Carregando...',
-        email: userProfile?.email || '',
-        avatarUrl: userProfile?.avatarUrl,
-    };
-
-    const fallback = combinedUser.name ? combinedUser.name.charAt(0).toUpperCase() : 'U';
+    
+    const name = userProfile?.name || 'Carregando...';
+    const email = userProfile?.email || '...';
+    const avatarUrl = userProfile?.avatarUrl;
+    const fallback = name ? name.charAt(0).toUpperCase() : 'U';
 
     if (isLoadingProfile) {
         return (
-            <TableRow>
-                <TableCell colSpan={4}><Skeleton className="h-10 w-full" /></TableCell>
-            </TableRow>
+            <>
+                <Card className="md:hidden"><CardContent className="p-4"><Skeleton className="h-16 w-full" /></CardContent></Card>
+                <TableRow className="hidden md:table-row">
+                    <TableCell colSpan={4}><Skeleton className="h-10 w-full" /></TableCell>
+                </TableRow>
+            </>
         );
     }
     
     return (
         <>
             {/* Mobile Card */}
-            <Card key={combinedUser.id} className="md:hidden">
+            <Card className="md:hidden">
                 <CardHeader className="flex flex-row items-center justify-between p-4">
                     <div className="flex items-center gap-3">
                         <Avatar>
-                            <AvatarImage src={combinedUser.avatarUrl} />
+                            <AvatarImage src={avatarUrl} />
                             <AvatarFallback>{fallback}</AvatarFallback>
                         </Avatar>
                         <div>
-                            <p className="font-semibold">{combinedUser.name}</p>
-                            <p className="text-sm text-muted-foreground">{combinedUser.email}</p>
+                            <p className="font-semibold">{name}</p>
+                            <p className="text-sm text-muted-foreground">{email}</p>
                         </div>
                     </div>
                     <DropdownMenu>
@@ -185,34 +184,34 @@ function UserRow({ userRole }: { userRole: RestaurantUser }) {
                 <CardContent className="p-4 pt-0 space-y-2">
                     <div className="flex justify-between items-center text-sm">
                         <span className="text-muted-foreground">Função</span>
-                        <Badge variant={combinedUser.role === 'admin' ? 'default' : 'secondary'}>{combinedUser.role === 'admin' ? 'Admin' : 'Garçom'}</Badge>
+                        <Badge variant={userRole.role === 'admin' ? 'default' : 'secondary'}>{userRole.role === 'admin' ? 'Admin' : 'Garçom'}</Badge>
                     </div>
                     <div className="flex justify-between items-center text-sm">
                         <span className="text-muted-foreground">Status</span>
-                        <Switch id={`status-${combinedUser.id}`} checked={combinedUser.isActive} onCheckedChange={handleStatusChange} />
+                        <Switch id={`status-${userRole.userId}`} checked={userRole.isActive} onCheckedChange={handleStatusChange} />
                     </div>
                 </CardContent>
             </Card>
 
             {/* Desktop Row */}
-            <TableRow key={combinedUser.id} className="hidden md:table-row">
+            <TableRow className="hidden md:table-row">
                 <TableCell>
                     <div className="flex items-center gap-3">
                         <Avatar>
-                            <AvatarImage src={combinedUser.avatarUrl} />
+                            <AvatarImage src={avatarUrl} />
                             <AvatarFallback>{fallback}</AvatarFallback>
                         </Avatar>
                         <div>
-                            <p className="font-semibold">{combinedUser.name}</p>
-                            <p className="text-sm text-muted-foreground">{combinedUser.email}</p>
+                            <p className="font-semibold">{name}</p>
+                            <p className="text-sm text-muted-foreground">{email}</p>
                         </div>
                     </div>
                 </TableCell>
                 <TableCell>
-                    <Badge variant={combinedUser.role === 'admin' ? 'default' : 'secondary'}>{combinedUser.role === 'admin' ? 'Admin' : 'Garçom'}</Badge>
+                    <Badge variant={userRole.role === 'admin' ? 'default' : 'secondary'}>{userRole.role === 'admin' ? 'Admin' : 'Garçom'}</Badge>
                 </TableCell>
                 <TableCell className="text-center">
-                    <Switch id={`status-desktop-${combinedUser.id}`} checked={combinedUser.isActive} onCheckedChange={handleStatusChange} />
+                    <Switch id={`status-desktop-${userRole.userId}`} checked={userRole.isActive} onCheckedChange={handleStatusChange} />
                 </TableCell>
                 <TableCell className="text-right">
                     <DropdownMenu>
@@ -235,7 +234,7 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
         query(collectionGroup(firestore, 'restaurantRoles'), where('restaurantId', '==', restaurantId)), 
     [firestore, restaurantId]);
 
-    const { data: userRoles, isLoading } = useCollection<RestaurantUser>(usersQuery);
+    const { data: userRoles, isLoading } = useCollection<RestaurantUserRole>(usersQuery);
 
     return (
         <Card>
@@ -254,7 +253,7 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
                 
                 {/* Mobile View */}
                 <div className="grid gap-4 md:hidden">
-                    {userRoles?.map((role) => <UserRow key={role.id} userRole={{ ...role, userId: role.id.split('_')[0]}} />)}
+                    {userRoles?.map((role) => <UserRow key={role.userId} userRole={role} />)}
                 </div>
 
                 {/* Desktop View */}
@@ -269,7 +268,7 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                             {userRoles?.map((role) => <UserRow key={role.id} userRole={{ ...role, userId: role.id }} />)}
+                             {userRoles?.map((role) => <UserRow key={role.userId} userRole={role} />)}
                         </TableBody>
                     </Table>
                 </div>
