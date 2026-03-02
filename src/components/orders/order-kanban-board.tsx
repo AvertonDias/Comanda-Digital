@@ -89,7 +89,7 @@ export function OrderKanbanBoard() {
             ))}
         </TabsList>
         {statusesToShow.map(status => (
-            <TabsContent key={status} value={status} className="mt-4 flex-1">
+            <TabsContent key={status} value={status} className="mt-4 flex-1 min-h-0">
                  <ScrollArea className="h-full">
                     <div className="p-1">
                         <OrderList orders={DUMMY_ORDERS} status={status} />
