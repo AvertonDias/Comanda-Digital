@@ -121,7 +121,7 @@ export function MenuItemForm() {
             <SelectContent>
               <SelectItem value="Cozinha">Cozinha</SelectItem>
               <SelectItem value="Bar">Bar</SelectItem>
-              <SelectItem value: "Sobremesa">Sobremesa</SelectItem>
+              <SelectItem value="Sobremesa">Sobremesa</SelectItem>
             </SelectContent>
           </Select>
         </div>
