@@ -405,7 +405,8 @@
   "auth": {
     "providers": [
       "password",
-      "anonymous"
+      "anonymous",
+      "google.com"
     ]
   },
   "firestore": {
@@ -608,3 +609,4 @@
     "reasoning": "The Firestore structure for 'Comanda Digital' prioritizes Authorization Independence and Query-Aware Security Rules (QAPs) by consistently denormalizing `restaurantId` into collection paths and leveraging a dedicated structure for user roles. All restaurant-specific data is organized as subcollections under `/restaurants/{restaurantId}/`. This ensures that access rules for any restaurant-related document (e.g., menu items, tables, orders) can directly check the `restaurantId` from the document's path, eliminating the need for expensive `get()` operations on parent documents. For user authorization, a top-level collection `users/{userId}/restaurantRoles/{restaurantId}` is introduced. This path-based ownership for user roles allows Firestore security rules to efficiently retrieve a user's specific role for a given restaurant using `get(/users/$(request.auth.uid)/restaurantRoles/$(restaurantId)).data.role`, directly associating the authenticated user (`request.auth.uid`) with their permissions within a specific restaurant. This approach makes rules simple, atomic, and easy to debug. \n\nQAPs are supported because read operations for collections like `/restaurants/{restaurantId}/menuItems` can be secured by rules that ensure the `request.auth.uid` has an appropriate role in that `restaurantId` (for staff) or by allowing public read access if the request originates from a QR code scan for a particular `restaurantId` without requiring authentication. By segregating data based on `restaurantId` and explicit user roles, all documents within a given collection share a homogeneous security posture, making `list` operations inherently secure."
   }
 }
+    
