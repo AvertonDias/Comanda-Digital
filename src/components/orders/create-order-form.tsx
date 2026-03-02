@@ -5,7 +5,7 @@ import type { MenuItem, OrderItem, Table, Order } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Plus, Minus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -48,17 +48,20 @@ export function CreateOrderForm() {
     const total = orderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-[70vh]">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:h-[70vh]">
             {/* Left Column: Menu Selection */}
             <div className="flex flex-col">
                 <Tabs defaultValue={DUMMY_CATEGORIES[0].id} className="flex-1 flex flex-col">
-                    <TabsList className="w-full justify-start">
-                        {DUMMY_CATEGORIES.map(category => (
-                            <TabsTrigger key={category.id} value={category.id}>
-                                {category.name}
-                            </TabsTrigger>
-                        ))}
-                    </TabsList>
+                    <ScrollArea className="w-full whitespace-nowrap rounded-md">
+                        <TabsList className="flex w-max">
+                            {DUMMY_CATEGORIES.map(category => (
+                                <TabsTrigger key={category.id} value={category.id}>
+                                    {category.name}
+                                </TabsTrigger>
+                            ))}
+                        </TabsList>
+                         <ScrollBar orientation="horizontal" />
+                    </ScrollArea>
                     <ScrollArea className="flex-1 mt-4">
                         {DUMMY_CATEGORIES.map(category => (
                             <TabsContent key={category.id} value={category.id}>
