@@ -1,4 +1,4 @@
-import type { MenuItem, Order, Table, RestaurantUser, MenuItemCategory, PrintSector } from '@/lib/types';
+import type { MenuItem, Order, Table, RestaurantUser, MenuItemCategory, PrintSector, Customer } from '@/lib/types';
 import { PlaceHolderImages } from './placeholder-images';
 
 const getImage = (id: string) => {
@@ -171,4 +171,29 @@ export const DUMMY_TABLES: Table[] = [
     { id: 'table-8', name: 'Balcão 02', status: 'livre', restaurantId: 'rest-1', qrCodeUrl: '' },
 ];
 
-    
+export const DUMMY_CUSTOMERS: Customer[] = [
+  {
+    id: 'cust-1',
+    restaurantId: 'rest-1',
+    name: 'João Silva',
+    phone: '(11) 98765-4321',
+    totalOrders: 5,
+    createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
+  },
+  {
+    id: 'cust-2',
+    restaurantId: 'rest-1',
+    name: 'Maria Oliveira',
+    phone: '(21) 91234-5678',
+    totalOrders: 2,
+    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), // 10 days ago
+  },
+    {
+    id: 'cust-3',
+    restaurantId: 'rest-1',
+    name: 'Carlos Pereira',
+    phone: '(31) 95555-8888',
+    totalOrders: 12,
+    createdAt: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000), // 180 days ago
+  },
+];
