@@ -6,7 +6,7 @@ import {
     SidebarMenu,
     SidebarMenuItem,
     SidebarMenuButton,
-    SidebarMenuSeparator,
+    SidebarSeparator,
 } from "@/components/ui/sidebar"
 import { usePathname, useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -73,7 +73,7 @@ export function AppSidebar() {
                 </SidebarMenu>
             </SidebarContent>
             <SidebarFooter className="p-2">
-                <SidebarMenuSeparator />
+                <SidebarSeparator />
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton tooltip={{ children: 'Logout', side: 'right' }} onClick={handleLogout}>
