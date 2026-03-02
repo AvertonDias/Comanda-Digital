@@ -7,6 +7,7 @@ import {
     SidebarMenuItem,
     SidebarMenuButton,
     SidebarSeparator,
+    useSidebar,
 } from "@/components/ui/sidebar"
 import { usePathname, useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -39,12 +40,19 @@ export function AppSidebar() {
     const router = useRouter();
     const auth = useAuth();
     const { user } = useUser();
+    const { isMobile, setOpenMobile } = useSidebar();
 
     const isActive = (href: string) => pathname === href;
 
     const handleLogout = async () => {
         await signOut(auth);
         router.push('/login');
+    };
+
+    const handleLinkClick = () => {
+        if (isMobile) {
+            setOpenMobile(false);
+        }
     };
     
     const userName = user?.displayName || user?.email || DUMMY_USER.name;
@@ -65,7 +73,7 @@ export function AppSidebar() {
                                  isActive={isActive(item.href)}
                                  tooltip={{ children: item.label, side: "right" }}
                              >
-                                 <Link href={item.href}>
+                                 <Link href={item.href} onClick={handleLinkClick}>
                                     <item.icon />
                                     <span>{item.label}</span>
                                  </Link>
