@@ -1,3 +1,58 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "landing-hero",
+      "description": "A vibrant restaurant interior with happy customers.",
+      "imageUrl": "https://images.unsplash.com/photo-1560130934-590b85fc08e7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxyZXN0YXVyYW50JTIwaW50ZXJpb3J8ZW58MHx8fHwxNzcyMzQ1OTM0fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "restaurant interior"
+    },
+    {
+      "id": "cheeseburger",
+      "description": "A delicious cheeseburger with fries.",
+      "imageUrl": "https://images.unsplash.com/photo-1665145323730-2d1e5f77426c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxjaGVlc2VidXJnZXIlMjBmcmllc3xlbnwwfHx8fDE3NzI0MTAyMzB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "cheeseburger fries"
+    },
+    {
+      "id": "margherita-pizza",
+      "description": "A classic Margherita pizza on a wooden board.",
+      "imageUrl": "https://images.unsplash.com/photo-1513104890138-7c749659a591?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxtYXJnaGVyaXRhJTIwcGl6emF8ZW58MHx8fHwxNzcyMzU4MTQ2fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "margherita pizza"
+    },
+    {
+      "id": "caesar-salad",
+      "description": "A fresh Caesar salad in a white bowl.",
+      "imageUrl": "https://images.unsplash.com/photo-1546793665-c74683f339c1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxjYWVzYXIlMjBzYWxhZHxlbnwwfHx8fDE3NzI0MTAyMzB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "caesar salad"
+    },
+    {
+      "id": "chocolate-cake",
+      "description": "A slice of rich chocolate lava cake.",
+      "imageUrl": "https://images.unsplash.com/photo-1606890737304-57a1ca8a5b62?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxjaG9jb2xhdGUlMjBjYWtlfGVufDB8fHx8MTc3MjMwOTIwNXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "chocolate cake"
+    },
+    {
+      "id": "sushi-set",
+      "description": "A variety of sushi rolls on a platter.",
+      "imageUrl": "https://images.unsplash.com/photo-1763647756796-af9230245bf8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxzdXNoaSUyMHBsYXR0ZXJ8ZW58MHx8fHwxNzcyMzgwOTUwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "sushi platter"
+    },
+    {
+      "id": "spaghetti-carbonara",
+      "description": "A plate of classic spaghetti carbonara.",
+      "imageUrl": "https://images.unsplash.com/photo-1546549032-9571cd6b27df?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxzcGFnaGV0dGklMjBjYXJib25hcmF8ZW58MHx8fHwxNzcyNDEwMjMwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "spaghetti carbonara"
+    },
+    {
+      "id": "mojito-cocktail",
+      "description": "A refreshing mojito cocktail with mint and lime.",
+      "imageUrl": "https://images.unsplash.com/photo-1687852312238-de618850ca83?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxtb2ppdG8lMjBjb2NrdGFpbHxlbnwwfHx8fDE3NzI0MTAyMzB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "mojito cocktail"
+    },
+    {
+      "id": "cappuccino",
+      "description": "A cappuccino with latte art in a ceramic cup.",
+      "imageUrl": "https://images.unsplash.com/photo-1710173472469-9d28e977914c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxjYXBwdWNjaW5vJTIwYXJ0fGVufDB8fHx8MTc3MjQxMDIzMHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "cappuccino art"
+    }
+  ]
 }
