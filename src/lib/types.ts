@@ -20,6 +20,15 @@ export type PrintSector = {
   restaurantId: string;
 }
 
+export type Printer = {
+  id: string;
+  restaurantId: string;
+  name: string;
+  ipAddress: string;
+  printSectors: string[];
+  isActive: boolean;
+};
+
 export type MenuItem = {
   id: string;
   name: string;
@@ -78,5 +87,3 @@ export type Customer = {
   totalOrders: number;
   createdAt: any; // Firestore Timestamp
 };
-
-    

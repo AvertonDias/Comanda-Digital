@@ -1,4 +1,4 @@
-import type { MenuItem, Order, Table, RestaurantUser, MenuItemCategory, PrintSector, Customer } from '@/lib/types';
+import type { MenuItem, Order, Table, RestaurantUser, MenuItemCategory, PrintSector, Customer, Printer } from '@/lib/types';
 import { PlaceHolderImages } from './placeholder-images';
 
 const getImage = (id: string) => {
@@ -15,6 +15,63 @@ export const DUMMY_USER: Omit<RestaurantUser, 'id' | 'restaurantId' | 'isActive'
     avatarUrl: 'https://i.pravatar.cc/150?u=a042581f4e29026704d',
     role: 'admin',
 };
+
+export const DUMMY_USERS: RestaurantUser[] = [
+  {
+    id: 'user-1',
+    restaurantId: 'rest-1',
+    name: 'Ana Silva',
+    email: 'ana.silva@example.com',
+    role: 'admin',
+    avatarUrl: 'https://i.pravatar.cc/150?u=a042581f4e29026704c',
+    isActive: true,
+  },
+  {
+    id: 'user-2',
+    restaurantId: 'rest-1',
+    name: 'Bruno Costa',
+    email: 'bruno.costa@example.com',
+    role: 'waiter',
+    avatarUrl: 'https://i.pravatar.cc/150?u=a042581f4e29026704d',
+    isActive: true,
+  },
+  {
+    id: 'user-3',
+    restaurantId: 'rest-1',
+    name: 'Carla Dias',
+    email: 'carla.dias@example.com',
+    role: 'waiter',
+    avatarUrl: 'https://i.pravatar.cc/150?u=a042581f4e29026704e',
+    isActive: false,
+  },
+];
+
+export const DUMMY_PRINTERS: Printer[] = [
+  {
+    id: 'printer-1',
+    restaurantId: 'rest-1',
+    name: 'Impressora Cozinha',
+    ipAddress: '192.168.1.100',
+    printSectors: ['sector-1', 'sector-3'], // Cozinha, Sobremesa
+    isActive: true,
+  },
+  {
+    id: 'printer-2',
+    restaurantId: 'rest-1',
+    name: 'Impressora Bar',
+    ipAddress: '192.168.1.101',
+    printSectors: ['sector-2'], // Bar
+    isActive: true,
+  },
+    {
+    id: 'printer-3',
+    restaurantId: 'rest-1',
+    name: 'Impressora Balcão',
+    ipAddress: '192.168.1.102',
+    printSectors: [],
+    isActive: false,
+  },
+];
 
 export const DUMMY_PRINT_SECTORS: PrintSector[] = [
   { id: 'sector-1', name: 'Cozinha', restaurantId: 'rest-1'},
