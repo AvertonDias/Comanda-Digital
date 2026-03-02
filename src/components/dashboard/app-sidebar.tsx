@@ -8,7 +8,7 @@ import {
     SidebarMenuButton,
     SidebarMenuSeparator,
 } from "@/components/ui/sidebar"
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DUMMY_USER } from "@/lib/placeholder-data";
 import { Logo } from "../common/logo";
@@ -21,6 +21,8 @@ import {
     Settings,
     LogOut
 } from "lucide-react";
+import { useAuth, useUser } from "@/firebase";
+import { signOut } from "firebase/auth";
 
 const menuItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -33,7 +35,20 @@ const menuItems = [
 
 export function AppSidebar() {
     const pathname = usePathname();
+    const router = useRouter();
+    const auth = useAuth();
+    const { user } = useUser();
+
     const isActive = (href: string) => pathname === href;
+
+    const handleLogout = async () => {
+        await signOut(auth);
+        router.push('/login');
+    };
+    
+    const userName = user?.displayName || user?.email || DUMMY_USER.name;
+    const userAvatar = user?.photoURL || DUMMY_USER.avatarUrl;
+    const userFallback = (user?.displayName || user?.email || 'U').charAt(0).toUpperCase();
 
     return (
         <>
@@ -61,7 +76,7 @@ export function AppSidebar() {
                 <SidebarMenuSeparator />
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton tooltip={{ children: 'Logout', side: 'right' }}>
+                        <SidebarMenuButton tooltip={{ children: 'Logout', side: 'right' }} onClick={handleLogout}>
                             <LogOut />
                             <span>Logout</span>
                         </SidebarMenuButton>
@@ -69,10 +84,10 @@ export function AppSidebar() {
                     <SidebarMenuItem>
                         <SidebarMenuButton>
                             <Avatar className="size-6">
-                                <AvatarImage src={DUMMY_USER.avatarUrl} alt={DUMMY_USER.name} />
-                                <AvatarFallback>{DUMMY_USER.name.charAt(0)}</AvatarFallback>
+                                <AvatarImage src={userAvatar} alt={userName} />
+                                <AvatarFallback>{userFallback}</AvatarFallback>
                             </Avatar>
-                            <span className="truncate">{DUMMY_USER.name}</span>
+                            <span className="truncate">{userName}</span>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>

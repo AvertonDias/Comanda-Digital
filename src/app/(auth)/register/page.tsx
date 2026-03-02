@@ -4,55 +4,57 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth, useUser } from '@/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { useAuth } from '@/firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { UtensilsCrossed } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, FormEvent } from 'react';
+import { useState, FormEvent } from 'react';
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const auth = useAuth();
-  const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
   
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    if (!isUserLoading && user) {
-      router.push('/dashboard');
-    }
-  }, [user, isUserLoading, router]);
-
-  const handleLogin = async (e: FormEvent) => {
+  const handleRegister = async (e: FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    if (!email || !password) {
+    if (password !== confirmPassword) {
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Por favor, preencha todos os campos.",
+        description: "As senhas não coincidem.",
       });
-      setIsSubmitting(false);
       return;
     }
+    setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (error: any) {
-      console.error("Login Error:", error);
+      await createUserWithEmailAndPassword(auth, email, password);
       toast({
-        variant: 'destructive',
-        title: 'Erro de login',
-        description: 'Credenciais inválidas. Por favor, tente novamente.',
+        title: 'Conta criada!',
+        description: 'Sua conta foi criada com sucesso. Faça o login para continuar.',
       });
-      setIsSubmitting(false);
+      router.push('/login');
+    } catch (error: any) {
+        console.error("Registration Error:", error);
+        let description = 'Ocorreu um erro ao criar sua conta.';
+        if (error.code === 'auth/email-already-in-use') {
+            description = 'Este e-mail já está em uso.';
+        } else if (error.code === 'auth/weak-password') {
+            description = 'A senha deve ter pelo menos 6 caracteres.';
+        }
+        toast({
+            variant: 'destructive',
+            title: 'Erro de cadastro',
+            description,
+        });
+        setIsLoading(false);
     }
   };
-
-  const isLoading = isSubmitting || isUserLoading;
 
   return (
     <Card className="mx-auto max-w-sm w-full">
@@ -60,13 +62,13 @@ export default function LoginPage() {
         <div className="inline-flex justify-center p-2">
             <UtensilsCrossed className="h-8 w-8 text-primary" />
         </div>
-        <CardTitle className="text-2xl font-bold">Bem-vindo de volta!</CardTitle>
+        <CardTitle className="text-2xl font-bold">Crie sua conta</CardTitle>
         <CardDescription>
-          Entre com seu e-mail e senha para acessar o painel.
+          Preencha os campos abaixo para se cadastrar.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleLogin}>
+        <form onSubmit={handleRegister}>
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -81,15 +83,7 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <div className="flex items-center">
-                <Label htmlFor="password">Senha</Label>
-                <Link
-                  href="#"
-                  className="ml-auto inline-block text-sm underline"
-                >
-                  Esqueceu sua senha?
-                </Link>
-              </div>
+              <Label htmlFor="password">Senha</Label>
               <Input 
                 id="password" 
                 type="password" 
@@ -99,15 +93,26 @@ export default function LoginPage() {
                 disabled={isLoading}
               />
             </div>
+             <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirmar Senha</Label>
+              <Input 
+                id="confirmPassword" 
+                type="password" 
+                required 
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Entrando...' : 'Login'}
+              {isLoading ? 'Cadastrando...' : 'Cadastrar'}
             </Button>
           </div>
         </form>
         <div className="mt-4 text-center text-sm">
-          Não tem uma conta?{' '}
-          <Link href="/register" className="underline">
-            Cadastre-se
+          Já tem uma conta?{' '}
+          <Link href="/login" className="underline">
+            Login
           </Link>
         </div>
       </CardContent>
