@@ -39,13 +39,11 @@ export default function RegisterPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    // Redireciona apenas se o usuário estiver logado E já tiver um restaurante
     if (!isUserLoading && !isResLoading && user && hasRestaurant) {
       router.push('/dashboard');
     }
   }, [user, isUserLoading, hasRestaurant, isResLoading, router]);
 
-  // Preenche o nome do usuário automaticamente se logar com Google
   useEffect(() => {
     if (user && !userName) {
       setUserName(user.displayName || '');
@@ -85,7 +83,6 @@ export default function RegisterPage() {
         return;
     }
 
-    // Se o usuário não está logado, valida a senha
     if (!user && password !== confirmPassword) {
       toast({
         variant: "destructive",
@@ -99,7 +96,6 @@ export default function RegisterPage() {
     try {
       let targetUser = user;
 
-      // Se não estiver logado, cria a conta primeiro
       if (!targetUser) {
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
           targetUser = userCredential.user;
@@ -108,7 +104,6 @@ export default function RegisterPage() {
       
       const batch = writeBatch(firestore);
       
-      // 1. Cria o Restaurante
       const restaurantRef = doc(collection(firestore, "restaurants"));
       const restaurantData = {
           name: restaurantName,
@@ -118,7 +113,6 @@ export default function RegisterPage() {
       };
       batch.set(restaurantRef, restaurantData);
 
-      // 2. Cria/Atualiza o Perfil do Usuário
       const userProfileRef = doc(firestore, `users/${targetUser.uid}`);
       const userProfileData = {
         name: userName,
@@ -127,7 +121,6 @@ export default function RegisterPage() {
       };
       batch.set(userProfileRef, userProfileData, { merge: true });
       
-      // 3. Vincula o usuário ao novo restaurante como admin
       const userRoleRef = doc(firestore, `users/${targetUser.uid}/restaurantRoles/${restaurantRef.id}`);
       const userRoleData = {
           userId: targetUser.uid,
@@ -159,8 +152,6 @@ export default function RegisterPage() {
             description = 'Este e-mail já está em uso.';
         } else if (error.code === 'auth/weak-password') {
             description = 'A senha deve ter pelo menos 6 caracteres.';
-        } else if (error.name === 'FirebaseError' && error.message.includes('permission')) {
-            description = 'Erro de permissão no banco de dados. Verificando...';
         }
         toast({
             variant: 'destructive',

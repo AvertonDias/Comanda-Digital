@@ -1,10 +1,6 @@
 /**
  * Filosofia: Este conjunto de regras implementa um modelo de controle de acesso baseado em papéis (RBAC) para um sistema multi-restaurante.
  * O acesso a qualquer dado de um restaurante é determinado pelo papel do usuário naquele restaurante específico.
- *
- * Estrutura de Dados: Os dados são organizados sob /restaurants/{restaurantId}, criando um ambiente seguro para cada restaurante.
- * As permissões de usuário são gerenciadas em /users/{userId}/restaurantRoles/{restaurantId}, que mapeia um UID de autenticação
- * a um papel dentro de um restaurante, permitindo uma verificação de permissão eficiente e segura.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -42,23 +38,22 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    match /restaurants/{restaurantId} {
-      allow get: if isRestaurantStaff(restaurantId);
-      // Permite criar se estiver logado
-      allow create: if isSignedIn();
+    // Regras para os papéis de restaurante
+    match /users/{userId}/restaurantRoles/{restaurantId} {
+      allow read: if isOwner(userId) || isRestaurantAdmin(restaurantId);
+      allow create: if (isOwner(userId) && !exists(/databases/$(database)/documents/restaurants/$(restaurantId)))
+                    || isRestaurantAdmin(restaurantId);
       allow update, delete: if isRestaurantAdmin(restaurantId);
     }
 
-    // Regra específica para permitir consultas collectionGroup em restaurantRoles
+    // Suporte para collectionGroup queries em restaurantRoles (usado no gerenciamento de equipe)
     match /{path=**}/restaurantRoles/{restaurantId} {
       allow list: if isSignedIn() && (isOwner(path.split('/')[1]) || isRestaurantAdmin(restaurantId));
-      allow get: if isSignedIn() && (isOwner(path.split('/')[1]) || isRestaurantAdmin(restaurantId));
-      
-      // Permite criar se for o dono do perfil E o restaurante ainda não existir (criação inicial)
-      // OU se já for um admin do restaurante gerenciando outros usuários
-      allow create: if (isOwner(path.split('/')[1]) && !exists(/databases/$(database)/documents/restaurants/$(restaurantId)))
-                    || isRestaurantAdmin(restaurantId);
-                    
+    }
+
+    match /restaurants/{restaurantId} {
+      allow get: if isRestaurantStaff(restaurantId);
+      allow create: if isSignedIn();
       allow update, delete: if isRestaurantAdmin(restaurantId);
     }
 
@@ -73,7 +68,6 @@ service cloud.firestore {
       allow create, update, delete: if isRestaurantStaff(restaurantId);
     }
     
-    // Setores e Impressoras são dados de configuração interna
     match /restaurants/{restaurantId}/printSectors/{sectorId} {
       allow get, list: if isRestaurantStaff(restaurantId);
       allow create, update, delete: if isRestaurantAdmin(restaurantId);
@@ -84,24 +78,20 @@ service cloud.firestore {
       allow create, update, delete: if isRestaurantAdmin(restaurantId);
     }
 
-    // Mesas são gerenciadas por funcionários
     match /restaurants/{restaurantId}/tables/{tableId} {
       allow get, list: if isRestaurantStaff(restaurantId);
       allow create, update, delete: if isRestaurantStaff(restaurantId);
     }
 
-    // Clientes são gerenciados por funcionários
     match /restaurants/{restaurantId}/customers/{customerId} {
       allow get, list: if isRestaurantStaff(restaurantId);
       allow create, update, delete: if isRestaurantStaff(restaurantId);
     }
 
-    // Pedidos são o coração do sistema, gerenciados por funcionários
     match /restaurants/{restaurantId}/orders/{orderId} {
       allow get, list, create, update: if isRestaurantStaff(restaurantId);
       allow delete: if isRestaurantAdmin(restaurantId);
 
-      // Itens de um pedido
       match /items/{orderItemId} {
         allow get, list, create, update: if isRestaurantStaff(restaurantId);
         allow delete: if isRestaurantAdmin(restaurantId);

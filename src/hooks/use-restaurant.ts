@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
@@ -22,10 +21,11 @@ export function useRestaurant() {
 
     const restaurantInfo = useMemo(() => {
         if (!roles || roles.length === 0) return null;
-        // Por simplificação, pegamos o primeiro restaurante vinculado
+        // Prioriza o restaurante onde o usuário é admin, se houver múltiplos
+        const activeRole = roles.find(r => r.role === 'admin' && r.isActive) || roles[0];
         return {
-            id: roles[0].restaurantId,
-            role: roles[0].role,
+            id: activeRole.restaurantId,
+            role: activeRole.role,
         };
     }, [roles]);
 

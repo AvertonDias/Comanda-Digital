@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MoreVertical } from "lucide-react";
+import { MoreVertical, Shield, User as UserIcon } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -24,7 +24,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRestaurant } from "@/hooks/use-restaurant";
 
-// ============== PROFILE TAB ==============
 const profileSchema = z.object({
     name: z.string().min(1, "O nome do restaurante é obrigatório."),
     phone: z.string().optional(),
@@ -89,7 +88,6 @@ function ProfileTab({ restaurantId }: { restaurantId: string }) {
     );
 }
 
-// ============== USERS TAB ==============
 function UserRow({ userRole }: { userRole: RestaurantUserRole }) {
     const firestore = useFirestore();
     const { toast } = useToast();
@@ -124,13 +122,36 @@ function UserRow({ userRole }: { userRole: RestaurantUserRole }) {
         <TableRow>
             <TableCell>
                 <div className="flex items-center gap-3">
-                    <Avatar><AvatarImage src={userProfile?.avatarUrl} /><AvatarFallback>{userProfile?.name?.charAt(0) || 'U'}</AvatarFallback></Avatar>
-                    <div><p className="font-semibold">{userProfile?.name || 'Usuário'}</p><p className="text-xs text-muted-foreground">{userProfile?.email}</p></div>
+                    <Avatar>
+                        <AvatarImage src={userProfile?.avatarUrl} />
+                        <AvatarFallback>{userProfile?.name?.charAt(0) || 'U'}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                        <p className="font-semibold">{userProfile?.name || 'Usuário'}</p>
+                        <p className="text-xs text-muted-foreground">{userProfile?.email}</p>
+                    </div>
                 </div>
             </TableCell>
-            <TableCell><Badge variant="outline">{userRole.role}</Badge></TableCell>
-            <TableCell className="text-center"><Switch checked={userRole.isActive} onCheckedChange={handleStatusChange} /></TableCell>
-            <TableCell className="text-right"><Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button></TableCell>
+            <TableCell>
+                <div className="flex items-center gap-1">
+                    {userRole.role === 'admin' ? <Shield className="h-3 w-3 text-primary" /> : <UserIcon className="h-3 w-3" />}
+                    <Badge variant="outline" className="capitalize">{userRole.role}</Badge>
+                </div>
+            </TableCell>
+            <TableCell className="text-center">
+                <Switch checked={userRole.isActive} onCheckedChange={handleStatusChange} />
+            </TableCell>
+            <TableCell className="text-right">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem>Editar Permissões</DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive">Remover Usuário</DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </TableCell>
         </TableRow>
     );
 }
@@ -145,11 +166,21 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
 
     return (
         <Card>
-            <CardHeader><CardTitle>Usuários</CardTitle></CardHeader>
+            <CardHeader>
+                <CardTitle>Gestão de Equipe</CardTitle>
+                <CardDescription>Gerencie quem tem acesso ao painel do seu restaurante.</CardDescription>
+            </CardHeader>
             <CardContent>
                 {isLoading ? <Skeleton className="h-32 w-full" /> : (
                     <Table>
-                        <TableHeader><TableRow><TableHead>Usuário</TableHead><TableHead>Função</TableHead><TableHead className="text-center">Status</TableHead><TableHead /></TableRow></TableHeader>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Usuário</TableHead>
+                                <TableHead>Função</TableHead>
+                                <TableHead className="text-center">Status Ativo</TableHead>
+                                <TableHead />
+                            </TableRow>
+                        </TableHeader>
                         <TableBody>
                             {userRoles?.map((role, i) => <UserRow key={i} userRole={role} />)}
                             {userRoles?.length === 0 && (
@@ -165,7 +196,6 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
     );
 }
 
-// ============== MAIN SETTINGS PAGE ==============
 export default function SettingsPage() {
     const { restaurantId, isLoading, hasRestaurant } = useRestaurant();
 
@@ -173,9 +203,12 @@ export default function SettingsPage() {
 
     if (!hasRestaurant) {
         return (
-            <div className="flex flex-col h-screen items-center justify-center p-8 text-center">
-                <p className="text-xl mb-4 text-muted-foreground">Você ainda não possui um restaurante vinculado.</p>
-                <Button asChild><a href="/register">Criar meu Restaurante</a></Button>
+            <div className="flex flex-col h-screen bg-background">
+                <AppHeader><SidebarTrigger className="md:hidden" /><h1 className="text-xl font-semibold">Configurações</h1></AppHeader>
+                <main className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+                    <p className="text-xl mb-4 text-muted-foreground">Você ainda não possui um restaurante vinculado.</p>
+                    <Button asChild><a href="/register">Criar meu Restaurante</a></Button>
+                </main>
             </div>
         )
     }
@@ -187,7 +220,7 @@ export default function SettingsPage() {
                 <Tabs defaultValue="profile" className="w-full">
                     <TabsList className="mb-4">
                         <TabsTrigger value="profile">Perfil</TabsTrigger>
-                        <TabsTrigger value="users">Usuários</TabsTrigger>
+                        <TabsTrigger value="users">Equipe</TabsTrigger>
                     </TabsList>
                     <TabsContent value="profile"><ProfileTab restaurantId={restaurantId!} /></TabsContent>
                     <TabsContent value="users"><UsersTab restaurantId={restaurantId!} /></TabsContent>
