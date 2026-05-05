@@ -23,12 +23,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { PlusCircle, Edit } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useRestaurant } from "@/hooks/use-restaurant";
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { collection, query, addDoc, serverTimestamp, orderBy } from "firebase/firestore";
 import type { Customer } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -50,24 +49,32 @@ export default function CustomersPage() {
 
   const { data: customers, isLoading: isCustLoading } = useCollection<Customer>(customersQuery);
 
-  const handleAddCustomer = async (e: React.FormEvent) => {
+  const handleAddCustomer = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName || !newPhone || !restaurantId) return;
-    try {
-        await addDoc(collection(firestore, `restaurants/${restaurantId}/customers`), {
-            name: newName,
-            phone: newPhone,
-            restaurantId,
-            totalOrders: 0,
-            createdAt: serverTimestamp()
-        });
-        toast({ title: "Cliente cadastrado!" });
-        setIsDialogOpen(false);
-        setNewName('');
-        setNewPhone('');
-    } catch (error) {
-        toast({ variant: "destructive", title: "Erro ao cadastrar cliente." });
-    }
+
+    const colRef = collection(firestore, `restaurants/${restaurantId}/customers`);
+    const data = {
+      name: newName,
+      phone: newPhone,
+      restaurantId,
+      totalOrders: 0,
+      createdAt: serverTimestamp()
+    };
+
+    addDoc(colRef, data).catch(async (error) => {
+      const permissionError = new FirestorePermissionError({
+        path: colRef.path,
+        operation: 'create',
+        requestResourceData: data,
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    });
+
+    toast({ title: "Cliente cadastrado!" });
+    setIsDialogOpen(false);
+    setNewName('');
+    setNewPhone('');
   };
 
   if (isRestLoading || isCustLoading) return <div className="p-8"><Skeleton className="h-screen w-full" /></div>;

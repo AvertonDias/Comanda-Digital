@@ -8,16 +8,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PlusCircle, MoreVertical } from "lucide-react";
+import { MoreVertical } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
+import { useFirestore, useCollection, useDoc, useMemoFirebase, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { collection, doc, query, where, updateDoc, collectionGroup } from "firebase/firestore";
-import type { UserProfile, RestaurantUserRole, Printer, MenuItemCategory, PrintSector } from "@/lib/types";
-import { useEffect, useMemo } from "react";
+import type { UserProfile, RestaurantUserRole } from "@/lib/types";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -51,14 +51,15 @@ function ProfileTab({ restaurantId }: { restaurantId: string }) {
         }
     }, [restaurantData, reset]);
 
-    const onSubmit = async (data: ProfileFormData) => {
-        try {
-            await updateDoc(restaurantRef, data);
-            toast({ title: "Sucesso!", description: "Perfil do restaurante atualizado." });
-        } catch (error) {
-            console.error(error);
-            toast({ variant: "destructive", title: "Erro!", description: "Não foi possível salvar as alterações." });
-        }
+    const onSubmit = (data: ProfileFormData) => {
+        updateDoc(restaurantRef, data).catch(async (error) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: restaurantRef.path,
+                operation: 'update',
+                requestResourceData: data
+            }));
+        });
+        toast({ title: "Sucesso!", description: "Perfil do restaurante atualizado." });
     };
 
     if (isLoading) return <Skeleton className="h-64 w-full" />;
@@ -96,15 +97,18 @@ function UserRow({ userRole }: { userRole: RestaurantUserRole }) {
     const userProfileRef = useMemoFirebase(() => doc(firestore, 'users', userRole.userId), [firestore, userRole.userId]);
     const { data: userProfile, isLoading } = useDoc<UserProfile>(userProfileRef);
 
-    const handleStatusChange = async (isActive: boolean) => {
+    const handleStatusChange = (isActive: boolean) => {
         const userRoleRef = doc(firestore, `users/${userRole.userId}/restaurantRoles/${userRole.restaurantId}`);
-        try {
-            await updateDoc(userRoleRef, { isActive });
-            toast({ title: "Status atualizado." });
-        } catch (error) {
-            console.error(error);
-            toast({ variant: "destructive", title: "Erro ao atualizar." });
-        }
+        const updateData = { isActive };
+        
+        updateDoc(userRoleRef, updateData).catch(async (error) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: userRoleRef.path,
+                operation: 'update',
+                requestResourceData: updateData
+            }));
+        });
+        toast({ title: "Status atualizado." });
     };
 
     if (isLoading) return <Skeleton className="h-16 w-full" />;

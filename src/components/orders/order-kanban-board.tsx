@@ -10,7 +10,7 @@ import { Badge } from '../ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '../ui/scroll-area';
 import { OrderDetailsModal } from './order-details-modal';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, query, doc, updateDoc, orderBy } from 'firebase/firestore';
 import { Skeleton } from '../ui/skeleton';
 
@@ -66,14 +66,18 @@ export function OrderKanbanBoard({ restaurantId }: { restaurantId: string }) {
 
   const { data: orders, isLoading } = useCollection<Order>(ordersQuery);
 
-  const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
-    try {
-        const orderRef = doc(firestore, `restaurants/${restaurantId}/orders/${orderId}`);
-        await updateDoc(orderRef, { status: newStatus });
-        setSelectedOrder(null);
-    } catch (error) {
-        console.error(error);
-    }
+  const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
+    const orderRef = doc(firestore, `restaurants/${restaurantId}/orders/${orderId}`);
+    const updateData = { status: newStatus };
+    
+    updateDoc(orderRef, updateData).catch(async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: orderRef.path,
+            operation: 'update',
+            requestResourceData: updateData
+        }));
+    });
+    setSelectedOrder(null);
   };
 
   const getOrdersCount = (status: OrderStatus) => {

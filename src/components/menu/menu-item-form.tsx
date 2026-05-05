@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sparkles } from 'lucide-react';
 import { generateDescriptionAction } from '@/app/actions/menu';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore } from '@/firebase';
+import { useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import type { MenuItem, MenuItemCategory } from '@/lib/types';
 import { useForm } from "react-hook-form";
@@ -78,32 +78,38 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
     }
   }
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    try {
-      const itemData = {
-        ...values,
-        restaurantId,
-        updatedAt: serverTimestamp(),
-        imageUrl: initialData?.imageUrl || `https://picsum.photos/seed/${values.name}/600/400`, // Placeholder
-        imageHint: initialData?.imageHint || "food plate",
-        printSectorId: initialData?.printSectorId || "default", // Ajustar conforme necessário
-      };
+  function onSubmit(values: z.infer<typeof formSchema>) {
+    const itemData = {
+      ...values,
+      restaurantId,
+      updatedAt: serverTimestamp(),
+      imageUrl: initialData?.imageUrl || `https://picsum.photos/seed/${values.name}/600/400`, 
+      imageHint: initialData?.imageHint || "food plate",
+      printSectorId: initialData?.printSectorId || "default", 
+    };
 
-      if (initialData) {
-        const docRef = doc(firestore, `restaurants/${restaurantId}/menuItems`, initialData.id);
-        await updateDoc(docRef, itemData);
-        toast({ title: "Item atualizado!", description: "O item foi salvo com sucesso." });
-      } else {
-        const colRef = collection(firestore, `restaurants/${restaurantId}/menuItems`);
-        await addDoc(colRef, { ...itemData, createdAt: serverTimestamp() });
-        toast({ title: "Item criado!", description: "O novo item foi adicionado ao cardápio." });
-      }
-      
-      onSuccess?.();
-    } catch (error) {
-      console.error(error);
-      toast({ variant: "destructive", title: "Erro ao salvar", description: "Não foi possível gravar no banco de dados." });
+    if (initialData) {
+      const docRef = doc(firestore, `restaurants/${restaurantId}/menuItems`, initialData.id);
+      updateDoc(docRef, itemData).catch(async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'update',
+          requestResourceData: itemData
+        }));
+      });
+      toast({ title: "Item atualizado!" });
+    } else {
+      const colRef = collection(firestore, `restaurants/${restaurantId}/menuItems`);
+      addDoc(colRef, { ...itemData, createdAt: serverTimestamp() }).catch(async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: colRef.path,
+          operation: 'create',
+          requestResourceData: itemData
+        }));
+      });
+      toast({ title: "Item criado!" });
     }
+    onSuccess?.();
   }
 
   return (

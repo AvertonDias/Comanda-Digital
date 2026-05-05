@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Plus, Minus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '../ui/label';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, query, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '../ui/skeleton';
@@ -48,36 +48,38 @@ export function CreateOrderForm({ restaurantId, onSuccess }: { restaurantId: str
 
     const total = orderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
-    const handleCreateOrder = async () => {
+    const handleCreateOrder = () => {
         if (orderItems.length === 0 || isSubmitting) return;
         setIsSubmitting(true);
-        try {
-            const selectedTable = tables?.find(t => t.id === tableId);
-            const orderData = {
-                restaurantId,
-                origin,
-                destination,
-                tableId: tableId || null,
-                tableName: selectedTable?.name || null,
-                status: 'aberto',
-                total,
-                createdAt: serverTimestamp(),
-                items: orderItems.map(item => ({
-                    menuItemId: item.menuItemId,
-                    name: item.name,
-                    quantity: item.quantity,
-                    priceAtOrder: item.price
-                }))
-            };
-            await addDoc(collection(firestore, `restaurants/${restaurantId}/orders`), orderData);
-            toast({ title: "Pedido criado!", description: "O pedido foi enviado para a cozinha." });
-            onSuccess();
-        } catch (error) {
-            console.error(error);
-            toast({ variant: "destructive", title: "Erro", description: "Não foi possível criar o pedido." });
-        } finally {
-            setIsSubmitting(false);
-        }
+        const selectedTable = tables?.find(t => t.id === tableId);
+        const orderData = {
+            restaurantId,
+            origin,
+            destination,
+            tableId: tableId || null,
+            tableName: selectedTable?.name || null,
+            status: 'aberto',
+            total,
+            createdAt: serverTimestamp(),
+            items: orderItems.map(item => ({
+                menuItemId: item.menuItemId,
+                name: item.name,
+                quantity: item.quantity,
+                priceAtOrder: item.price
+            }))
+        };
+        
+        const colRef = collection(firestore, `restaurants/${restaurantId}/orders`);
+        addDoc(colRef, orderData).catch(async (error) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: colRef.path,
+                operation: 'create',
+                requestResourceData: orderData
+            }));
+        });
+        
+        toast({ title: "Pedido enviado!" });
+        onSuccess();
     };
 
     if (isCatsLoading || isItemsLoading || isTablesLoading) return <Skeleton className="h-[70vh] w-full" />;

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { PlusCircle } from "lucide-react";
 import { useRestaurant } from "@/hooks/use-restaurant";
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { collection, query, addDoc, serverTimestamp } from "firebase/firestore";
 import type { Table } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,22 +25,27 @@ export default function TablesPage() {
 
     const { data: tables, isLoading: isTablesLoading } = useCollection<Table>(tablesQuery);
 
-    const handleAddTable = async () => {
+    const handleAddTable = () => {
         if (!restaurantId) return;
-        try {
-            const nextNumber = (tables?.length || 0) + 1;
-            const name = `Mesa ${nextNumber.toString().padStart(2, '0')}`;
-            await addDoc(collection(firestore, `restaurants/${restaurantId}/tables`), {
-                name,
-                status: 'livre',
-                restaurantId,
-                qrCodeUrl: '',
-                createdAt: serverTimestamp()
-            });
-            toast({ title: "Mesa adicionada!", description: `${name} foi criada.` });
-        } catch (error) {
-            toast({ variant: "destructive", title: "Erro", description: "Não foi possível criar a mesa." });
-        }
+        const nextNumber = (tables?.length || 0) + 1;
+        const name = `Mesa ${nextNumber.toString().padStart(2, '0')}`;
+        const colRef = collection(firestore, `restaurants/${restaurantId}/tables`);
+        const data = {
+            name,
+            status: 'livre',
+            restaurantId,
+            qrCodeUrl: '',
+            createdAt: serverTimestamp()
+        };
+
+        addDoc(colRef, data).catch(async (error) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: colRef.path,
+                operation: 'create',
+                requestResourceData: data
+            }));
+        });
+        toast({ title: "Mesa adicionada!", description: `${name} foi criada.` });
     };
 
     if (isLoading || isTablesLoading) return <div className="p-8"><Skeleton className="h-screen w-full" /></div>;
