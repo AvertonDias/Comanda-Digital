@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth, useUser, useFirestore } from '@/firebase';
+import { useAuth, useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { collection, doc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { UtensilsCrossed, Loader2 } from 'lucide-react';
@@ -81,31 +81,43 @@ export default function RegisterPage() {
       
       // 1. Cria o Restaurante
       const restaurantRef = doc(collection(firestore, "restaurants"));
-      batch.set(restaurantRef, {
+      const restaurantData = {
           name: restaurantName,
           plan: 'basico',
           status: 'ativo',
           createdAt: serverTimestamp()
-      });
+      };
+      batch.set(restaurantRef, restaurantData);
 
       // 2. Cria/Atualiza o Perfil do Usuário
       const userProfileRef = doc(firestore, `users/${targetUser.uid}`);
-      batch.set(userProfileRef, {
+      const userProfileData = {
         name: userName,
         email: targetUser.email,
         avatarUrl: targetUser.photoURL || ''
-      }, { merge: true });
+      };
+      batch.set(userProfileRef, userProfileData, { merge: true });
       
       // 3. Vincula o usuário ao novo restaurante como admin
       const userRoleRef = doc(firestore, `users/${targetUser.uid}/restaurantRoles/${restaurantRef.id}`);
-      batch.set(userRoleRef, {
+      const userRoleData = {
           userId: targetUser.uid,
           restaurantId: restaurantRef.id,
           role: 'admin',
           isActive: true
-      });
+      };
+      batch.set(userRoleRef, userRoleData);
       
-      await batch.commit();
+      await batch.commit().catch(async (error) => {
+          // Captura erros de permissão no commit do batch
+          const permissionError = new FirestorePermissionError({
+              path: restaurantRef.path,
+              operation: 'write',
+              requestResourceData: restaurantData
+          });
+          errorEmitter.emit('permission-error', permissionError);
+          throw error;
+      });
       
       toast({
         title: 'Sucesso!',
@@ -119,6 +131,8 @@ export default function RegisterPage() {
             description = 'Este e-mail já está em uso.';
         } else if (error.code === 'auth/weak-password') {
             description = 'A senha deve ter pelo menos 6 caracteres.';
+        } else if (error.name === 'FirebaseError' && error.message.includes('permission')) {
+            description = 'Erro de permissão no banco de dados. Verificando...';
         }
         toast({
             variant: 'destructive',

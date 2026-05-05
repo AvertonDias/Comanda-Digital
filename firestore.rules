@@ -5,10 +5,6 @@
  * Estrutura de Dados: Os dados são organizados sob /restaurants/{restaurantId}, criando um ambiente seguro para cada restaurante.
  * As permissões de usuário são gerenciadas em /users/{userId}/restaurantRoles/{restaurantId}, que mapeia um UID de autenticação
  * a um papel dentro de um restaurante, permitindo uma verificação de permissão eficiente e segura.
- *
- * Decisões de Segurança: O acesso a qualquer recurso de um restaurante requer uma chamada get() ao documento de papel do usuário
- * para verificar suas permissões. Leituras de dados públicos (cardápio) são permitidas para qualquer usuário, enquanto
- * operações de escrita são estritamente limitadas a administradores ou funcionários autorizados do restaurante.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -37,14 +33,6 @@ service cloud.firestore {
       let roleData = getRestaurantRoleData(restaurantId);
       return isRestaurantStaff(restaurantId) && roleData.role == 'admin';
     }
-    
-    function isNewDataLinkedToRestaurant(restaurantId) {
-      return request.resource.data.restaurantId == restaurantId;
-    }
-    
-    function isRestaurantIdImmutable() {
-      return request.resource.data.restaurantId == resource.data.restaurantId;
-    }
 
     // --- Regras por Coleção ---
 
@@ -56,16 +44,20 @@ service cloud.firestore {
 
     match /restaurants/{restaurantId} {
       allow get: if isRestaurantStaff(restaurantId);
-      allow create: if false; // Deve ser criado por um processo confiável
+      // Permite criar se estiver logado
+      allow create: if isSignedIn();
       allow update, delete: if isRestaurantAdmin(restaurantId);
     }
 
     match /users/{userId}/restaurantRoles/{restaurantId} {
-      allow get: if isOwner(userId) || isRestaurantAdmin(restaurantId);
-      allow list: if isOwner(userId) || isRestaurantAdmin(restaurantId); // Admins can list users of their restaurant
-      // Apenas admins podem criar/gerenciar papéis para seu restaurante
-      allow create, update, delete: if isRestaurantAdmin(restaurantId)
-                                      && request.resource.data.restaurantId == restaurantId;
+      allow get, list: if isOwner(userId) || isRestaurantAdmin(restaurantId);
+      
+      // Permite criar se for o dono do perfil E o restaurante ainda não existir (criação inicial)
+      // OU se já for um admin do restaurante gerenciando outros usuários
+      allow create: if (isOwner(userId) && !exists(/databases/$(database)/documents/restaurants/$(restaurantId)))
+                    || isRestaurantAdmin(restaurantId);
+                    
+      allow update, delete: if isRestaurantAdmin(restaurantId);
     }
 
     // O cardápio é público para leitura, mas apenas funcionários podem editar
@@ -105,7 +97,6 @@ service cloud.firestore {
     // Pedidos são o coração do sistema, gerenciados por funcionários
     match /restaurants/{restaurantId}/orders/{orderId} {
       allow get, list, create, update: if isRestaurantStaff(restaurantId);
-      // Apenas admins podem deletar pedidos (ou deve ser cancelado?)
       allow delete: if isRestaurantAdmin(restaurantId);
 
       // Itens de um pedido
