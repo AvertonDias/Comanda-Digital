@@ -1,3 +1,6 @@
+
+'use client';
+
 import { AppHeader } from "@/components/layout/app-header";
 import { OrderKanbanBoard } from "@/components/orders/order-kanban-board";
 import { CreateOrderForm } from "@/components/orders/create-order-form";
@@ -11,15 +14,35 @@ import {
 } from "@/components/ui/dialog";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { PlusCircle } from "lucide-react";
+import { useRestaurant } from "@/hooks/use-restaurant";
+import { useState } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function OrdersPage() {
+  const { restaurantId, isLoading } = useRestaurant();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col h-screen bg-background">
+        <AppHeader>
+          <SidebarTrigger className="md:hidden" />
+          <h1 className="text-xl font-semibold">Pedidos</h1>
+        </AppHeader>
+        <main className="flex-1 p-4 md:p-6">
+          <Skeleton className="h-full w-full" />
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-screen bg-background">
       <AppHeader>
         <SidebarTrigger className="md:hidden" />
         <h1 className="text-xl font-semibold">Pedidos</h1>
         <div className="ml-auto">
-          <Dialog>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button>
                 <PlusCircle className="mr-2 h-4 w-4" />
@@ -30,13 +53,16 @@ export default function OrdersPage() {
               <DialogHeader>
                 <DialogTitle>Criar Novo Pedido</DialogTitle>
               </DialogHeader>
-              <CreateOrderForm />
+              <CreateOrderForm 
+                restaurantId={restaurantId!} 
+                onSuccess={() => setIsDialogOpen(false)} 
+              />
             </DialogContent>
           </Dialog>
         </div>
       </AppHeader>
       <main className="flex-1 p-4 md:p-6 overflow-hidden">
-        <OrderKanbanBoard />
+        {restaurantId ? <OrderKanbanBoard restaurantId={restaurantId} /> : <p>Erro ao carregar restaurante.</p>}
       </main>
     </div>
   );

@@ -1,7 +1,6 @@
+
 'use client';
-import { useEffect } from 'react';
-import { useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,125 +9,194 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sparkles } from 'lucide-react';
 import { generateDescriptionAction } from '@/app/actions/menu';
 import { useToast } from '@/hooks/use-toast';
-import { DUMMY_CATEGORIES, DUMMY_PRINT_SECTORS } from '@/lib/placeholder-data';
+import { useFirestore } from '@/firebase';
+import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import type { MenuItem, MenuItemCategory } from '@/lib/types';
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
-const initialState = {
-  message: '',
-  description: '',
-  errors: {},
+const formSchema = z.object({
+  name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres."),
+  description: z.string().min(10, "A descrição deve ser mais detalhada."),
+  price: z.coerce.number().min(0.01, "Preço deve ser maior que zero."),
+  categoryId: z.string().min(1, "Selecione uma categoria."),
+  isAvailable: z.boolean().default(true),
+  ingredients: z.string().optional(),
+});
+
+type MenuItemFormProps = {
+  restaurantId: string;
+  categories: MenuItemCategory[];
+  onSuccess?: () => void;
+  initialData?: MenuItem;
 };
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending}>
-      {pending ? 'Salvando...' : 'Salvar Item'}
-    </Button>
-  );
-}
-
-function GenerateButton() {
-    const { pending } = useFormStatus();
-    return (
-        <Button type="submit" size="sm" variant="outline" disabled={pending} name="intent" value="generate">
-            <Sparkles className="mr-2 h-4 w-4" />
-            {pending ? 'Gerando...' : 'Gerar com IA'}
-        </Button>
-    )
-}
-
-export function MenuItemForm() {
-  const [state, formAction] = useActionState(generateDescriptionAction, initialState);
+export function MenuItemForm({ restaurantId, categories, onSuccess, initialData }: MenuItemFormProps) {
   const { toast } = useToast();
+  const firestore = useFirestore();
+  const [isGenerating, setIsGenerating] = useState(false);
 
-  useEffect(() => {
-    if (state.message === 'success' && state.description) {
-        const descriptionElement = document.getElementById('description') as HTMLTextAreaElement | null;
-        if(descriptionElement) {
-            descriptionElement.value = state.description;
-        }
-        toast({
-            title: "Descrição Gerada!",
-            description: "A descrição do prato foi gerada com sucesso.",
-        })
-    } else if (state.message && state.message !== 'success') {
-        toast({
-            variant: "destructive",
-            title: "Erro",
-            description: state.message,
-        })
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: initialData?.name || "",
+      description: initialData?.description || "",
+      price: initialData?.price || 0,
+      categoryId: initialData?.categoryId || "",
+      isAvailable: initialData?.isAvailable ?? true,
+      ingredients: "",
+    },
+  });
+
+  async function handleGenerateAI() {
+    const dishName = form.getValues('name');
+    const ingredients = form.getValues('ingredients');
+
+    if (!dishName) {
+      toast({ variant: "destructive", title: "Erro", description: "Digite o nome do prato primeiro." });
+      return;
     }
-  }, [state, toast]);
+
+    setIsGenerating(true);
+    try {
+      const formData = new FormData();
+      formData.append('dishName', dishName);
+      formData.append('ingredients', ingredients || dishName);
+      
+      const result = await generateDescriptionAction(null, formData);
+      if (result.message === 'success' && result.description) {
+        form.setValue('description', result.description);
+        toast({ title: "Descrição Gerada!", description: "AI criou uma descrição para você." });
+      }
+    } catch (error) {
+      console.error(error);
+      toast({ variant: "destructive", title: "Erro", description: "Falha ao gerar descrição com IA." });
+    } finally {
+      setIsGenerating(false);
+    }
+  }
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    try {
+      const itemData = {
+        ...values,
+        restaurantId,
+        updatedAt: serverTimestamp(),
+        imageUrl: initialData?.imageUrl || `https://picsum.photos/seed/${values.name}/600/400`, // Placeholder
+        imageHint: initialData?.imageHint || "food plate",
+        printSectorId: initialData?.printSectorId || "default", // Ajustar conforme necessário
+      };
+
+      if (initialData) {
+        const docRef = doc(firestore, `restaurants/${restaurantId}/menuItems`, initialData.id);
+        await updateDoc(docRef, itemData);
+        toast({ title: "Item atualizado!", description: "O item foi salvo com sucesso." });
+      } else {
+        const colRef = collection(firestore, `restaurants/${restaurantId}/menuItems`);
+        await addDoc(colRef, { ...itemData, createdAt: serverTimestamp() });
+        toast({ title: "Item criado!", description: "O novo item foi adicionado ao cardápio." });
+      }
+      
+      onSuccess?.();
+    } catch (error) {
+      console.error(error);
+      toast({ variant: "destructive", title: "Erro ao salvar", description: "Não foi possível gravar no banco de dados." });
+    }
+  }
 
   return (
-    <form action={formAction}>
-      <div className="grid gap-4 py-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 items-center gap-4">
-          <Label htmlFor="dishName" className="md:text-right">
-            Nome
-          </Label>
-          <Input id="dishName" name="dishName" className="md:col-span-3" />
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+        <FormField
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Nome do Prato</FormLabel>
+              <FormControl><Input placeholder="Ex: Hambúrguer Artesanal" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="price"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Preço (R$)</FormLabel>
+                <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="categoryId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Categoria</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {categories.map(cat => (
+                      <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 items-center gap-4">
-          <Label htmlFor="ingredients" className="md:text-right">
-            Ingredientes
-          </Label>
-          <div className="md:col-span-3">
-            <Input id="ingredients" name="ingredients" placeholder="Separe por vírgulas: queijo, presunto, etc." />
-          </div>
-        </div>
+        <FormField
+          control={form.control}
+          name="ingredients"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Ingredientes (para a IA)</FormLabel>
+              <FormControl><Input placeholder="Ex: pão brioche, carne 180g, cheddar..." {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-        <div className="grid grid-cols-1 md:grid-cols-4 items-start gap-4">
-            <Label htmlFor="description" className="md:text-right md:pt-2">
-                Descrição
-            </Label>
-            <div className="md:col-span-3 space-y-2">
-                <Textarea id="description" name="description" className="min-h-[100px]" />
-                <GenerateButton />
-            </div>
-        </div>
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <div className="flex justify-between items-center">
+                <FormLabel>Descrição</FormLabel>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleGenerateAI}
+                  disabled={isGenerating}
+                >
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Gerar com IA
+                </Button>
+              </div>
+              <FormControl><Textarea className="min-h-[100px]" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-        <div className="grid grid-cols-1 md:grid-cols-4 items-center gap-4">
-          <Label htmlFor="price" className="md:text-right">
-            Preço
-          </Label>
-          <Input id="price" name="price" type="number" step="0.01" className="md:col-span-3" />
+        <div className="flex justify-end gap-2">
+          <Button type="submit">{initialData ? "Atualizar Item" : "Criar Item"}</Button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 items-center gap-4">
-          <Label htmlFor="category" className="md:text-right">
-            Categoria
-          </Label>
-          <Select name="category">
-            <SelectTrigger className="md:col-span-3">
-              <SelectValue placeholder="Selecione uma categoria" />
-            </SelectTrigger>
-            <SelectContent>
-              {DUMMY_CATEGORIES.map(category => (
-                <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 items-center gap-4">
-          <Label htmlFor="sector" className="md:text-right">
-            Setor Impressão
-          </Label>
-          <Select name="sector">
-            <SelectTrigger className="md:col-span-3">
-              <SelectValue placeholder="Selecione um setor" />
-            </SelectTrigger>
-            <SelectContent>
-              {DUMMY_PRINT_SECTORS.map(sector => (
-                <SelectItem key={sector.id} value={sector.id}>{sector.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      <div className="flex justify-end">
-        <SubmitButton />
-      </div>
-    </form>
+      </form>
+    </Form>
   );
 }

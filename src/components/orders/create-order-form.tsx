@@ -1,7 +1,7 @@
+
 'use client';
 import { useState } from 'react';
-import { DUMMY_CATEGORIES, DUMMY_MENU_ITEMS, DUMMY_TABLES } from '@/lib/placeholder-data';
-import type { MenuItem, OrderItem, Table, Order } from '@/lib/types';
+import type { MenuItem, OrderItem, Table, Order, MenuItemCategory } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,177 +10,126 @@ import { Separator } from '@/components/ui/separator';
 import { Plus, Minus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '../ui/label';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, addDoc, serverTimestamp } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '../ui/skeleton';
 
-// Simplified OrderItem for local state
-type NewOrderItem = Omit<OrderItem, 'id' | 'priceAtOrder' | 'orderId' | 'printSectorId' | 'notes'> & { price: number };
+type NewOrderItem = Omit<OrderItem, 'id' | 'priceAtOrder' | 'orderId'> & { price: number };
 
-export function CreateOrderForm() {
+export function CreateOrderForm({ restaurantId, onSuccess }: { restaurantId: string, onSuccess: () => void }) {
+    const firestore = useFirestore();
+    const { toast } = useToast();
     const [origin, setOrigin] = useState<Order['origin']>('mesa');
     const [destination, setDestination] = useState<Order['destination']>('local');
     const [tableId, setTableId] = useState<string | undefined>(undefined);
     const [orderItems, setOrderItems] = useState<NewOrderItem[]>([]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const categoriesQuery = useMemoFirebase(() => query(collection(firestore, `restaurants/${restaurantId}/menuItemCategories`)), [restaurantId, firestore]);
+    const itemsQuery = useMemoFirebase(() => query(collection(firestore, `restaurants/${restaurantId}/menuItems`)), [restaurantId, firestore]);
+    const tablesQuery = useMemoFirebase(() => query(collection(firestore, `restaurants/${restaurantId}/tables`)), [restaurantId, firestore]);
+
+    const { data: categories, isLoading: isCatsLoading } = useCollection<MenuItemCategory>(categoriesQuery);
+    const { data: items, isLoading: isItemsLoading } = useCollection<MenuItem>(itemsQuery);
+    const { data: tables, isLoading: isTablesLoading } = useCollection<Table>(tablesQuery);
 
     const handleAddItem = (item: MenuItem) => {
-        setOrderItems(prevItems => {
-            const existingItem = prevItems.find(i => i.menuItemId === item.id);
-            if (existingItem) {
-                return prevItems.map(i =>
-                    i.menuItemId === item.id ? { ...i, quantity: i.quantity + 1 } : i
-                );
-            }
-            return [...prevItems, { menuItemId: item.id, name: item.name, quantity: 1, price: item.price }];
+        setOrderItems(prev => {
+            const existing = prev.find(i => i.menuItemId === item.id);
+            if (existing) return prev.map(i => i.menuItemId === item.id ? { ...i, quantity: i.quantity + 1 } : i);
+            return [...prev, { menuItemId: item.id, name: item.name, quantity: 1, price: item.price }];
         });
     };
 
-    const handleUpdateQuantity = (menuItemId: string, newQuantity: number) => {
-        if (newQuantity <= 0) {
-            // Remove item if quantity is 0 or less
-            setOrderItems(prevItems => prevItems.filter(i => i.menuItemId !== menuItemId));
-        } else {
-            setOrderItems(prevItems =>
-                prevItems.map(i =>
-                    i.menuItemId === menuItemId ? { ...i, quantity: newQuantity } : i
-                )
-            );
-        }
+    const handleUpdateQuantity = (id: string, delta: number) => {
+        setOrderItems(prev => prev.map(i => i.menuItemId === id ? { ...i, quantity: Math.max(0, i.quantity + delta) } : i).filter(i => i.quantity > 0));
     };
 
     const total = orderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
+    const handleCreateOrder = async () => {
+        if (orderItems.length === 0 || isSubmitting) return;
+        setIsSubmitting(true);
+        try {
+            const selectedTable = tables?.find(t => t.id === tableId);
+            const orderData = {
+                restaurantId,
+                origin,
+                destination,
+                tableId: tableId || null,
+                tableName: selectedTable?.name || null,
+                status: 'aberto',
+                total,
+                createdAt: serverTimestamp(),
+                items: orderItems.map(item => ({
+                    menuItemId: item.menuItemId,
+                    name: item.name,
+                    quantity: item.quantity,
+                    priceAtOrder: item.price
+                }))
+            };
+            await addDoc(collection(firestore, `restaurants/${restaurantId}/orders`), orderData);
+            toast({ title: "Pedido criado!", description: "O pedido foi enviado para a cozinha." });
+            onSuccess();
+        } catch (error) {
+            console.error(error);
+            toast({ variant: "destructive", title: "Erro", description: "Não foi possível criar o pedido." });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    if (isCatsLoading || isItemsLoading || isTablesLoading) return <Skeleton className="h-[70vh] w-full" />;
+
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:h-[70vh]">
-            {/* Left Column: Menu Selection */}
             <div className="flex flex-col">
-                <Tabs defaultValue={DUMMY_CATEGORIES[0].id} className="flex-1 flex flex-col">
-                    <ScrollArea className="w-full whitespace-nowrap rounded-md">
-                        <TabsList className="flex w-max">
-                            {DUMMY_CATEGORIES.map(category => (
-                                <TabsTrigger key={category.id} value={category.id}>
-                                    {category.name}
-                                </TabsTrigger>
-                            ))}
-                        </TabsList>
-                         <ScrollBar orientation="horizontal" />
-                    </ScrollArea>
+                <Tabs defaultValue={categories?.[0]?.id} className="flex-1 flex flex-col">
+                    <ScrollArea className="w-full whitespace-nowrap"><TabsList className="flex w-max">{categories?.map(c => <TabsTrigger key={c.id} value={c.id}>{c.name}</TabsTrigger>)}</TabsList><ScrollBar orientation="horizontal" /></ScrollArea>
                     <ScrollArea className="flex-1 mt-4">
-                        {DUMMY_CATEGORIES.map(category => (
-                            <TabsContent key={category.id} value={category.id}>
-                                <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
-                                    {DUMMY_MENU_ITEMS
-                                        .filter(item => item.categoryId === category.id && item.isAvailable)
-                                        .map(item => (
-                                            <Card key={item.id} className="flex flex-col">
-                                                <CardHeader className="p-3 flex-1">
-                                                    <CardTitle className="text-sm font-medium">{item.name}</CardTitle>
-                                                </CardHeader>
-                                                <CardContent className="p-3 pt-0 flex justify-between items-center">
-                                                    <span className="text-sm font-semibold">
-                                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price)}
-                                                    </span>
-                                                    <Button size="sm" onClick={() => handleAddItem(item)}>
-                                                        <Plus className="h-4 w-4" />
-                                                        Adicionar
-                                                    </Button>
-                                                </CardContent>
-                                            </Card>
-                                        ))}
-                                </div>
+                        {categories?.map(c => (
+                            <TabsContent key={c.id} value={c.id} className="grid grid-cols-2 gap-3">
+                                {items?.filter(i => i.categoryId === c.id && i.isAvailable).map(item => (
+                                    <Card key={item.id} className="flex flex-col p-3 gap-2">
+                                        <p className="text-sm font-medium leading-tight">{item.name}</p>
+                                        <div className="flex justify-between items-center mt-auto">
+                                            <span className="text-xs font-bold">R$ {item.price.toFixed(2)}</span>
+                                            <Button size="sm" variant="outline" onClick={() => handleAddItem(item)}><Plus className="h-4 w-4" /></Button>
+                                        </div>
+                                    </Card>
+                                ))}
                             </TabsContent>
                         ))}
                     </ScrollArea>
                 </Tabs>
             </div>
-
-            {/* Right Column: Order Summary */}
-            <div className="flex flex-col">
+            <div className="flex flex-col gap-4">
                 <Card className="flex-1 flex flex-col">
-                    <CardHeader>
-                        <CardTitle>Comanda</CardTitle>
-                    </CardHeader>
-                    <CardContent className="flex-1 flex flex-col gap-4">
-                        <div className="grid grid-cols-2 gap-4">
-                             <div>
-                                <Label>Origem</Label>
-                                <Select value={origin} onValueChange={(v) => setOrigin(v as Order['origin'])}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="mesa">Mesa</SelectItem>
-                                        <SelectItem value="balcao">Balcão</SelectItem>
-                                        <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                                        <SelectItem value="telefone">Telefone</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                             </div>
-                             <div>
-                                <Label>Destino</Label>
-                                <Select value={destination} onValueChange={(v) => setDestination(v as Order['destination'])}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="local">Local</SelectItem>
-                                        <SelectItem value="retirada">Retirada</SelectItem>
-                                        <SelectItem value="entrega">Entrega</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                             </div>
+                    <CardHeader className="py-4"><CardTitle className="text-lg">Comanda</CardTitle></CardHeader>
+                    <CardContent className="flex-1 flex flex-col gap-4 overflow-hidden">
+                        <div className="grid grid-cols-2 gap-2">
+                            <div><Label className="text-xs">Origem</Label><Select value={origin} onValueChange={v => setOrigin(v as any)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="mesa">Mesa</SelectItem><SelectItem value="balcao">Balcão</SelectItem></SelectContent></Select></div>
+                            <div><Label className="text-xs">Mesa</Label><Select value={tableId} onValueChange={setTableId} disabled={origin !== 'mesa'}><SelectTrigger><SelectValue placeholder="Mesa" /></SelectTrigger><SelectContent>{tables?.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent></Select></div>
                         </div>
-
-                        {origin === 'mesa' && (
-                            <div>
-                                <Label>Mesa</Label>
-                                <Select value={tableId} onValueChange={setTableId}>
-                                    <SelectTrigger><SelectValue placeholder="Selecione uma mesa" /></SelectTrigger>
-                                    <SelectContent>
-                                        {DUMMY_TABLES.filter(t => t.status === 'livre').map(table => (
-                                            <SelectItem key={table.id} value={table.id}>{table.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        )}
-                        
                         <Separator />
-
-                        <ScrollArea className="flex-1 -mx-6 px-6">
-                            {orderItems.length === 0 ? (
-                                <div className="flex items-center justify-center h-full">
-                                    <p className="text-center text-muted-foreground py-8">Nenhum item adicionado.</p>
+                        <ScrollArea className="flex-1">
+                            {orderItems.map(item => (
+                                <div key={item.menuItemId} className="flex justify-between items-center py-2">
+                                    <div className="text-sm"><p className="font-medium">{item.name}</p><p className="text-muted-foreground text-xs">R$ {item.price.toFixed(2)}</p></div>
+                                    <div className="flex items-center gap-2">
+                                        <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => handleUpdateQuantity(item.menuItemId, -1)}><Minus /></Button>
+                                        <span className="text-sm w-4 text-center">{item.quantity}</span>
+                                        <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => handleUpdateQuantity(item.menuItemId, 1)}><Plus /></Button>
+                                    </div>
                                 </div>
-                            ) : (
-                                <ul className="space-y-2">
-                                    {orderItems.map(item => (
-                                        <li key={item.menuItemId} className="flex items-center justify-between">
-                                            <div>
-                                                <p className="font-medium">{item.name}</p>
-                                                <p className="text-sm text-muted-foreground">
-                                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price)}
-                                                </p>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleUpdateQuantity(item.menuItemId, item.quantity - 1)}>
-                                                    <Minus className="h-4 w-4" />
-                                                </Button>
-                                                <span className="w-6 text-center font-medium">{item.quantity}</span>
-                                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleUpdateQuantity(item.menuItemId, item.quantity + 1)}>
-                                                    <Plus className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
+                            ))}
+                            {orderItems.length === 0 && <p className="text-center text-muted-foreground py-8 text-sm">Vazio</p>}
                         </ScrollArea>
-
-                        <div className="mt-auto pt-4 border-t">
-                            <div className="flex justify-between items-center font-bold text-lg">
-                                <span>Total</span>
-                                <span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total)}</span>
-                            </div>
-                        </div>
+                        <div className="pt-4 border-t flex justify-between font-bold"><span>Total</span><span>R$ {total.toFixed(2)}</span></div>
                     </CardContent>
                 </Card>
-                 <Button className="w-full mt-4" size="lg" disabled={orderItems.length === 0}>
-                    Criar Pedido
-                </Button>
+                <Button className="w-full" size="lg" disabled={orderItems.length === 0 || isSubmitting} onClick={handleCreateOrder}>{isSubmitting ? "Enviando..." : "Finalizar Pedido"}</Button>
             </div>
         </div>
     );
