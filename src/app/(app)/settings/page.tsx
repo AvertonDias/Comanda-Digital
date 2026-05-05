@@ -111,7 +111,15 @@ function UserRow({ userRole }: { userRole: RestaurantUserRole }) {
         toast({ title: "Status atualizado." });
     };
 
-    if (isLoading) return <Skeleton className="h-16 w-full" />;
+    if (isLoading) {
+      return (
+        <TableRow>
+          <TableCell colSpan={4}>
+            <Skeleton className="h-12 w-full" />
+          </TableCell>
+        </TableRow>
+      );
+    }
 
     return (
         <TableRow>
