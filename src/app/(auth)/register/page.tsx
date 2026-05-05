@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { collection, doc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { UtensilsCrossed, Loader2 } from 'lucide-react';
 import Link from 'next/link';
@@ -44,6 +44,34 @@ export default function RegisterPage() {
       router.push('/dashboard');
     }
   }, [user, isUserLoading, hasRestaurant, isResLoading, router]);
+
+  // Preenche o nome do usuário automaticamente se logar com Google
+  useEffect(() => {
+    if (user && !userName) {
+      setUserName(user.displayName || '');
+    }
+  }, [user, userName]);
+
+  const handleGoogleSignIn = async () => {
+    setIsSubmitting(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      toast({
+        title: "Autenticado com Google",
+        description: "Agora, complete os dados do seu restaurante abaixo.",
+      });
+    } catch (error: any) {
+      console.error("Google Sign-In Error:", error);
+      toast({
+        variant: 'destructive',
+        title: 'Erro de login com Google',
+        description: 'Não foi possível autenticar com o Google.',
+      });
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
 
   const handleRegister = async (e: FormEvent) => {
     e.preventDefault();
@@ -109,7 +137,6 @@ export default function RegisterPage() {
       batch.set(userRoleRef, userRoleData);
       
       await batch.commit().catch(async (error) => {
-          // Captura erros de permissão no commit do batch
           const permissionError = new FirestorePermissionError({
               path: restaurantRef.path,
               operation: 'write',
@@ -154,7 +181,7 @@ export default function RegisterPage() {
         </div>
         <CardTitle className="text-2xl font-bold">Configurar seu Restaurante</CardTitle>
         <CardDescription>
-          {user ? 'Preencha os dados do seu novo estabelecimento.' : 'Comece a gerenciar seu negócio agora mesmo.'}
+          {user ? 'Complete os dados do seu novo estabelecimento.' : 'Comece a gerenciar seu negócio agora mesmo.'}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -243,7 +270,7 @@ export default function RegisterPage() {
                 </div>
             </div>
 
-            <Button variant="outline" className="w-full" disabled={isLoading}>
+            <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading}>
                 <GoogleIcon className="mr-2 h-4 w-4" />
                 Cadastrar com Google
             </Button>
