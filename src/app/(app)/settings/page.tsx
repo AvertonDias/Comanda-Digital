@@ -7,16 +7,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MoreVertical, Shield, User as UserIcon } from "lucide-react";
+import { MoreVertical, Shield, User as UserIcon, Printer as PrinterIcon, LayoutGrid, PlusCircle } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useFirestore, useCollection, useDoc, useMemoFirebase, errorEmitter, FirestorePermissionError } from "@/firebase";
-import { collection, doc, query, where, updateDoc, collectionGroup } from "firebase/firestore";
-import type { UserProfile, RestaurantUserRole } from "@/lib/types";
-import { useEffect } from "react";
+import { collection, doc, query, where, updateDoc, collectionGroup, addDoc, serverTimestamp } from "firebase/firestore";
+import type { UserProfile, RestaurantUserRole, PrintSector, Printer } from "@/lib/types";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -109,13 +109,11 @@ function UserRow({ userRole }: { userRole: RestaurantUserRole }) {
     };
 
     if (isLoading) {
-      return (
-        <TableRow>
-          <TableCell colSpan={4}>
-            <Skeleton className="h-12 w-full" />
-          </TableCell>
-        </TableRow>
-      );
+        return (
+            <TableRow>
+                <TableCell colSpan={4}><Skeleton className="h-12 w-full" /></TableCell>
+            </TableRow>
+        );
     }
 
     return (
@@ -182,7 +180,7 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {userRoles?.map((role, i) => <UserRow key={i} userRole={role} />)}
+                            {userRoles?.map((role) => <UserRow key={`${role.userId}-${role.restaurantId}`} userRole={role} />)}
                             {userRoles?.length === 0 && (
                                 <TableRow>
                                     <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Nenhum usuário encontrado.</TableCell>
@@ -193,6 +191,82 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
                 )}
             </CardContent>
         </Card>
+    );
+}
+
+function PrintingTab({ restaurantId }: { restaurantId: string }) {
+    const firestore = useFirestore();
+    const { toast } = useToast();
+    const [newSector, setNewSector] = useState('');
+    
+    const sectorsQuery = useMemoFirebase(() => query(collection(firestore, `restaurants/${restaurantId}/printSectors`)), [firestore, restaurantId]);
+    const printersQuery = useMemoFirebase(() => query(collection(firestore, `restaurants/${restaurantId}/printers`)), [firestore, restaurantId]);
+    
+    const { data: sectors, isLoading: isSectorsLoading } = useCollection<PrintSector>(sectorsQuery);
+    const { data: printers, isLoading: isPrintersLoading } = useCollection<Printer>(printersQuery);
+
+    const handleAddSector = () => {
+        if (!newSector) return;
+        const colRef = collection(firestore, `restaurants/${restaurantId}/printSectors`);
+        addDoc(colRef, { name: newSector, restaurantId }).catch(async (error) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: colRef.path, operation: 'create' }));
+        });
+        setNewSector('');
+        toast({ title: "Setor adicionado." });
+    };
+
+    return (
+        <div className="space-y-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Setores de Impressão</CardTitle>
+                    <CardDescription>Crie setores para direcionar pedidos (ex: Cozinha, Bar).</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex gap-2">
+                        <Input placeholder="Nome do Setor" value={newSector} onChange={e => setNewSector(e.target.value)} />
+                        <Button onClick={handleAddSector}><PlusCircle className="mr-2 h-4 w-4" /> Adicionar</Button>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        {sectors?.map(s => (
+                            <Badge key={s.id} variant="secondary" className="px-3 py-1 flex justify-between gap-2">
+                                {s.name}
+                            </Badge>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Impressoras</CardTitle>
+                    <CardDescription>Gerencie as impressoras físicas da sua rede.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Nome</TableHead>
+                                <TableHead>IP</TableHead>
+                                <TableHead>Status</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {printers?.map(p => (
+                                <TableRow key={p.id}>
+                                    <TableCell className="font-medium">{p.name}</TableCell>
+                                    <TableCell>{p.ipAddress}</TableCell>
+                                    <TableCell><Badge variant={p.isActive ? "default" : "outline"}>{p.isActive ? "Online" : "Offline"}</Badge></TableCell>
+                                </TableRow>
+                            ))}
+                            {printers?.length === 0 && (
+                                <TableRow><TableCell colSpan={3} className="text-center py-4 text-muted-foreground">Nenhuma impressora configurada.</TableCell></TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+        </div>
     );
 }
 
@@ -221,9 +295,11 @@ export default function SettingsPage() {
                     <TabsList className="mb-4">
                         <TabsTrigger value="profile">Perfil</TabsTrigger>
                         <TabsTrigger value="users">Equipe</TabsTrigger>
+                        <TabsTrigger value="printing">Impressão</TabsTrigger>
                     </TabsList>
                     <TabsContent value="profile"><ProfileTab restaurantId={restaurantId!} /></TabsContent>
                     <TabsContent value="users"><UsersTab restaurantId={restaurantId!} /></TabsContent>
+                    <TabsContent value="printing"><PrintingTab restaurantId={restaurantId!} /></TabsContent>
                 </Tabs>
             </main>
         </div>

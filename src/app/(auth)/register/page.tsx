@@ -75,20 +75,12 @@ export default function RegisterPage() {
   const handleRegister = async (e: FormEvent) => {
     e.preventDefault();
     if (!restaurantName || !userName) {
-        toast({
-            variant: "destructive",
-            title: "Erro de Validação",
-            description: "Por favor, preencha todos os campos.",
-        });
+        toast({ variant: "destructive", title: "Erro de Validação", description: "Por favor, preencha todos os campos." });
         return;
     }
 
     if (!user && password !== confirmPassword) {
-      toast({
-        variant: "destructive",
-        title: "Erro de Validação",
-        description: "As senhas não coincidem.",
-      });
+      toast({ variant: "destructive", title: "Erro de Validação", description: "As senhas não coincidem." });
       return;
     }
 
@@ -140,24 +132,11 @@ export default function RegisterPage() {
           throw error;
       });
       
-      toast({
-        title: 'Sucesso!',
-        description: 'Seu restaurante foi criado com sucesso.',
-      });
+      toast({ title: 'Sucesso!', description: 'Seu restaurante foi criado com sucesso.' });
       router.push('/dashboard');
     } catch (error: any) {
         console.error("Registration Error:", error);
-        let description = 'Ocorreu um erro ao processar sua solicitação.';
-        if (error.code === 'auth/email-already-in-use') {
-            description = 'Este e-mail já está em uso.';
-        } else if (error.code === 'auth/weak-password') {
-            description = 'A senha deve ter pelo menos 6 caracteres.';
-        }
-        toast({
-            variant: 'destructive',
-            title: 'Erro',
-            description,
-        });
+        toast({ variant: 'destructive', title: 'Erro', description: 'Ocorreu um erro ao processar sua solicitação.' });
     } finally {
         setIsSubmitting(false);
     }
@@ -181,98 +160,38 @@ export default function RegisterPage() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="restaurantName">Nome do Restaurante</Label>
-              <Input 
-                id="restaurantName" 
-                type="text" 
-                placeholder="Ex: Pizzaria do Zé" 
-                required 
-                value={restaurantName}
-                onChange={(e) => setRestaurantName(e.target.value)}
-                disabled={isLoading}
-              />
+              <Input id="restaurantName" placeholder="Ex: Pizzaria do Zé" required value={restaurantName} onChange={(e) => setRestaurantName(e.target.value)} disabled={isLoading} />
             </div>
              <div className="space-y-2">
               <Label htmlFor="userName">Seu Nome de Exibição</Label>
-              <Input 
-                id="userName" 
-                type="text" 
-                placeholder="Ex: José da Silva" 
-                required 
-                value={userName}
-                onChange={(e) => setUserName(e.target.value)}
-                disabled={isLoading}
-              />
+              <Input id="userName" placeholder="Ex: José da Silva" required value={userName} onChange={(e) => setUserName(e.target.value)} disabled={isLoading} />
             </div>
-            
             {!user && (
               <>
                 <div className="space-y-2">
                   <Label htmlFor="email">Seu Email (Admin)</Label>
-                  <Input 
-                    id="email" 
-                    type="email" 
-                    placeholder="admin@pizzaria.com" 
-                    required 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={isLoading}
-                  />
+                  <Input id="email" type="email" placeholder="admin@pizzaria.com" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={isLoading} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password">Senha</Label>
-                  <Input 
-                    id="password" 
-                    type="password" 
-                    required 
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    disabled={isLoading}
-                  />
+                  <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} disabled={isLoading} />
                 </div>
                  <div className="space-y-2">
                   <Label htmlFor="confirmPassword">Confirmar Senha</Label>
-                  <Input 
-                    id="confirmPassword" 
-                    type="password" 
-                    required 
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    disabled={isLoading}
-                  />
+                  <Input id="confirmPassword" type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} disabled={isLoading} />
                 </div>
               </>
             )}
-
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processando...</> : 'Criar Restaurante'}
             </Button>
           </div>
         </form>
-
         {!user && (
           <>
-            <div className="relative my-4">
-                <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">
-                    Ou
-                    </span>
-                </div>
-            </div>
-
-            <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading}>
-                <GoogleIcon className="mr-2 h-4 w-4" />
-                Cadastrar com Google
-            </Button>
-
-            <div className="mt-4 text-center text-sm">
-              Já tem uma conta?{' '}
-              <Link href="/login" className="underline">
-                Login
-              </Link>
-            </div>
+            <div className="relative my-4"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">Ou</span></div></div>
+            <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading}><GoogleIcon className="mr-2 h-4 w-4" /> Cadastrar com Google</Button>
+            <div className="mt-4 text-center text-sm">Já tem uma conta? <Link href="/login" className="underline">Login</Link></div>
           </>
         )}
       </CardContent>

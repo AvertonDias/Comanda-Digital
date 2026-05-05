@@ -7,6 +7,7 @@ import type { RestaurantUserRole } from "@/lib/types";
 
 /**
  * Hook para obter o restaurante ativo e o papel do usuário atual.
+ * Agora é mais resiliente a estados de carregamento iniciais.
  */
 export function useRestaurant() {
     const { user, isUserLoading } = useUser();
@@ -14,6 +15,7 @@ export function useRestaurant() {
 
     const rolesQuery = useMemoFirebase(() => {
         if (!user || !firestore) return null;
+        // Consulta todos os papéis do usuário logado
         return query(collection(firestore, `users/${user.uid}/restaurantRoles`));
     }, [user, firestore]);
 
@@ -21,8 +23,8 @@ export function useRestaurant() {
 
     const restaurantInfo = useMemo(() => {
         if (!roles || roles.length === 0) return null;
-        // Prioriza o restaurante onde o usuário é admin, se houver múltiplos
-        const activeRole = roles.find(r => r.role === 'admin' && r.isActive) || roles[0];
+        // Seleciona o primeiro restaurante ativo, dando prioridade para 'admin'
+        const activeRole = roles.find(r => r.role === 'admin' && r.isActive) || roles.find(r => r.isActive) || roles[0];
         return {
             id: activeRole.restaurantId,
             role: activeRole.role,

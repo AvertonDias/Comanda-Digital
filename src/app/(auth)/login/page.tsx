@@ -74,7 +74,7 @@ export default function LoginPage() {
       toast({
         variant: 'destructive',
         title: 'Erro de login com Google',
-        description: 'Não foi possível fazer login com o Google. Por favor, tente novamente.',
+        description: 'Não foi possível fazer login com o Google.',
       });
     } finally {
         setIsSubmitting(false);

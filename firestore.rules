@@ -1,5 +1,5 @@
 /**
- * Filosofia: Este conjunto de regras implementa um modelo de controle de acesso baseado em papéis (RBAC) para um sistema multi-restaurante.
+ * Filosofia: Este conjunto de regras implementa um modelo de controle de acesso baseado em papéis (RBAC).
  * O acesso a qualquer dado de um restaurante é determinado pelo papel do usuário naquele restaurante específico.
  */
 rules_version = '2';
@@ -21,13 +21,12 @@ service cloud.firestore {
     }
 
     function isRestaurantStaff(restaurantId) {
-      let roleData = getRestaurantRoleData(restaurantId);
-      return isSignedIn() && roleData != null && roleData.isActive == true;
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)/restaurantRoles/$(restaurantId));
     }
 
     function isRestaurantAdmin(restaurantId) {
       let roleData = getRestaurantRoleData(restaurantId);
-      return isRestaurantStaff(restaurantId) && roleData.role == 'admin';
+      return isRestaurantStaff(restaurantId) && roleData.role == 'admin' && roleData.isActive == true;
     }
 
     // --- Regras por Coleção ---
@@ -36,65 +35,28 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create, update: if isOwner(userId);
       allow delete: if false;
-    }
 
-    // Regras para os papéis de restaurante
-    match /users/{userId}/restaurantRoles/{restaurantId} {
-      allow read: if isOwner(userId) || isRestaurantAdmin(restaurantId);
-      allow create: if (isOwner(userId) && !exists(/databases/$(database)/documents/restaurants/$(restaurantId)))
-                    || isRestaurantAdmin(restaurantId);
-      allow update, delete: if isRestaurantAdmin(restaurantId);
+      match /restaurantRoles/{restaurantId} {
+        allow read: if isOwner(userId) || isRestaurantAdmin(restaurantId);
+        allow create: if isOwner(userId) || isRestaurantAdmin(restaurantId);
+        allow update, delete: if isRestaurantAdmin(restaurantId);
+      }
     }
 
     // Suporte para collectionGroup queries em restaurantRoles (usado no gerenciamento de equipe)
-    match /{path=**}/restaurantRoles/{restaurantId} {
-      allow list: if isSignedIn() && (isOwner(path.split('/')[1]) || isRestaurantAdmin(restaurantId));
+    // O 'path' em collectionGroup matches é um objeto que pode ser acessado como array.
+    match /{path=**}/restaurantRoles/{roleId} {
+      allow list: if isSignedIn() && (isOwner(path[1]) || isRestaurantAdmin(roleId));
     }
 
     match /restaurants/{restaurantId} {
       allow get: if isRestaurantStaff(restaurantId);
       allow create: if isSignedIn();
       allow update, delete: if isRestaurantAdmin(restaurantId);
-    }
 
-    // O cardápio é público para leitura, mas apenas funcionários podem editar
-    match /restaurants/{restaurantId}/menuItemCategories/{categoryId} {
-      allow get, list: if true;
-      allow create, update, delete: if isRestaurantStaff(restaurantId);
-    }
-
-    match /restaurants/{restaurantId}/menuItems/{itemId} {
-      allow get, list: if true;
-      allow create, update, delete: if isRestaurantStaff(restaurantId);
-    }
-    
-    match /restaurants/{restaurantId}/printSectors/{sectorId} {
-      allow get, list: if isRestaurantStaff(restaurantId);
-      allow create, update, delete: if isRestaurantAdmin(restaurantId);
-    }
-
-    match /restaurants/{restaurantId}/printers/{printerId} {
-      allow get, list: if isRestaurantStaff(restaurantId);
-      allow create, update, delete: if isRestaurantAdmin(restaurantId);
-    }
-
-    match /restaurants/{restaurantId}/tables/{tableId} {
-      allow get, list: if isRestaurantStaff(restaurantId);
-      allow create, update, delete: if isRestaurantStaff(restaurantId);
-    }
-
-    match /restaurants/{restaurantId}/customers/{customerId} {
-      allow get, list: if isRestaurantStaff(restaurantId);
-      allow create, update, delete: if isRestaurantStaff(restaurantId);
-    }
-
-    match /restaurants/{restaurantId}/orders/{orderId} {
-      allow get, list, create, update: if isRestaurantStaff(restaurantId);
-      allow delete: if isRestaurantAdmin(restaurantId);
-
-      match /items/{orderItemId} {
-        allow get, list, create, update: if isRestaurantStaff(restaurantId);
-        allow delete: if isRestaurantAdmin(restaurantId);
+      // Regra genérica para todas as subcoleções do restaurante
+      match /{allSubcollections=**} {
+        allow read, write: if isRestaurantStaff(restaurantId);
       }
     }
   }
