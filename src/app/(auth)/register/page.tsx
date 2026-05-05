@@ -5,13 +5,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, useUser, useFirestore } from '@/firebase';
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, updateProfile } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { collection, doc, serverTimestamp, writeBatch } from 'firebase/firestore';
-import { UtensilsCrossed } from 'lucide-react';
+import { UtensilsCrossed, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, FormEvent, useEffect } from 'react';
-
+import { useRestaurant } from "@/hooks/use-restaurant";
 
 // Google Icon SVG component
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -32,16 +32,18 @@ export default function RegisterPage() {
   const auth = useAuth();
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const { hasRestaurant, isLoading: isResLoading } = useRestaurant();
   const router = useRouter();
   const { toast } = useToast();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!isUserLoading && user) {
+    // Redireciona apenas se o usuário estiver logado E já tiver um restaurante
+    if (!isUserLoading && !isResLoading && user && hasRestaurant) {
       router.push('/dashboard');
     }
-  }, [user, isUserLoading, router]);
+  }, [user, isUserLoading, hasRestaurant, isResLoading, router]);
 
   const handleRegister = async (e: FormEvent) => {
     e.preventDefault();
@@ -53,7 +55,9 @@ export default function RegisterPage() {
         });
         return;
     }
-    if (password !== confirmPassword) {
+
+    // Se o usuário não está logado, valida a senha
+    if (!user && password !== confirmPassword) {
       toast({
         variant: "destructive",
         title: "Erro de Validação",
@@ -61,17 +65,21 @@ export default function RegisterPage() {
       });
       return;
     }
+
     setIsSubmitting(true);
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+      let targetUser = user;
 
-      // Update user profile in Auth
-      await updateProfile(user, { displayName: userName });
+      // Se não estiver logado, cria a conta primeiro
+      if (!targetUser) {
+          const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+          targetUser = userCredential.user;
+          await updateProfile(targetUser, { displayName: userName });
+      }
       
       const batch = writeBatch(firestore);
       
-      // 1. Create Restaurant
+      // 1. Cria o Restaurante
       const restaurantRef = doc(collection(firestore, "restaurants"));
       batch.set(restaurantRef, {
           name: restaurantName,
@@ -80,18 +88,18 @@ export default function RegisterPage() {
           createdAt: serverTimestamp()
       });
 
-      // 2. Create User Profile
-      const userProfileRef = doc(firestore, `users/${user.uid}`);
+      // 2. Cria/Atualiza o Perfil do Usuário
+      const userProfileRef = doc(firestore, `users/${targetUser.uid}`);
       batch.set(userProfileRef, {
         name: userName,
-        email: user.email,
-        avatarUrl: user.photoURL || ''
-      });
+        email: targetUser.email,
+        avatarUrl: targetUser.photoURL || ''
+      }, { merge: true });
       
-      // 3. Create User Role for the new restaurant
-      const userRoleRef = doc(firestore, `users/${user.uid}/restaurantRoles/${restaurantRef.id}`);
+      // 3. Vincula o usuário ao novo restaurante como admin
+      const userRoleRef = doc(firestore, `users/${targetUser.uid}/restaurantRoles/${restaurantRef.id}`);
       batch.set(userRoleRef, {
-          userId: user.uid,
+          userId: targetUser.uid,
           restaurantId: restaurantRef.id,
           role: 'admin',
           isActive: true
@@ -100,13 +108,13 @@ export default function RegisterPage() {
       await batch.commit();
       
       toast({
-        title: 'Conta e Restaurante criados!',
-        description: 'Você será redirecionado para o painel.',
+        title: 'Sucesso!',
+        description: 'Seu restaurante foi criado com sucesso.',
       });
       router.push('/dashboard');
     } catch (error: any) {
         console.error("Registration Error:", error);
-        let description = 'Ocorreu um erro ao criar sua conta.';
+        let description = 'Ocorreu um erro ao processar sua solicitação.';
         if (error.code === 'auth/email-already-in-use') {
             description = 'Este e-mail já está em uso.';
         } else if (error.code === 'auth/weak-password') {
@@ -114,7 +122,7 @@ export default function RegisterPage() {
         }
         toast({
             variant: 'destructive',
-            title: 'Erro de cadastro',
+            title: 'Erro',
             description,
         });
     } finally {
@@ -122,27 +130,7 @@ export default function RegisterPage() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setIsSubmitting(true);
-    try {
-      toast({
-        variant: 'destructive',
-        title: 'Funcionalidade em desenvolvimento',
-        description: 'O cadastro com Google para criar um novo restaurante ainda não está completo. Por favor, use o e-mail e senha.',
-      });
-    } catch (error: any) {
-      console.error("Google Sign-In Error:", error);
-      toast({
-        variant: 'destructive',
-        title: 'Erro de login com Google',
-        description: 'Não foi possível fazer login com o Google. Por favor, tente novamente.',
-      });
-    } finally {
-        setIsSubmitting(false);
-    }
-  };
-
-  const isLoading = isSubmitting || isUserLoading;
+  const isLoading = isSubmitting || isUserLoading || isResLoading;
 
   return (
     <Card className="mx-auto max-w-sm w-full">
@@ -150,9 +138,9 @@ export default function RegisterPage() {
         <div className="inline-flex justify-center p-2">
             <UtensilsCrossed className="h-8 w-8 text-primary" />
         </div>
-        <CardTitle className="text-2xl font-bold">Crie a conta do seu Restaurante</CardTitle>
+        <CardTitle className="text-2xl font-bold">Configurar seu Restaurante</CardTitle>
         <CardDescription>
-          Comece a gerenciar seu negócio. O primeiro usuário será o administrador.
+          {user ? 'Preencha os dados do seu novo estabelecimento.' : 'Comece a gerenciar seu negócio agora mesmo.'}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -171,7 +159,7 @@ export default function RegisterPage() {
               />
             </div>
              <div className="space-y-2">
-              <Label htmlFor="userName">Seu Nome</Label>
+              <Label htmlFor="userName">Seu Nome de Exibição</Label>
               <Input 
                 id="userName" 
                 type="text" 
@@ -182,68 +170,78 @@ export default function RegisterPage() {
                 disabled={isLoading}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Seu Email (Admin)</Label>
-              <Input 
-                id="email" 
-                type="email" 
-                placeholder="admin@pizzaria.com" 
-                required 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={isLoading}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
-              <Input 
-                id="password" 
-                type="password" 
-                required 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isLoading}
-              />
-            </div>
-             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirmar Senha</Label>
-              <Input 
-                id="confirmPassword" 
-                type="password" 
-                required 
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                disabled={isLoading}
-              />
-            </div>
+            
+            {!user && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Seu Email (Admin)</Label>
+                  <Input 
+                    id="email" 
+                    type="email" 
+                    placeholder="admin@pizzaria.com" 
+                    required 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Senha</Label>
+                  <Input 
+                    id="password" 
+                    type="password" 
+                    required 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+                 <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirmar Senha</Label>
+                  <Input 
+                    id="confirmPassword" 
+                    type="password" 
+                    required 
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+              </>
+            )}
+
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Cadastrando...' : 'Criar Restaurante'}
+              {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processando...</> : 'Criar Restaurante'}
             </Button>
           </div>
         </form>
 
-        <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
+        {!user && (
+          <>
+            <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">
+                    Ou
+                    </span>
+                </div>
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                Ou
-                </span>
+
+            <Button variant="outline" className="w-full" disabled={isLoading}>
+                <GoogleIcon className="mr-2 h-4 w-4" />
+                Cadastrar com Google
+            </Button>
+
+            <div className="mt-4 text-center text-sm">
+              Já tem uma conta?{' '}
+              <Link href="/login" className="underline">
+                Login
+              </Link>
             </div>
-        </div>
-
-        <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading}>
-            <GoogleIcon className="mr-2 h-4 w-4" />
-            Cadastrar com Google
-        </Button>
-
-        <div className="mt-4 text-center text-sm">
-          Já tem uma conta?{' '}
-          <Link href="/login" className="underline">
-            Login
-          </Link>
-        </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );
