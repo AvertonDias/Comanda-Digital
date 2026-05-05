@@ -61,7 +61,6 @@ export default function RegisterPage() {
         description: "Agora, complete os dados do seu restaurante abaixo.",
       });
     } catch (error: any) {
-      console.error("Google Sign-In Error:", error);
       toast({
         variant: 'destructive',
         title: 'Erro de login com Google',
@@ -135,7 +134,6 @@ export default function RegisterPage() {
       toast({ title: 'Sucesso!', description: 'Seu restaurante foi criado com sucesso.' });
       router.push('/dashboard');
     } catch (error: any) {
-        console.error("Registration Error:", error);
         toast({ variant: 'destructive', title: 'Erro', description: 'Ocorreu um erro ao processar sua solicitação.' });
     } finally {
         setIsSubmitting(false);

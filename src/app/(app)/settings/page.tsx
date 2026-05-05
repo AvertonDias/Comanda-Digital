@@ -7,14 +7,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MoreVertical, Shield, User as UserIcon, Printer as PrinterIcon, LayoutGrid, PlusCircle } from "lucide-react";
+import { MoreVertical, Shield, User as UserIcon, PlusCircle } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useFirestore, useCollection, useDoc, useMemoFirebase, errorEmitter, FirestorePermissionError } from "@/firebase";
-import { collection, doc, query, where, updateDoc, collectionGroup, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, doc, query, where, updateDoc, collectionGroup, addDoc } from "firebase/firestore";
 import type { UserProfile, RestaurantUserRole, PrintSector, Printer } from "@/lib/types";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";

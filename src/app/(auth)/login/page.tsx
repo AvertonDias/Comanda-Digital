@@ -52,7 +52,6 @@ export default function LoginPage() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (error: any) {
-      console.error("Login Error:", error);
       toast({
         variant: 'destructive',
         title: 'Erro de login',
@@ -70,7 +69,6 @@ export default function LoginPage() {
       provider.setCustomParameters({ prompt: 'select_account' });
       await signInWithPopup(auth, provider);
     } catch (error: any) {
-      console.error("Google Sign-In Error:", error);
       toast({
         variant: 'destructive',
         title: 'Erro de login com Google',

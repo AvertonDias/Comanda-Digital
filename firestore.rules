@@ -38,15 +38,14 @@ service cloud.firestore {
 
       match /restaurantRoles/{restaurantId} {
         allow read: if isOwner(userId) || isRestaurantAdmin(restaurantId);
-        allow create: if isOwner(userId) || isRestaurantAdmin(restaurantId);
+        allow create: if isSignedIn(); // Permite criar o papel inicial ao registrar restaurante
         allow update, delete: if isRestaurantAdmin(restaurantId);
       }
     }
 
     // Suporte para collectionGroup queries em restaurantRoles (usado no gerenciamento de equipe)
-    // O 'path' em collectionGroup matches é um objeto que pode ser acessado como array.
-    match /{path=**}/restaurantRoles/{roleId} {
-      allow list: if isSignedIn() && (isOwner(path[1]) || isRestaurantAdmin(roleId));
+    match /{path=**}/restaurantRoles/{restaurantId} {
+      allow list: if isSignedIn() && (isOwner(path[1]) || isRestaurantAdmin(restaurantId));
     }
 
     match /restaurants/{restaurantId} {
@@ -54,8 +53,29 @@ service cloud.firestore {
       allow create: if isSignedIn();
       allow update, delete: if isRestaurantAdmin(restaurantId);
 
-      // Regra genérica para todas as subcoleções do restaurante
-      match /{allSubcollections=**} {
+      // Regras específicas para subcoleções para maior controle
+      match /menuItemCategories/{catId} {
+        allow read: if isRestaurantStaff(restaurantId);
+        allow write: if isRestaurantAdmin(restaurantId);
+      }
+      
+      match /menuItems/{itemId} {
+        allow read: if isRestaurantStaff(restaurantId);
+        allow write: if isRestaurantAdmin(restaurantId);
+      }
+
+      match /printSectors/{sectorId} {
+        allow read: if isRestaurantStaff(restaurantId);
+        allow write: if isRestaurantAdmin(restaurantId);
+      }
+
+      match /printers/{printerId} {
+        allow read: if isRestaurantStaff(restaurantId);
+        allow write: if isRestaurantAdmin(restaurantId);
+      }
+
+      // Pedidos e Mesas podem ser manipulados por garçons (staff)
+      match /{allStaffSubcollections=**} {
         allow read, write: if isRestaurantStaff(restaurantId);
       }
     }
