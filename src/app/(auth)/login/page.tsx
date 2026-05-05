@@ -67,6 +67,7 @@ export default function LoginPage() {
     setIsSubmitting(true);
     try {
       const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
       await signInWithPopup(auth, provider);
       // The useEffect will handle the redirect on successful login
     } catch (error: any) {
@@ -160,5 +161,3 @@ export default function LoginPage() {
     </Card>
   );
 }
-
-    

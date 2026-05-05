@@ -56,6 +56,7 @@ export default function RegisterPage() {
     setIsSubmitting(true);
     try {
       const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
       await signInWithPopup(auth, provider);
       toast({
         title: "Autenticado com Google",
