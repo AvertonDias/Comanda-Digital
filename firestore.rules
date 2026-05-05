@@ -49,12 +49,14 @@ service cloud.firestore {
       allow update, delete: if isRestaurantAdmin(restaurantId);
     }
 
-    match /users/{userId}/restaurantRoles/{restaurantId} {
-      allow get, list: if isOwner(userId) || isRestaurantAdmin(restaurantId);
+    // Regra específica para permitir consultas collectionGroup em restaurantRoles
+    match /{path=**}/restaurantRoles/{restaurantId} {
+      allow list: if isSignedIn() && (isOwner(path.split('/')[1]) || isRestaurantAdmin(restaurantId));
+      allow get: if isSignedIn() && (isOwner(path.split('/')[1]) || isRestaurantAdmin(restaurantId));
       
       // Permite criar se for o dono do perfil E o restaurante ainda não existir (criação inicial)
       // OU se já for um admin do restaurante gerenciando outros usuários
-      allow create: if (isOwner(userId) && !exists(/databases/$(database)/documents/restaurants/$(restaurantId)))
+      allow create: if (isOwner(path.split('/')[1]) && !exists(/databases/$(database)/documents/restaurants/$(restaurantId)))
                     || isRestaurantAdmin(restaurantId);
                     
       allow update, delete: if isRestaurantAdmin(restaurantId);

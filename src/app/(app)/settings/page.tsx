@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AppHeader } from "@/components/layout/app-header";
@@ -153,6 +152,11 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
                         <TableHeader><TableRow><TableHead>Usuário</TableHead><TableHead>Função</TableHead><TableHead className="text-center">Status</TableHead><TableHead /></TableRow></TableHeader>
                         <TableBody>
                             {userRoles?.map((role, i) => <UserRow key={i} userRole={role} />)}
+                            {userRoles?.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Nenhum usuário encontrado.</TableCell>
+                                </TableRow>
+                            )}
                         </TableBody>
                     </Table>
                 )}
@@ -169,8 +173,8 @@ export default function SettingsPage() {
 
     if (!hasRestaurant) {
         return (
-            <div className="flex flex-col h-screen items-center justify-center p-8">
-                <p className="text-xl mb-4">Você ainda não possui um restaurante vinculado.</p>
+            <div className="flex flex-col h-screen items-center justify-center p-8 text-center">
+                <p className="text-xl mb-4 text-muted-foreground">Você ainda não possui um restaurante vinculado.</p>
                 <Button asChild><a href="/register">Criar meu Restaurante</a></Button>
             </div>
         )
