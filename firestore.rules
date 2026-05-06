@@ -10,7 +10,7 @@ service cloud.firestore {
     }
 
     // Verifica se o usuário logado tem um papel ativo no restaurante
-    // A equipe tem permissão total ("fazer tudo") dentro do seu respectivo restaurante
+    // Equipe tem acesso total ("fazer tudo") no seu restaurante
     function isRestaurantStaff(restaurantId) {
       return isSignedIn() && (
         exists(/databases/$(database)/documents/users/$(request.auth.uid)/restaurantRoles/$(restaurantId))
