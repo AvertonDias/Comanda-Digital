@@ -1,10 +1,11 @@
+
 'use client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth, useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useAuth, useUser, useFirestore } from '@/firebase';
 import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { collection, doc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { UtensilsCrossed, Loader2 } from 'lucide-react';
@@ -27,7 +28,6 @@ export default function RegisterPage() {
   const [userName, setUserName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const auth = useAuth();
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
@@ -49,6 +49,7 @@ export default function RegisterPage() {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
       await signInWithPopup(auth, provider);
+      toast({ title: 'Autenticado!', description: 'Agora finalize o cadastro do restaurante.' });
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Erro', description: 'Erro ao entrar com Google.' });
     } finally {
@@ -58,8 +59,8 @@ export default function RegisterPage() {
 
   const handleRegister = async (e: FormEvent) => {
     e.preventDefault();
-    if (!restaurantName || !userName) {
-        toast({ variant: "destructive", title: "Erro", description: "Preencha todos os campos." });
+    if (!restaurantName || (!user && !userName)) {
+        toast({ variant: "destructive", title: "Erro", description: "Preencha todos os campos obrigatórios." });
         return;
     }
 
@@ -82,10 +83,10 @@ export default function RegisterPage() {
           createdAt: serverTimestamp()
       });
 
-      // Desnormalização estratégica: salvamos o activeRestaurantId no perfil para simplificar as Rules
+      // Desnormalização estratégica para Rule robusta e rápida
       const userProfileRef = doc(firestore, `users/${targetUser.uid}`);
       batch.set(userProfileRef, {
-        name: userName,
+        name: targetUser.displayName || userName,
         email: targetUser.email,
         avatarUrl: targetUser.photoURL || '',
         activeRestaurantId: restaurantRef.id
@@ -100,10 +101,10 @@ export default function RegisterPage() {
       });
       
       await batch.commit();
-      toast({ title: 'Sucesso!', description: 'Restaurante criado.' });
+      toast({ title: 'Sucesso!', description: 'Seu restaurante foi configurado.' });
       router.push('/dashboard');
     } catch (error: any) {
-        toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao registrar.' });
+        toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao finalizar o registro.' });
     } finally {
         setIsSubmitting(false);
     }
@@ -117,32 +118,58 @@ export default function RegisterPage() {
         <CardDescription>Configure seu negócio em segundos.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleRegister}>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Nome do Restaurante</Label>
-              <Input placeholder="Ex: Pizzaria do Zé" required value={restaurantName} onChange={(e) => setRestaurantName(e.target.value)} disabled={isSubmitting} />
-            </div>
-             <div className="space-y-2">
-              <Label>Seu Nome</Label>
-              <Input placeholder="Ex: José" required value={userName} onChange={(e) => setUserName(e.target.value)} disabled={isSubmitting} />
-            </div>
-            {!user && (
-              <>
-                <div className="space-y-2">
-                  <Label>Email</Label>
-                  <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={isSubmitting} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Senha</Label>
-                  <Input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} disabled={isSubmitting} />
-                </div>
-              </>
-            )}
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? <Loader2 className="animate-spin" /> : 'Começar Agora'}
-            </Button>
+        <form onSubmit={handleRegister} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Nome do Restaurante</Label>
+            <Input placeholder="Ex: Pizzaria do Zé" required value={restaurantName} onChange={(e) => setRestaurantName(e.target.value)} disabled={isSubmitting} />
           </div>
+          
+          {!user ? (
+            <>
+              <div className="space-y-2">
+                <Label>Seu Nome</Label>
+                <Input placeholder="Ex: José Silva" required value={userName} onChange={(e) => setUserName(e.target.value)} disabled={isSubmitting} />
+              </div>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={isSubmitting} />
+              </div>
+              <div className="space-y-2">
+                <Label>Senha</Label>
+                <Input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} disabled={isSubmitting} />
+              </div>
+            </>
+          ) : (
+            <div className="bg-muted p-3 rounded-md text-sm text-center">
+              Logado como: <strong>{user.displayName || user.email}</strong>
+            </div>
+          )}
+
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? <Loader2 className="animate-spin" /> : 'Finalizar Cadastro'}
+          </Button>
+
+          {!user && (
+            <>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">Ou</span>
+                </div>
+              </div>
+
+              <Button type="button" variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isSubmitting}>
+                <GoogleIcon className="mr-2 h-4 w-4" />
+                Registrar com Google
+              </Button>
+            </>
+          )}
+
+          <p className="text-center text-xs text-muted-foreground mt-4">
+            Já tem uma conta? <Link href="/login" className="underline">Faça login</Link>
+          </p>
         </form>
       </CardContent>
     </Card>

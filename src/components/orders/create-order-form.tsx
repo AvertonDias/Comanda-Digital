@@ -1,3 +1,4 @@
+
 'use client';
 import { useState } from 'react';
 import type { MenuItem, OrderItem, Table, Order, MenuItemCategory } from '@/lib/types';
@@ -35,7 +36,6 @@ export function CreateOrderForm({ restaurantId, onSuccess }: { restaurantId: str
 
     const tablesQuery = useMemoFirebase(() => {
         if (!restaurantId) return null;
-        // Ordem alfabética blindada
         return query(collection(firestore, `restaurants/${restaurantId}/tables`), orderBy('name', 'asc'));
     }, [restaurantId, firestore]);
 

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AppHeader } from "@/components/layout/app-header";
@@ -92,10 +93,16 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
 
     const usersQuery = useMemoFirebase(() => {
         if (!restaurantId) return null;
+        return query(collection(firestore, `users`), z.any()); // Simplificado para fins de exemplo
+    }, [firestore, restaurantId]);
+
+    // Busca papéis via subcoleção direta do restaurante para ser mais robusto
+    const rolesQuery = useMemoFirebase(() => {
+        if (!restaurantId) return null;
         return query(collection(firestore, `restaurants/${restaurantId}/roles`));
     }, [firestore, restaurantId]);
 
-    const { data: users, isLoading } = useCollection(usersQuery);
+    const { data: users, isLoading } = useCollection(rolesQuery);
 
     const handleUpdateRole = async (userId: string, newRole: string) => {
         const docRef = doc(firestore, `users/${userId}/restaurantRoles/${restaurantId}`);
@@ -142,18 +149,21 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
             <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
                 <DialogContent>
                     <DialogHeader><DialogTitle>Editar Função</DialogTitle></DialogHeader>
-                    <Select defaultValue={editingUser?.role} onValueChange={(val) => handleUpdateRole(editingUser.userId, val)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="admin">Administrador</SelectItem>
-                            <SelectItem value="waiter">Garçom</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    {editingUser && (
+                        <Select defaultValue={editingUser.role} onValueChange={(val) => handleUpdateRole(editingUser.userId, val)}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="admin">Administrador</SelectItem>
+                                <SelectItem value="waiter">Garçom</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    )}
                 </DialogContent>
             </Dialog>
             <AlertDialog open={!!deletingUser} onOpenChange={() => setDeletingUser(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader><AlertDialogTitle>Remover?</AlertDialogTitle></AlertDialogHeader>
+                    <AlertDialogDescription>Deseja remover o acesso deste membro?</AlertDialogDescription>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Não</AlertDialogCancel>
                         <AlertDialogAction onClick={handleDelete} className="bg-destructive">Sim, Remover</AlertDialogAction>
@@ -177,13 +187,20 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
     const [delPri, setDelPri] = useState<any>(null);
     const [secName, setSecName] = useState("");
     
-    // Form impressora
     const [priName, setPriName] = useState("");
     const [priAddr, setPriAddr] = useState("");
     const [priType, setPriType] = useState<any>("network");
 
-    const sectorsQ = useMemoFirebase(() => restaurantId ? query(collection(firestore, `restaurants/${restaurantId}/printSectors`)) : null, [restaurantId]);
-    const printersQ = useMemoFirebase(() => restaurantId ? query(collection(firestore, `restaurants/${restaurantId}/printers`)) : null, [restaurantId]);
+    const sectorsQ = useMemoFirebase(() => {
+        if (!restaurantId) return null;
+        return query(collection(firestore, `restaurants/${restaurantId}/printSectors`));
+    }, [restaurantId, firestore]);
+
+    const printersQ = useMemoFirebase(() => {
+        if (!restaurantId) return null;
+        return query(collection(firestore, `restaurants/${restaurantId}/printers`));
+    }, [restaurantId, firestore]);
+
     const { data: sectors } = useCollection(sectorsQ);
     const { data: printers } = useCollection(printersQ);
 
@@ -198,6 +215,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
         setIsSecModal(false);
         setSecName("");
         setEditingSec(null);
+        toast({ title: "Setor salvo!" });
     };
 
     const handleSavePri = async () => {
@@ -209,7 +227,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
             connectionType: priType,
             restaurantId,
             isActive: true,
-            printSectors: []
+            printSectors: editingPri?.printSectors || []
         };
         if (editingPri) {
             await updateDoc(doc(colRef, editingPri.id), data);
@@ -220,6 +238,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
         setPriName("");
         setPriAddr("");
         setEditingPri(null);
+        toast({ title: "Impressora salva!" });
     };
 
     return (
@@ -323,9 +342,10 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
             <AlertDialog open={!!delSec} onOpenChange={() => setDelSec(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader><AlertDialogTitle>Excluir Setor?</AlertDialogTitle></AlertDialogHeader>
+                    <AlertDialogDescription>Deseja remover este setor de impressão?</AlertDialogDescription>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Não</AlertDialogCancel>
-                        <AlertDialogAction onClick={async () => { await deleteDoc(doc(firestore, `restaurants/${restaurantId}/printSectors`, delSec.id)); setDelSec(null); }}>Sim</AlertDialogAction>
+                        <AlertDialogAction onClick={async () => { await deleteDoc(doc(firestore, `restaurants/${restaurantId}/printSectors`, delSec.id)); setDelSec(null); toast({ title: "Setor removido" }); }}>Sim</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
@@ -333,9 +353,10 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
             <AlertDialog open={!!delPri} onOpenChange={() => setDelPri(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader><AlertDialogTitle>Excluir Impressora?</AlertDialogTitle></AlertDialogHeader>
+                    <AlertDialogDescription>Deseja remover esta impressora do sistema?</AlertDialogDescription>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Não</AlertDialogCancel>
-                        <AlertDialogAction onClick={async () => { await deleteDoc(doc(firestore, `restaurants/${restaurantId}/printers`, delPri.id)); setDelPri(null); }}>Sim</AlertDialogAction>
+                        <AlertDialogAction onClick={async () => { await deleteDoc(doc(firestore, `restaurants/${restaurantId}/printers`, delPri.id)); setDelPri(null); toast({ title: "Impressora removida" }); }}>Sim</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
