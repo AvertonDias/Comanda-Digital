@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, User as UserIcon, PlusCircle, Trash2, Printer as PrinterIcon, Search, Wifi, Usb, Bluetooth, Loader2, Check } from "lucide-react";
+import { Shield, User as UserIcon, PlusCircle, Trash2, Printer as PrinterIcon, Wifi, Usb, Bluetooth, Check, Settings2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +33,7 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const profileSchema = z.object({
     name: z.string().min(1, "O nome do restaurante é obrigatório."),
@@ -148,7 +149,7 @@ function UserRow({ userRole }: { userRole: RestaurantUserRole }) {
                 <Switch checked={userRole.isActive} onCheckedChange={handleStatusChange} />
             </TableCell>
             <TableCell className="text-right">
-                <Button variant="ghost" size="sm" className="text-destructive">Remover</Button>
+                <Button variant="ghost" size="sm" className="text-destructive" onClick={() => deleteDoc(doc(firestore, `users/${userRole.userId}/restaurantRoles/${userRole.restaurantId}`))}>Remover</Button>
             </TableCell>
         </TableRow>
     );
@@ -194,25 +195,16 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
     );
 }
 
-type DiscoveredPrinter = {
-    name: string;
-    connectionType: PrinterConnectionType;
-    address: string;
-};
-
-const DUMMY_DISCOVERED: DiscoveredPrinter[] = [
-    { name: "EPSON TM-T20II (Cozinha)", connectionType: 'network', address: '192.168.1.50' },
-    { name: "HP LaserJet USB", connectionType: 'usb', address: 'USB://VID_03F0&PID_2B17' },
-    { name: "MP-4200 TH Bluetooth", connectionType: 'bluetooth', address: '00:11:22:33:44:55' },
-];
-
 function PrintingTab({ restaurantId }: { restaurantId: string }) {
     const firestore = useFirestore();
     const { toast } = useToast();
     const [newSector, setNewSector] = useState('');
-    const [isSearching, setIsSearching] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [selectedPrinter, setSelectedPrinter] = useState<DiscoveredPrinter | null>(null);
+    
+    // Estados para o formulário de impressora real
+    const [printerName, setPrinterName] = useState('');
+    const [printerType, setPrinterType] = useState<PrinterConnectionType>('network');
+    const [printerAddress, setPrinterAddress] = useState('');
     const [selectedSectors, setSelectedSectors] = useState<string[]>([]);
     
     const sectorsQuery = useMemoFirebase(() => query(collection(firestore, `restaurants/${restaurantId}/printSectors`)), [firestore, restaurantId]);
@@ -239,20 +231,17 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
         toast({ title: "Setor removido." });
     };
 
-    const handleSearch = () => {
-        setIsSearching(true);
-        setTimeout(() => {
-            setIsSearching(false);
-            setIsDialogOpen(true);
-        }, 2000);
-    };
-
     const handleSavePrinter = () => {
-        if (!selectedPrinter || !restaurantId) return;
+        if (!printerName || !printerAddress || !restaurantId) {
+            toast({ variant: "destructive", title: "Dados incompletos", description: "Preencha o nome e o endereço da impressora." });
+            return;
+        }
 
         const colRef = collection(firestore, `restaurants/${restaurantId}/printers`);
         const printerData = {
-            ...selectedPrinter,
+            name: printerName,
+            connectionType: printerType,
+            address: printerAddress,
             restaurantId,
             printSectors: selectedSectors,
             isActive: true,
@@ -262,9 +251,15 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: colRef.path, operation: 'create', requestResourceData: printerData }));
         });
 
-        toast({ title: "Impressora configurada!" });
+        toast({ title: "Impressora cadastrada!" });
         setIsDialogOpen(false);
-        setSelectedPrinter(null);
+        resetPrinterForm();
+    };
+
+    const resetPrinterForm = () => {
+        setPrinterName('');
+        setPrinterType('network');
+        setPrinterAddress('');
         setSelectedSectors([]);
     };
 
@@ -278,15 +273,6 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
             case 'usb': return <Usb className="h-4 w-4" />;
             case 'bluetooth': return <Bluetooth className="h-4 w-4" />;
             default: return <PrinterIcon className="h-4 w-4" />;
-        }
-    };
-
-    const getConnectionLabel = (type: PrinterConnectionType) => {
-        switch (type) {
-            case 'network': return 'Rede/IP';
-            case 'usb': return 'USB';
-            case 'bluetooth': return 'Bluetooth';
-            default: return type;
         }
     };
 
@@ -320,11 +306,11 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                 <CardHeader className="flex flex-row items-center justify-between">
                     <div>
                         <CardTitle>Impressoras</CardTitle>
-                        <CardDescription>Gerencie as impressoras térmicas (IP, USB ou Bluetooth).</CardDescription>
+                        <CardDescription>Gerencie as impressoras térmicas vinculadas aos seus setores.</CardDescription>
                     </div>
-                    <Button variant="outline" size="sm" onClick={handleSearch} disabled={isSearching}>
-                        {isSearching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
-                        {isSearching ? "Buscando..." : "procurar impressoras instaladas"}
+                    <Button variant="outline" size="sm" onClick={() => setIsDialogOpen(true)}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Cadastrar Impressora
                     </Button>
                 </CardHeader>
                 <CardContent>
@@ -347,9 +333,9 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                                         {p.name}
                                     </TableCell>
                                     <TableCell>
-                                        <div className="flex items-center gap-2 text-xs">
+                                        <div className="flex items-center gap-2 text-xs capitalize">
                                             {getConnectionIcon(p.connectionType)}
-                                            {getConnectionLabel(p.connectionType)}
+                                            {p.connectionType === 'network' ? 'Rede/IP' : p.connectionType}
                                         </div>
                                     </TableCell>
                                     <TableCell className="font-mono text-xs">{p.address}</TableCell>
@@ -370,7 +356,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                                 </TableRow>
                             ))}
                             {printers?.length === 0 && (
-                                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhuma impressora configurada.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhuma impressora cadastrada.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>
@@ -380,74 +366,68 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="sm:max-w-[500px]">
                     <DialogHeader>
-                        <DialogTitle>Dispositivos Encontrados</DialogTitle>
+                        <DialogTitle>Configurar Nova Impressora</DialogTitle>
                         <DialogDescription>
-                            Escolha uma das impressoras encontradas para configurar no sistema.
+                            Insira os dados reais do seu dispositivo de impressão.
                         </DialogDescription>
                     </DialogHeader>
                     
-                    {!selectedPrinter ? (
-                        <div className="space-y-3 py-4">
-                            {DUMMY_DISCOVERED.map((device, idx) => (
-                                <button
-                                    key={idx}
-                                    onClick={() => setSelectedPrinter(device)}
-                                    className="w-full flex items-center justify-between p-4 rounded-lg border hover:bg-muted transition-colors text-left"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                                            {getConnectionIcon(device.connectionType)}
-                                        </div>
-                                        <div>
-                                            <p className="font-medium text-sm">{device.name}</p>
-                                            <p className="text-xs text-muted-foreground">{device.address}</p>
-                                        </div>
-                                    </div>
-                                    <Check className="h-4 w-4 text-primary opacity-0 group-hover:opacity-100" />
-                                </button>
-                            ))}
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>Nome da Impressora</Label>
+                            <Input placeholder="Ex: Cozinha Principal" value={printerName} onChange={e => setPrinterName(e.target.value)} />
                         </div>
-                    ) : (
-                        <div className="space-y-6 py-4">
-                            <div className="p-4 rounded-lg bg-muted/50 border space-y-2">
-                                <p className="text-xs font-semibold text-muted-foreground uppercase">Dispositivo Selecionado</p>
-                                <div className="flex items-center gap-3">
-                                    {getConnectionIcon(selectedPrinter.connectionType)}
-                                    <div>
-                                        <p className="font-medium text-sm">{selectedPrinter.name}</p>
-                                        <p className="text-xs text-muted-foreground">{selectedPrinter.address}</p>
-                                    </div>
-                                </div>
-                                <Button variant="ghost" size="sm" className="h-7 text-xs px-0" onClick={() => setSelectedPrinter(null)}>Alterar dispositivo</Button>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Tipo de Conexão</Label>
+                                <Select value={printerType} onValueChange={(v) => setPrinterType(v as PrinterConnectionType)}>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="network">Rede (IP)</SelectItem>
+                                        <SelectItem value="usb">USB</SelectItem>
+                                        <SelectItem value="bluetooth">Bluetooth</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
+                            <div className="space-y-2">
+                                <Label>{printerType === 'network' ? 'Endereço IP' : 'Endereço/ID'}</Label>
+                                <Input 
+                                    placeholder={printerType === 'network' ? '192.168.1.100' : 'ID do dispositivo'} 
+                                    value={printerAddress} 
+                                    onChange={e => setPrinterAddress(e.target.value)} 
+                                />
+                            </div>
+                        </div>
 
-                            <div className="space-y-3">
-                                <Label className="text-sm">Vincular a Setores de Impressão</Label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {sectors?.map(s => (
-                                        <div key={s.id} className="flex items-center space-x-2 border p-2 rounded-md">
-                                            <Checkbox 
-                                                id={`sector-${s.id}`} 
-                                                checked={selectedSectors.includes(s.id)} 
-                                                onCheckedChange={() => toggleSector(s.id)}
-                                            />
-                                            <label htmlFor={`sector-${s.id}`} className="text-sm font-medium leading-none cursor-pointer">
-                                                {s.name}
-                                            </label>
-                                        </div>
-                                    ))}
-                                    {sectors?.length === 0 && (
-                                        <p className="text-xs text-muted-foreground col-span-2">Cadastre setores primeiro.</p>
-                                    )}
-                                </div>
+                        <div className="space-y-3">
+                            <Label className="text-sm">Vincular aos Setores de Impressão</Label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {sectors?.map(s => (
+                                    <div key={s.id} className="flex items-center space-x-2 border p-2 rounded-md">
+                                        <Checkbox 
+                                            id={`sector-config-${s.id}`} 
+                                            checked={selectedSectors.includes(s.id)} 
+                                            onCheckedChange={() => toggleSector(s.id)}
+                                        />
+                                        <label htmlFor={`sector-config-${s.id}`} className="text-sm font-medium leading-none cursor-pointer">
+                                            {s.name}
+                                        </label>
+                                    </div>
+                                ))}
+                                {sectors?.length === 0 && (
+                                    <p className="text-xs text-muted-foreground col-span-2">Cadastre setores primeiro na aba acima.</p>
+                                )}
                             </div>
                         </div>
-                    )}
+                    </div>
 
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => { setIsDialogOpen(false); setSelectedPrinter(null); }}>Cancelar</Button>
-                        <Button onClick={handleSavePrinter} disabled={!selectedPrinter || selectedSectors.length === 0}>
-                            Configurar Impressora
+                        <Button variant="outline" onClick={() => { setIsDialogOpen(false); resetPrinterForm(); }}>Cancelar</Button>
+                        <Button onClick={handleSavePrinter} disabled={!printerName || !printerAddress}>
+                            Salvar Impressora
                         </Button>
                     </DialogFooter>
                 </DialogContent>
