@@ -41,18 +41,17 @@ export function useRestaurant(): UseRestaurantReturn {
         return doc(firestore, `restaurants/${restaurantId}/team`, user.uid);
     }, [restaurantId, user?.uid, firestore]);
 
-    // Nota: O erro de permissão aqui é tratado silenciosamente para evitar quebras no login
-    const { data: teamMember, isLoading: isRoleLoading, error: roleError } = useDoc<RestaurantUser>(teamMemberRef);
+    // Nota: O erro de permissão aqui é tratado silenciosamente durante o carregamento inicial
+    const { data: teamMember, isLoading: isRoleLoading } = useDoc<RestaurantUser>(teamMemberRef);
 
     // O carregamento só termina quando o perfil E o cargo (se o id existir) terminarem
     const isLoading = isUserLoading || isProfileLoading || (!!restaurantId && isRoleLoading);
 
-    // Lógica de fallback: Se o usuário tem um restaurante mas o registro na equipe ainda está carregando ou falhou,
-    // ele é tratado como Admin se for o criador (fallback de segurança).
+    // Lógica de fallback: Se o usuário tem um restaurante mas o registro na equipe ainda não existe no DB,
+    // ele é tratado como Admin (caso de criador novo).
     const detectedRole = useMemo(() => {
         if (teamMember?.role) return teamMember.role;
-        // Se temos restaurantId e o carregamento de role terminou mas veio nulo,
-        // pode ser um admin recém-criado.
+        // Fallback de segurança para administradores que acabaram de criar o restaurante
         if (restaurantId && !isRoleLoading) return 'admin';
         return null;
     }, [teamMember?.role, restaurantId, isRoleLoading]);

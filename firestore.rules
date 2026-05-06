@@ -7,21 +7,19 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Validação baseada no activeRestaurantId salvo no perfil do usuário
+    // Verifica se o usuário tem o restaurante como ativo no seu perfil
     function isStaff(restaurantId) {
-      return isSignedIn() && (
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.activeRestaurantId == restaurantId
-      );
+      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      return isSignedIn() && exists(userPath) && get(userPath).data.activeRestaurantId == restaurantId;
     }
 
+    // Verifica se o usuário é admin na subcoleção de equipe
     function isAdmin(restaurantId) {
-      // Um admin deve ser staff e ter o papel "admin" na equipe
-      return isSignedIn() && (
-        get(/databases/$(database)/documents/restaurants/$(restaurantId)/team/$(request.auth.uid)).data.role == "admin"
-      );
+      let teamPath = /databases/$(database)/documents/restaurants/$(restaurantId)/team/$(request.auth.uid);
+      return isSignedIn() && exists(teamPath) && get(teamPath).data.role == "admin";
     }
 
-    // USERS: Perfil público do usuário
+    // USERS: Perfil do usuário
     match /users/{userId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn() && request.auth.uid == userId;
@@ -30,19 +28,21 @@ service cloud.firestore {
     // RESTAURANTS
     match /restaurants/{restaurantId} {
       allow create: if isSignedIn();
-      allow read: if true; // Cardápio e infos básicas são públicos
+      allow read: if true; 
       allow update, delete: if isAdmin(restaurantId);
 
       // Equipe do restaurante
       match /team/{memberId} {
-        // Permite ler se for o próprio membro ou se for staff do restaurante
-        allow read: if isSignedIn() && (request.auth.uid == memberId || isStaff(restaurantId));
-        // Apenas admins podem gerenciar a equipe, mas o próprio usuário pode se "vincular" ao aceitar convite
-        allow write: if isAdmin(restaurantId) || (isSignedIn() && request.auth.uid == memberId);
+        // Permite que o próprio usuário leia/escreva seu registro (necessário para cadastro/convite)
+        allow read, write: if isSignedIn() && request.auth.uid == memberId;
+        // Permite que admins gerenciem a equipe
+        allow read, write: if isAdmin(restaurantId);
       }
 
       match /invitations/{inviteId} {
         allow read: if true; 
+        // Permite que o convidado aceite o convite mudando o status
+        allow update: if isSignedIn() && request.resource.data.status == 'accepted';
         allow write: if isAdmin(restaurantId);
       }
 
@@ -66,8 +66,8 @@ service cloud.firestore {
       }
 
       match /orders/{orderId} {
-        allow read: if true; // Pedidos podem ser lidos pelo cliente/QR
-        allow write: if true; // Clientes criam pedidos via QR, Staff gerencia
+        allow read: if true;
+        allow write: if true; // Clientes criam via QR
         
         match /items/{itemId} {
           allow read, write: if true;
@@ -76,7 +76,7 @@ service cloud.firestore {
 
       // Fallback para outras subcoleções
       match /{allSubcollections=**} {
-        allow read, write: if isStaff(restaurantId);
+        allow read, write: if isStaff(restaurantId) || isAdmin(restaurantId);
       }
     }
   }

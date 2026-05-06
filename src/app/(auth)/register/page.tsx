@@ -28,10 +28,12 @@ function RegisterContent() {
   const [userName, setUserName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  
   const auth = useAuth();
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const { hasRestaurant, isLoading: isResLoading } = useRestaurant();
+  
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -54,6 +56,7 @@ function RegisterContent() {
       provider.setCustomParameters({ prompt: 'select_account' });
       await signInWithPopup(auth, provider);
     } catch (error: any) {
+      console.error("Google Sign In Error:", error);
       toast({ variant: 'destructive', title: 'Erro', description: 'Erro ao entrar com Google.' });
     } finally {
         setIsSubmitting(false);
@@ -62,6 +65,7 @@ function RegisterContent() {
 
   const handleRegister = async (e: FormEvent) => {
     e.preventDefault();
+    
     if (!inviteId && !restaurantName) {
         toast({ variant: "destructive", title: "Erro", description: "Preencha o nome do restaurante." });
         return;
@@ -70,6 +74,8 @@ function RegisterContent() {
     setIsSubmitting(true);
     try {
       let targetUser = user;
+      
+      // 1. Criar usuário se não estiver logado
       if (!targetUser) {
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
           targetUser = userCredential.user;
@@ -80,12 +86,13 @@ function RegisterContent() {
       let targetRestaurantId = invitedRestId;
       let targetRole = 'waiter';
 
+      // 2. Se for convite, validar e preparar atualização
       if (inviteId && invitedRestId) {
           const inviteRef = doc(firestore, `restaurants/${invitedRestId}/invitations/${inviteId}`);
           const inviteSnap = await getDoc(inviteRef);
           
           if (!inviteSnap.exists()) {
-              toast({ variant: 'destructive', title: 'Erro', description: 'Convite inválido.' });
+              toast({ variant: 'destructive', title: 'Erro', description: 'Convite inválido ou expirado.' });
               setIsSubmitting(false);
               return;
           }
@@ -93,6 +100,7 @@ function RegisterContent() {
           targetRole = inviteSnap.data().role || 'waiter';
           batch.update(inviteRef, { status: 'accepted' });
       } else {
+          // 3. Criar novo restaurante se não for convite
           const restaurantRef = doc(collection(firestore, "restaurants"));
           targetRestaurantId = restaurantRef.id;
           targetRole = 'admin';
@@ -105,6 +113,7 @@ function RegisterContent() {
           });
       }
 
+      // 4. Salvar perfil do usuário
       const userProfileRef = doc(firestore, `users/${targetUser.uid}`);
       batch.set(userProfileRef, {
         name: targetUser.displayName || userName || targetUser.email,
@@ -113,7 +122,7 @@ function RegisterContent() {
         activeRestaurantId: targetRestaurantId
       }, { merge: true });
       
-      // Salva na nova subcoleção de equipe do restaurante
+      // 5. Salvar na subcoleção de equipe
       const memberRef = doc(firestore, `restaurants/${targetRestaurantId}/team/${targetUser.uid}`);
       batch.set(memberRef, {
           userId: targetUser.uid,
@@ -125,10 +134,20 @@ function RegisterContent() {
       });
       
       await batch.commit();
-      toast({ title: 'Sucesso!', description: inviteId ? 'Você entrou para a equipe!' : 'Seu restaurante foi configurado.' });
+      
+      toast({ 
+        title: 'Sucesso!', 
+        description: inviteId ? 'Você entrou para a equipe!' : 'Seu restaurante foi configurado.' 
+      });
+      
       router.push('/dashboard');
     } catch (error: any) {
-        toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao registrar.' });
+        console.error("Registration Error:", error);
+        toast({ 
+          variant: 'destructive', 
+          title: 'Erro no Cadastro', 
+          description: error.message || 'Ocorreu uma falha ao processar o seu registro.' 
+        });
     } finally {
         setIsSubmitting(false);
     }
@@ -150,7 +169,13 @@ function RegisterContent() {
           {!inviteId && (
             <div className="space-y-2">
                 <Label>Nome do Restaurante</Label>
-                <Input placeholder="Ex: Pizzaria do Zé" required value={restaurantName} onChange={(e) => setRestaurantName(e.target.value)} disabled={isSubmitting} />
+                <Input 
+                  placeholder="Ex: Pizzaria do Zé" 
+                  required 
+                  value={restaurantName} 
+                  onChange={(e) => setRestaurantName(e.target.value)} 
+                  disabled={isSubmitting} 
+                />
             </div>
           )}
           
@@ -158,15 +183,34 @@ function RegisterContent() {
             <>
               <div className="space-y-2">
                 <Label>Seu Nome</Label>
-                <Input placeholder="Ex: José Silva" required value={userName} onChange={(e) => setUserName(e.target.value)} disabled={isSubmitting} />
+                <Input 
+                  placeholder="Ex: José Silva" 
+                  required 
+                  value={userName} 
+                  onChange={(e) => setUserName(e.target.value)} 
+                  disabled={isSubmitting} 
+                />
               </div>
               <div className="space-y-2">
                 <Label>Email</Label>
-                <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={isSubmitting} />
+                <Input 
+                  type="email" 
+                  required 
+                  value={email} 
+                  onChange={(e) => setEmail(e.target.value)} 
+                  disabled={isSubmitting} 
+                />
               </div>
               <div className="space-y-2">
                 <Label>Senha</Label>
-                <Input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} disabled={isSubmitting} />
+                <Input 
+                  type="password" 
+                  required 
+                  value={password} 
+                  onChange={(e) => setPassword(e.target.value)} 
+                  disabled={isSubmitting} 
+                  minLength={6}
+                />
               </div>
             </>
           ) : (
