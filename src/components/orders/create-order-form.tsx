@@ -93,7 +93,7 @@ export function CreateOrderForm({ restaurantId, onSuccess }: { restaurantId: str
                 const tableRef = doc(firestore, `restaurants/${restaurantId}/tables`, tableId);
                 updateDoc(tableRef, { status: 'ocupada' });
             }
-            toast({ title: "Pedido enviado para produção!" });
+            toast({ title: "Pedido enviado!" });
             onSuccess();
         }).catch(async (error) => {
             setIsSubmitting(false);
@@ -111,21 +111,22 @@ export function CreateOrderForm({ restaurantId, onSuccess }: { restaurantId: str
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:h-[75vh]">
             <div className="flex flex-col">
                 <Tabs defaultValue={categories?.[0]?.id} className="flex-1 flex flex-col">
-                    <ScrollArea className="w-full whitespace-nowrap"><TabsList className="flex w-max">{categories?.map(c => <TabsTrigger key={c.id} value={c.id}>{c.name}</TabsTrigger>)}</TabsList><ScrollBar orientation="horizontal" /></ScrollArea>
+                    <ScrollArea className="w-full whitespace-nowrap">
+                        <TabsList className="flex w-max">
+                            {categories?.map(c => <TabsTrigger key={c.id} value={c.id}>{c.name}</TabsTrigger>)}
+                        </TabsList>
+                        <ScrollBar orientation="horizontal" />
+                    </ScrollArea>
                     <ScrollArea className="flex-1 mt-4">
                         {categories?.map(c => (
                             <TabsContent key={c.id} value={c.id} className="grid grid-cols-2 gap-3">
                                 {items?.filter(i => i.categoryId === c.id && i.isAvailable).map(item => (
                                     <Card key={item.id} className="flex flex-col p-3 gap-2 cursor-pointer hover:border-primary transition-colors" onClick={() => handleAddItem(item)}>
-                                        <div className="flex justify-between items-start gap-2">
-                                            <p className="text-sm font-semibold leading-tight">{item.name}</p>
-                                        </div>
+                                        <p className="text-sm font-semibold leading-tight">{item.name}</p>
                                         <p className="text-xs text-muted-foreground line-clamp-1">{item.description}</p>
                                         <div className="flex justify-between items-center mt-auto">
                                             <span className="text-sm font-bold text-primary">R$ {item.price.toFixed(2)}</span>
-                                            <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center">
-                                                <Plus className="h-3 w-3 text-primary" />
-                                            </div>
+                                            <Plus className="h-3 w-3 text-primary" />
                                         </div>
                                     </Card>
                                 ))}
@@ -155,11 +156,9 @@ export function CreateOrderForm({ restaurantId, onSuccess }: { restaurantId: str
                                 </Select>
                             </div>
                             <div>
-                                <Label className="text-xs">Mesa / Identificação</Label>
+                                <Label className="text-xs">Identificação</Label>
                                 <Select value={tableId} onValueChange={setTableId} disabled={origin !== 'mesa'}>
-                                    <SelectTrigger className="h-9">
-                                        <SelectValue placeholder="Selecione..." />
-                                    </SelectTrigger>
+                                    <SelectTrigger className="h-9"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                                     <SelectContent>
                                         {tables?.map(t => (
                                             <SelectItem key={t.id} value={t.id}>{t.name} ({t.status})</SelectItem>
@@ -169,48 +168,31 @@ export function CreateOrderForm({ restaurantId, onSuccess }: { restaurantId: str
                             </div>
                         </div>
                         <Separator />
-                        <ScrollArea className="flex-1 -mx-4 px-4">
+                        <ScrollArea className="flex-1">
                             <div className="space-y-4">
                                 {orderItems.map((item, idx) => (
-                                    <div key={idx} className="space-y-2 pb-2 border-b last:border-0">
+                                    <div key={idx} className="space-y-2 border-b pb-2">
                                         <div className="flex justify-between items-center">
-                                            <div className="text-sm">
-                                                <p className="font-semibold">{item.name}</p>
-                                                <p className="text-primary text-xs font-bold">R$ {item.price.toFixed(2)}</p>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <Button variant="outline" size="icon" className="h-7 w-7 rounded-full" onClick={(e) => { e.stopPropagation(); handleUpdateQuantity(idx, -1); }}><Minus className="h-3 w-3" /></Button>
-                                                <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
-                                                <Button variant="outline" size="icon" className="h-7 w-7 rounded-full" onClick={(e) => { e.stopPropagation(); handleUpdateQuantity(idx, 1); }}><Plus className="h-3 w-3" /></Button>
+                                            <span className="text-sm font-medium">{item.name}</span>
+                                            <div className="flex items-center gap-2">
+                                                <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => handleUpdateQuantity(idx, -1)}><Minus /></Button>
+                                                <span className="text-sm">{item.quantity}</span>
+                                                <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => handleUpdateQuantity(idx, 1)}><Plus /></Button>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <MessageSquare className="h-3 w-3 text-muted-foreground" />
-                                            <Input 
-                                                placeholder="Observação (ex: sem cebola)" 
-                                                className="h-7 text-xs" 
-                                                value={item.notes}
-                                                onChange={(e) => handleUpdateNotes(idx, e.target.value)}
-                                            />
-                                        </div>
+                                        <Input placeholder="Observações..." className="h-8 text-xs" value={item.notes} onChange={e => handleUpdateNotes(idx, e.target.value)} />
                                     </div>
                                 ))}
-                                {orderItems.length === 0 && (
-                                    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground opacity-50">
-                                        <Plus className="h-8 w-8 mb-2" />
-                                        <p className="text-sm">Toque nos itens para adicionar</p>
-                                    </div>
-                                )}
                             </div>
                         </ScrollArea>
-                        <div className="pt-4 border-t flex justify-between items-center font-bold">
-                            <span className="text-muted-foreground">Valor Total</span>
-                            <span className="text-xl text-primary">R$ {total.toFixed(2)}</span>
+                        <div className="pt-4 border-t flex justify-between font-bold">
+                            <span>Total</span>
+                            <span className="text-primary">R$ {total.toFixed(2)}</span>
                         </div>
                     </CardContent>
                 </Card>
-                <Button className="w-full" size="lg" disabled={orderItems.length === 0 || isSubmitting} onClick={handleCreateOrder}>
-                    {isSubmitting ? "Enviando para Cozinha..." : "Finalizar e Enviar"}
+                <Button className="w-full" disabled={orderItems.length === 0 || isSubmitting} onClick={handleCreateOrder}>
+                    {isSubmitting ? "Enviando..." : "Finalizar Pedido"}
                 </Button>
             </div>
         </div>

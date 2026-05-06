@@ -2,45 +2,63 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- Funções Auxiliares ---
-
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Verifica se o usuário logado tem um papel ativo no restaurante
-    function isRestaurantStaff(restaurantId) {
-      return isSignedIn() && (
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)/restaurantRoles/$(restaurantId))
-      );
+    function getRole(restaurantId) {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)/restaurantRoles/$(restaurantId));
     }
 
-    // --- Regras por Coleção ---
+    function isStaff(restaurantId) {
+      return isSignedIn()
+        && getRole(restaurantId).exists()
+        && getRole(restaurantId).data.active == true;
+    }
 
+    function isAdmin(restaurantId) {
+      return isStaff(restaurantId)
+        && getRole(restaurantId).data.role == "admin";
+    }
+
+    // USERS
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && request.auth.uid == userId;
+      allow write: if request.auth.uid == userId;
 
       match /restaurantRoles/{restaurantId} {
-        allow read, write: if isSignedIn() && (request.auth.uid == userId || isRestaurantStaff(restaurantId));
+
+        // Pode ver
+        allow read: if request.auth.uid == userId || isStaff(restaurantId);
+
+        // 🔒 SOMENTE ADMIN pode criar/editar/deletar roles
+        allow create, update, delete: if isAdmin(restaurantId);
       }
     }
 
-    // Regra para consultas de grupo (collectionGroup)
-    // Permite que o usuário encontre seus próprios papéis em qualquer restaurante
+    // collectionGroup
     match /{path=**}/restaurantRoles/{roleId} {
-      allow list: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid || isRestaurantStaff(resource.data.restaurantId));
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isRestaurantStaff(resource.data.restaurantId));
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        isStaff(resource.data.restaurantId)
+      );
+
+      allow list: if isSignedIn();
     }
 
+    // RESTAURANTS
     match /restaurants/{restaurantId} {
-      // Permite criar um restaurante se estiver logado
+
+      // criação inicial
       allow create: if isSignedIn();
-      // Acesso operacional para a equipe
-      allow read, write: if isRestaurantStaff(restaurantId);
+
+      allow read: if isStaff(restaurantId);
+
+      // só admin altera restaurante
+      allow update, delete: if isAdmin(restaurantId);
 
       match /{allSubcollections=**} {
-        allow read, write: if isRestaurantStaff(restaurantId);
+        allow read, write: if isStaff(restaurantId);
       }
     }
   }
