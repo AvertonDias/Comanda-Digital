@@ -50,7 +50,7 @@ export default function RegisterPage() {
       await signInWithPopup(auth, provider);
       toast({ title: 'Autenticado!', description: 'Agora finalize o cadastro do restaurante.' });
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Erro', description: 'Erro ao entrar com Google.' });
+      toast({ variant: 'destructive', title: 'Erro', description: 'Erro ao entrar com Google. Verifique se o domínio está autorizado no console do Firebase.' });
     } finally {
         setIsSubmitting(false);
     }
@@ -85,7 +85,7 @@ export default function RegisterPage() {
       // Desnormalização estratégica para Rule robusta e rápida
       const userProfileRef = doc(firestore, `users/${targetUser.uid}`);
       batch.set(userProfileRef, {
-        name: targetUser.displayName || userName,
+        name: targetUser.displayName || userName || targetUser.email,
         email: targetUser.email,
         avatarUrl: targetUser.photoURL || '',
         activeRestaurantId: restaurantRef.id

@@ -57,7 +57,7 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (firebaseError: FirestoreError) => {
-        // Fallback seguro de path para evitar erros de asserção interna
+        // Fallback seguro de path para evitar erros de asserção interna em SDKs recentes
         const path = (memoizedTargetRefOrQuery as any).path || 'query';
         const contextualError = new FirestorePermissionError({
           operation: 'list',
