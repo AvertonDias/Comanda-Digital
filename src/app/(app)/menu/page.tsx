@@ -8,7 +8,7 @@ import { MenuItemForm } from '@/components/menu/menu-item-form';
 import { CategoryManager } from '@/components/menu/category-manager';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useRestaurant } from '@/hooks/use-restaurant';
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, orderBy, doc } from 'firebase/firestore';
@@ -140,77 +140,79 @@ export default function MenuPage() {
       </AppHeader>
 
       <main className="flex-1 pb-24">
-        {/* Banner Responsivo */}
+        {/* Banner Responsivo Otimizado */}
         <div className="relative py-8 md:py-16 bg-primary/5 overflow-hidden flex items-center justify-center border-b">
-            <div className="text-center space-y-3 px-4 max-w-full">
+            <div className="text-center space-y-4 px-4 max-w-full z-10">
                 <h2 className="text-2xl md:text-5xl font-black uppercase tracking-tighter break-words leading-none">
                     {restaurant?.name}
                 </h2>
-                <div className="flex flex-wrap items-center justify-center gap-2 md:gap-4 text-[9px] md:text-xs font-black uppercase text-muted-foreground">
-                    <span className="flex items-center gap-1.5 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full border shadow-sm">
+                <div className="flex flex-wrap items-center justify-center gap-2 md:gap-4">
+                    <span className="flex items-center gap-1.5 bg-background/80 backdrop-blur-sm px-3 py-1.5 rounded-full border shadow-sm text-[9px] md:text-xs font-black uppercase text-muted-foreground">
                         <Clock className="h-3 w-3 text-primary" /> 
                         30-45 min
                     </span>
-                    <span className="hidden sm:inline opacity-30">•</span>
-                    <span className="flex items-center gap-1.5 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full border shadow-sm">
+                    <span className="flex items-center gap-1.5 bg-background/80 backdrop-blur-sm px-3 py-1.5 rounded-full border shadow-sm text-[9px] md:text-xs font-black uppercase text-muted-foreground">
                         <MapPin className="h-3 w-3 text-primary" /> 
-                        Consumo Local
+                        Local
                     </span>
                 </div>
             </div>
-            {/* Elemento Decorativo */}
-            <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-primary/10 rounded-full blur-3xl" />
-            <div className="absolute -top-6 -left-6 w-32 h-32 bg-primary/10 rounded-full blur-3xl" />
+            {/* Elementos Decorativos */}
+            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-primary/10 rounded-full blur-3xl" />
+            <div className="absolute -top-10 -left-10 w-40 h-40 bg-accent/20 rounded-full blur-3xl" />
         </div>
 
+        {/* Busca e Categorias Fixas */}
         <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md border-b">
             <div className="max-w-3xl mx-auto px-4 py-3 space-y-3">
                 <div className="relative group">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                     <Input 
                         placeholder="Buscar pratos ou bebidas..." 
-                        className="pl-9 h-10 bg-muted/50 border-none rounded-full focus-visible:ring-primary text-xs"
+                        className="pl-9 h-11 bg-muted/50 border-none rounded-full focus-visible:ring-primary text-xs font-medium"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
                 </div>
                 
                 {!searchQuery && categories && categories.length > 0 && (
-                    <ScrollArea className="w-full whitespace-nowrap">
-                        <div className="flex gap-2 pb-1">
-                            {categories.map((cat) => (
-                                <button
-                                    key={cat.id}
-                                    onClick={() => setActiveTab(cat.id)}
-                                    className={cn(
-                                        "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all",
-                                        activeTab === cat.id 
-                                        ? 'bg-primary text-white shadow-md scale-105' 
-                                        : 'bg-muted hover:bg-muted/80 text-muted-foreground'
-                                    )}
-                                >
-                                    {cat.name}
-                                </button>
-                            ))}
-                        </div>
-                        <ScrollBar orientation="horizontal" className="hidden" />
-                    </ScrollArea>
+                    <div className="flex overflow-x-auto gap-2 pb-1 hide-scrollbar -mx-4 px-4 scroll-smooth">
+                        {categories.map((cat) => (
+                            <button
+                                key={cat.id}
+                                onClick={() => {
+                                    setActiveTab(cat.id);
+                                    // Feedback tátil se disponível
+                                    if (window.navigator.vibrate) window.navigator.vibrate(5);
+                                }}
+                                className={cn(
+                                    "px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 border-2",
+                                    activeTab === cat.id 
+                                    ? 'bg-primary border-primary text-white shadow-lg scale-105 z-10' 
+                                    : 'bg-muted border-transparent hover:bg-muted/80 text-muted-foreground'
+                                )}
+                            >
+                                {cat.name}
+                            </button>
+                        ))}
+                    </div>
                 )}
             </div>
         </div>
 
-        <div className="max-w-3xl mx-auto p-4 space-y-8">
+        <div className="max-w-3xl mx-auto p-4 space-y-10">
             {categories?.filter(c => !activeTab || c.id === activeTab || searchQuery).map(category => {
                 const categoryItems = filteredItems.filter(i => i.categoryId === category.id);
                 if (categoryItems.length === 0) return null;
 
                 return (
-                    <div key={category.id} className="space-y-4">
-                        <h3 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                            <span className="h-px w-4 bg-primary" />
+                    <div key={category.id} className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                        <h3 className="text-xs font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+                            <span className="h-1 w-1 rounded-full bg-primary" />
                             {category.name}
+                            <span className="flex-1 h-px bg-primary/10" />
                         </h3>
-                        <div className="grid grid-cols-1 gap-1">
+                        <div className="grid grid-cols-1 gap-2">
                             {categoryItems.map(item => (
                                 <MenuItemCard 
                                     key={item.id} 
@@ -224,9 +226,13 @@ export default function MenuPage() {
             })}
 
             {filteredItems.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 opacity-50">
-                    <Search className="h-12 w-12 text-muted-foreground" />
-                    <p className="text-sm font-black uppercase tracking-tighter">Nenhum item encontrado</p>
+                <div className="flex flex-col items-center justify-center py-24 text-center space-y-4 opacity-40">
+                    <Search className="h-16 w-16 text-muted-foreground mb-2" />
+                    <div className="space-y-1">
+                        <p className="text-sm font-black uppercase tracking-tighter">Nenhum item encontrado</p>
+                        <p className="text-xs font-bold uppercase text-muted-foreground">Tente buscar por outro nome ou categoria</p>
+                    </div>
+                    <Button variant="outline" size="sm" className="font-black uppercase text-[10px]" onClick={() => setSearchQuery('')}>Limpar Busca</Button>
                 </div>
             )}
         </div>
