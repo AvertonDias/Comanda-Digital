@@ -17,10 +17,11 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Order, OrderStatus, Restaurant, SplitPaymentPart, MenuItem, MenuItemCategory } from "@/lib/types";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowRight, ChefHat, Bike, ShoppingBag, Trash2, QrCode, Copy, Check, Users, Minus, Plus, Wallet, CreditCard, Banknote, ListChecks, DollarSign, UserPlus, Search } from "lucide-react";
+import { ArrowRight, ChefHat, Bike, ShoppingBag, Trash2, QrCode, Copy, Check, Users, Minus, Plus, Wallet, CreditCard, Banknote, ListChecks, DollarSign, UserPlus, Search, ChevronLeft } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import { doc, updateDoc, arrayUnion, increment, query, collection, orderBy } from "firebase/firestore";
@@ -101,6 +102,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
 
     // Estados para Adicionar Mais Itens
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [selectedMenuCategoryId, setSelectedMenuCategoryId] = useState<string | null>(null);
     const [selectedItemToAdd, setSelectedItemToAdd] = useState<MenuItem | null>(null);
 
     const restaurantRef = useMemoFirebase(() => order?.restaurantId ? doc(firestore, 'restaurants', order.restaurantId) : null, [firestore, order?.restaurantId]);
@@ -142,6 +144,13 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
             setItemsBalance(order.items.map((item, idx) => ({ ...item, originalIndex: idx, remainingQty: item.quantity })));
         }
     }, [isOpen, order, lastOpenedOrderId]);
+
+    // Resetar seletor de categoria quando o menu extra abrir/fechar
+    useEffect(() => {
+        if (!isMenuOpen) {
+            setSelectedMenuCategoryId(null);
+        }
+    }, [isMenuOpen]);
 
     // Calcula valor automático baseado nos itens selecionados
     useEffect(() => {
@@ -263,9 +272,11 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         <>
             <Dialog open={isOpen} onOpenChange={onOpenChange}>
                 <DialogContent className="max-w-full w-full h-[100dvh] sm:h-auto sm:max-w-md flex flex-col p-0 overflow-hidden border-none sm:border">
-                    <DialogHeader className="p-6 pb-0">
+                    <DialogHeader className="p-6 pb-0 flex flex-row items-center gap-2 space-y-0">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2" onClick={() => onOpenChange(false)}>
+                            <ChevronLeft className="h-5 w-5" />
+                        </Button>
                         <DialogTitle className="font-black uppercase tracking-tight text-xl">Pedido #{displayOrderNumber}</DialogTitle>
-                        <DialogDescription className="font-bold uppercase text-[10px] text-primary">{order.tableName || 'Consumo Local'}</DialogDescription>
                     </DialogHeader>
                     
                     <ScrollArea className="flex-1">
@@ -355,8 +366,8 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                                             <Input 
                                                                                 type="number" 
                                                                                 min="1"
-                                                                                placeholder="Pessoas" 
-                                                                                className="h-7 w-12 text-[10px] p-1 text-center font-black bg-muted/50 border-none shadow-none"
+                                                                                placeholder="Nº" 
+                                                                                className="h-7 w-10 text-[10px] p-1 text-center font-black bg-muted/50 border-none shadow-none"
                                                                                 onChange={(e) => {
                                                                                     const divisor = Number(e.target.value);
                                                                                     if (divisor > 0) handleSetFraction(idx, divisor);
@@ -548,43 +559,78 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                 </DialogContent>
             </Dialog>
 
-            {/* Menu para Adicionar Item Extra */}
+            {/* Menu para Adicionar Item Extra - Reformulado com Dropdown de Categorias */}
             <Dialog open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-                <DialogContent className="max-w-[450px] p-0 flex flex-col h-[80vh] border-none sm:border">
-                    <DialogHeader className="p-4 border-b">
+                <DialogContent className="max-w-full w-full h-[100dvh] sm:h-[80vh] sm:max-w-[450px] p-0 flex flex-col border-none sm:border overflow-hidden">
+                    <DialogHeader className="p-4 border-b flex flex-row items-center gap-2 space-y-0">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2" onClick={() => setIsMenuOpen(false)}>
+                            <ChevronLeft className="h-5 w-5" />
+                        </Button>
                         <DialogTitle className="text-sm font-black uppercase">Adicionar Item Extra</DialogTitle>
                     </DialogHeader>
-                    <ScrollArea className="flex-1 p-4">
-                        <div className="space-y-6">
-                            {categories?.map(cat => {
-                                const categoryItems = items?.filter(i => i.categoryId === cat.id && i.isAvailable);
-                                if (!categoryItems?.length) return null;
-                                return (
-                                    <div key={cat.id} className="space-y-3">
-                                        <h3 className="text-[10px] font-black uppercase text-primary tracking-widest flex items-center gap-2">
-                                            <span className="h-px w-3 bg-primary" /> {cat.name}
-                                        </h3>
-                                        <div className="grid gap-2">
-                                            {categoryItems.map(item => (
-                                                <Card key={item.id} className="p-2 flex items-center gap-3 cursor-pointer hover:border-primary border-2 transition-colors active:scale-95" onClick={() => setSelectedItemToAdd(item)}>
-                                                    <div className="h-10 w-10 rounded-md bg-muted overflow-hidden shrink-0">
-                                                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-[10px] font-black uppercase truncate leading-tight">{item.name}</p>
-                                                        <p className="text-[10px] font-bold text-primary">R$ {item.price.toFixed(2)}</p>
-                                                    </div>
-                                                    <Plus className="h-4 w-4 text-primary" />
-                                                </Card>
-                                            ))}
+
+                    {/* SELETOR DE CATEGORIA (MENU SUSPENSO) */}
+                    <div className="p-4 bg-muted/10 border-b space-y-3">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground">1. Escolha a Categoria</Label>
+                        <Select value={selectedMenuCategoryId || ""} onValueChange={setSelectedMenuCategoryId}>
+                            <SelectTrigger className="h-12 border-2 bg-background font-bold text-xs uppercase shadow-sm">
+                                <SelectValue placeholder="Selecione para ver os itens..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {categories?.map(cat => (
+                                    <SelectItem key={cat.id} value={cat.id} className="text-xs font-bold uppercase">
+                                        {cat.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    {/* LISTAGEM DINÂMICA DE ITENS */}
+                    <ScrollArea className="flex-1 p-4 bg-background">
+                        {selectedMenuCategoryId ? (
+                            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                <Label className="text-[10px] font-black uppercase text-primary tracking-widest block mb-1">2. Selecione o Produto</Label>
+                                {items?.filter(i => i.categoryId === selectedMenuCategoryId && i.isAvailable).map(item => (
+                                    <Card 
+                                        key={item.id} 
+                                        className="p-3 flex items-center gap-4 cursor-pointer hover:border-primary border-2 transition-all active:scale-95 shadow-sm" 
+                                        onClick={() => setSelectedItemToAdd(item)}
+                                    >
+                                        <div className="h-12 w-12 rounded-lg bg-muted overflow-hidden shrink-0 border shadow-inner">
+                                            <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
                                         </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-[11px] font-black uppercase truncate leading-none mb-1">{item.name}</p>
+                                            <p className="text-xs font-black text-primary">R$ {item.price.toFixed(2)}</p>
+                                        </div>
+                                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+                                            <Plus className="h-4 w-4 text-primary" />
+                                        </div>
+                                    </Card>
+                                ))}
+                                {items?.filter(i => i.categoryId === selectedMenuCategoryId && i.isAvailable).length === 0 && (
+                                    <div className="flex flex-col items-center justify-center py-12 text-center opacity-40">
+                                        <ShoppingBag className="h-10 w-10 mb-2" />
+                                        <p className="text-[10px] font-black uppercase">Nenhum item disponível nesta categoria</p>
                                     </div>
-                                )
-                            })}
-                        </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-full py-20 text-center space-y-4 opacity-30">
+                                <Search className="h-12 w-12 text-muted-foreground" />
+                                <div className="space-y-1">
+                                    <p className="text-[11px] font-black uppercase tracking-tight">Aguardando Categoria</p>
+                                    <p className="text-[9px] font-bold uppercase text-muted-foreground leading-tight px-8">Selecione uma opção no menu acima para listar os produtos do cardápio</p>
+                                </div>
+                            </div>
+                        )}
                     </ScrollArea>
-                    <div className="p-4 border-t bg-muted/10">
-                        <Button variant="ghost" className="w-full font-black uppercase text-[10px]" onClick={() => setIsMenuOpen(false)}>Cancelar</Button>
+                    
+                    <div className="p-4 border-t bg-muted/10 flex flex-col gap-2">
+                        <Button variant="ghost" className="w-full font-black uppercase text-[10px]" onClick={() => setIsMenuOpen(false)}>
+                            Cancelar
+                        </Button>
                     </div>
                 </DialogContent>
             </Dialog>
