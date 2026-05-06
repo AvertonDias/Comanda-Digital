@@ -269,19 +269,24 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                                         <Plus className="h-3 w-3" />
                                                                     </Button>
                                                                 </div>
-                                                                <div className="flex gap-1">
-                                                                    <button 
-                                                                        onClick={() => handleSetFraction(idx, 2)}
-                                                                        className="text-[9px] font-black border-2 px-2 py-0.5 rounded-md hover:bg-primary/5 active:scale-95 transition-all uppercase"
-                                                                    >
-                                                                        Metade
-                                                                    </button>
-                                                                    <button 
-                                                                        onClick={() => handleSetFraction(idx, 3)}
-                                                                        className="text-[9px] font-black border-2 px-2 py-0.5 rounded-md hover:bg-primary/5 active:scale-95 transition-all uppercase"
-                                                                    >
-                                                                        1/3
-                                                                    </button>
+                                                                <div className="flex flex-col gap-1 items-end">
+                                                                    <span className="text-[8px] font-black uppercase text-muted-foreground">Dividir em pessoas:</span>
+                                                                    <div className="flex gap-1">
+                                                                        {[2, 3, 4, 5].map(n => (
+                                                                            <button 
+                                                                                key={n}
+                                                                                onClick={() => handleSetFraction(idx, n)}
+                                                                                className={cn(
+                                                                                    "text-[9px] font-black border-2 w-7 h-7 flex items-center justify-center rounded-md transition-all uppercase",
+                                                                                    selectedItemsForPart[idx] === Number((itemsBalance[idx].remainingQty / n).toFixed(2)) 
+                                                                                    ? "bg-black text-white border-black" 
+                                                                                    : "border-muted hover:bg-primary/5"
+                                                                                )}
+                                                                            >
+                                                                                {n}
+                                                                            </button>
+                                                                        ))}
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>
