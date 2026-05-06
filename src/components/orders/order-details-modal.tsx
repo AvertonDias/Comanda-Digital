@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -75,17 +76,20 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         ? format(new Date(order.createdAt.seconds * 1000), "dd/MM/yy 'às' HH:mm", { locale: ptBR })
         : 'Recentemente';
 
+    // Número do pedido formatado (ex: 001)
+    const displayOrderNumber = order.orderNumber 
+        ? order.orderNumber.toString().padStart(3, '0') 
+        : order.id.slice(-4).toUpperCase();
+
     const handleStatusUpdate = () => {
         if (!nextStatus) return;
 
-        // Se for marcar como PRONTO e tiver telefone, abre o WhatsApp
         if (nextStatus === 'pronto' && notifyWhatsApp && order.customerPhone) {
             const cleanPhone = order.customerPhone.replace(/\D/g, '');
-            // Adiciona o prefixo do país se não houver
             const finalPhone = cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone;
             
             const message = encodeURIComponent(
-                `Olá ${order.customerName || 'Cliente'}! 👋\n\nBoas notícias: Seu pedido #${order.id.slice(-4)} no Comanda Digital já está PRONTO! 🚀\n\nTotal: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}\n\nAgradecemos a preferência! ✨`
+                `Olá ${order.customerName || 'Cliente'}! 👋\n\nBoas notícias: Seu pedido #${displayOrderNumber} no Comanda Digital já está PRONTO! 🚀\n\nTotal: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}\n\nAgradecemos a preferência! ✨`
             );
             
             window.open(`https://wa.me/${finalPhone}?text=${message}`, '_blank');
@@ -98,7 +102,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-full w-full h-[100dvh] sm:h-auto sm:max-w-md flex flex-col p-0 overflow-hidden border-none sm:border">
                 <DialogHeader className="p-6 pb-0">
-                    <DialogTitle className="font-black uppercase tracking-tight">Pedido #{order.id.slice(-4)}</DialogTitle>
+                    <DialogTitle className="font-black uppercase tracking-tight text-xl">Pedido #{displayOrderNumber}</DialogTitle>
                     <DialogDescription className="font-bold uppercase text-[10px] text-primary">
                         {order.tableName || `Pedido de ${originText[order.origin]}`}
                     </DialogDescription>

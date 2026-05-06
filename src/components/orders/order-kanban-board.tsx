@@ -25,12 +25,18 @@ const STATUS_CONFIG: Record<OrderStatus, { title: string; color: string }> = {
 const statusesToShow: OrderStatus[] = ['aberto', 'preparando', 'pronto'];
 
 const OrderCard = ({ order, onDetailsClick }: { order: Order, onDetailsClick: (order: Order) => void }) => {
+    const displayOrderNumber = order.orderNumber 
+        ? order.orderNumber.toString().padStart(3, '0') 
+        : order.id.slice(-4).toUpperCase();
+
     return (
-        <Card className="active:scale-[0.98] transition-transform">
+        <Card className="active:scale-[0.98] transition-transform shadow-sm hover:shadow-md">
             <CardHeader className='p-4 pb-2'>
-                <CardTitle className="text-sm flex justify-between items-center">
-                    <span className="font-black uppercase">{order.tableName || `Balcão #${order.id.slice(-4)}`}</span>
-                    <span className="text-[10px] font-mono text-muted-foreground">#{order.id.slice(-4)}</span>
+                <CardTitle className="text-sm flex justify-between items-start gap-2">
+                    <span className="font-black uppercase leading-tight flex-1">
+                        {order.tableName || `Pedido #${displayOrderNumber}`}
+                    </span>
+                    <Badge variant="outline" className="text-[10px] font-mono shrink-0">#{displayOrderNumber}</Badge>
                 </CardTitle>
                 <CardDescription className="text-[10px] flex items-center gap-1">
                     {order.createdAt?.seconds ? formatDistanceToNow(new Date(order.createdAt.seconds * 1000), { addSuffix: true, locale: ptBR }) : 'Agora'}

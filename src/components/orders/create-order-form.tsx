@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, addDoc, serverTimestamp, doc, updateDoc, orderBy } from 'firebase/firestore';
+import { collection, query, addDoc, serverTimestamp, doc, updateDoc, orderBy, getCountFromServer } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MenuItemSelectionDialog } from './menu-item-selection-dialog';
@@ -104,7 +104,6 @@ export function CreateOrderForm({
     const handleCreateOrder = async () => {
         if (orderItems.length === 0 || isSubmitting || !restaurantId) return;
         
-        // Validação básica de campos obrigatórios
         if ((orderType === 'retirada' || orderType === 'entrega') && (!customerName || !customerPhone)) {
             toast({ variant: "destructive", title: "Dados do cliente obrigatórios" });
             return;
@@ -141,8 +140,14 @@ export function CreateOrderForm({
         }
 
         try {
+            // Busca o próximo número de pedido sequencial
+            const ordersCol = collection(firestore, `restaurants/${restaurantId}/orders`);
+            const snapshot = await getCountFromServer(ordersCol);
+            const nextOrderNumber = (snapshot.data().count || 0) + 1;
+
             const orderData = {
                 restaurantId,
+                orderNumber: nextOrderNumber,
                 origin,
                 destination,
                 tableId: orderType === 'mesa' ? (tableId || null) : null,
@@ -168,13 +173,13 @@ export function CreateOrderForm({
                 }))
             };
             
-            await addDoc(collection(firestore, `restaurants/${restaurantId}/orders`), orderData);
+            await addDoc(ordersCol, orderData);
             
             if (orderType === 'mesa' && tableId) {
                 await updateDoc(doc(firestore, `restaurants/${restaurantId}/tables`, tableId), { status: 'ocupada' });
             }
             
-            toast({ title: "Pedido enviado!" });
+            toast({ title: `Pedido #${nextOrderNumber.toString().padStart(3, '0')} enviado!` });
             onSuccess();
         } catch (error) {
             console.error(error);
@@ -188,7 +193,6 @@ export function CreateOrderForm({
 
     return (
         <div className="flex flex-col h-full bg-background overflow-hidden">
-            {/* Passo 1: Identificação (Topo Fixo) */}
             <div className="p-4 bg-muted/20 border-b-2 space-y-4">
                 <label className="text-[10px] font-black uppercase text-primary tracking-widest flex items-center gap-2">
                     <span className="h-4 w-1 bg-primary rounded-full" />
@@ -264,7 +268,6 @@ export function CreateOrderForm({
             </div>
 
             <div className="flex-1 overflow-hidden flex flex-col lg:grid lg:grid-cols-2 gap-0">
-                {/* Passo 2: Seleção de Itens */}
                 <div className="flex-1 overflow-y-auto p-4 border-r-2 space-y-4">
                     <label className="text-[10px] font-black uppercase text-primary tracking-widest flex items-center gap-2">
                         <span className="h-4 w-1 bg-primary rounded-full" />
@@ -311,7 +314,6 @@ export function CreateOrderForm({
                     </Tabs>
                 </div>
 
-                {/* Passo 3: Carrinho / Conferência */}
                 <div className="bg-muted/10 flex flex-col h-[40vh] lg:h-full">
                     <div className="p-4 border-b flex justify-between items-center bg-background">
                         <label className="text-[10px] font-black uppercase text-primary tracking-widest">Resumo do Pedido</label>

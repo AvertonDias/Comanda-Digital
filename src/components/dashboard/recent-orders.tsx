@@ -33,26 +33,32 @@ export function RecentOrders() {
         </CardHeader>
         <CardContent>
             <div className="space-y-4">
-                {orders?.map((order) => (
-                    <div key={order.id} className="flex items-center gap-4 border-b pb-3 last:border-0">
-                        <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
-                            <ShoppingBag className="h-4 w-4 text-primary" />
+                {orders?.map((order) => {
+                    const displayOrderNumber = order.orderNumber 
+                        ? order.orderNumber.toString().padStart(3, '0') 
+                        : order.id.slice(-4).toUpperCase();
+
+                    return (
+                        <div key={order.id} className="flex items-center gap-4 border-b pb-3 last:border-0">
+                            <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                <span className="text-[10px] font-black text-primary">#{displayOrderNumber}</span>
+                            </div>
+                            <div className="flex-1 space-y-1 min-w-0">
+                                <p className="text-sm font-medium leading-none truncate">
+                                    {order.tableName || `Balcão #${displayOrderNumber}`}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    {order.createdAt?.seconds 
+                                        ? formatDistanceToNow(new Date(order.createdAt.seconds * 1000), { addSuffix: true, locale: ptBR })
+                                        : 'Agora mesmo'}
+                                </p>
+                            </div>
+                            <div className="text-sm font-bold shrink-0">
+                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}
+                            </div>
                         </div>
-                        <div className="flex-1 space-y-1">
-                            <p className="text-sm font-medium leading-none">
-                                {order.tableName || `Pedido #${order.id.slice(-4)}`}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                                {order.createdAt?.seconds 
-                                    ? formatDistanceToNow(new Date(order.createdAt.seconds * 1000), { addSuffix: true, locale: ptBR })
-                                    : 'Agora mesmo'}
-                            </p>
-                        </div>
-                        <div className="text-sm font-bold">
-                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}
-                        </div>
-                    </div>
-                ))}
+                    );
+                })}
                 
                 {orders?.length === 0 && !isLoading && (
                     <div className="flex flex-col items-center justify-center py-10 text-center space-y-3">

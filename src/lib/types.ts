@@ -97,6 +97,7 @@ export type OrderItem = {
 
 export type Order = {
   id: string;
+  orderNumber?: number;
   restaurantId: string;
   tableId?: string;
   tableName?: string;
