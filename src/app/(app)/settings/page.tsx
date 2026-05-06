@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AppHeader } from "@/components/layout/app-header";
@@ -8,11 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { HelpCircle, Edit2, Trash2, PlusCircle, UserPlus, Copy, Link as LinkIcon, Check } from "lucide-react";
+import { HelpCircle, Edit2, Trash2, PlusCircle, UserPlus, Copy, Link as LinkIcon } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
-import { collection, doc, query, updateDoc, addDoc, deleteDoc, serverTimestamp, orderBy } from "firebase/firestore";
+import { collection, doc, query, updateDoc, addDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -40,8 +39,6 @@ function formatPhone(value: string) {
     if (v.length <= 11) return `(${v.slice(0, 2)}) ${v.slice(2, 3)} ${v.slice(3, 7)} ${v.slice(7)}`;
     return `(${v.slice(0, 2)}) ${v.slice(2, 3)} ${v.slice(3, 7)} ${v.slice(7, 11)}`;
 }
-
-/* ================= PROFILE ================= */
 
 function ProfileTab({ restaurantId }: { restaurantId: string }) {
     const firestore = useFirestore();
@@ -87,8 +84,6 @@ function ProfileTab({ restaurantId }: { restaurantId: string }) {
     );
 }
 
-/* ================= USERS ================= */
-
 function UsersTab({ restaurantId }: { restaurantId: string }) {
     const firestore = useFirestore();
     const { toast } = useToast();
@@ -98,7 +93,6 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
     const [inviteLink, setInviteLink] = useState("");
     const [inviteRole, setInviteRole] = useState("waiter");
 
-    // Consulta simplificada para evitar erros de permissão de collectionGroup
     const teamQuery = useMemoFirebase(() => {
         if (!restaurantId || !firestore) return null;
         return query(collection(firestore, `restaurants/${restaurantId}/team`));
@@ -146,7 +140,7 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
                 <CardTitle>Equipe</CardTitle>
                 <Button onClick={() => { setInviteLink(""); setIsInviteModal(true); }} size="sm">
                     <UserPlus className="mr-2 h-4 w-4" />
-                    Novo Membro (Link)
+                    Novo Membro
                 </Button>
             </CardHeader>
             <CardContent>
@@ -251,8 +245,6 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
         </Card>
     );
 }
-
-/* ================= PRINTING ================= */
 
 function PrintingTab({ restaurantId }: { restaurantId: string }) {
     const firestore = useFirestore();

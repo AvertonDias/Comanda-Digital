@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -34,7 +33,6 @@ export function useCollection<T = any>(
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
-    // Blindagem de segurança: evita consultas vazias ou inconsistentes
     if (!memoizedTargetRefOrQuery) {
       setData(null);
       setIsLoading(false);
@@ -58,8 +56,8 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (firebaseError: FirestoreError) => {
-        // Fallback seguro de path para evitar erros de asserção interna em SDKs recentes
-        const path = (memoizedTargetRefOrQuery as any).path || 'query';
+        // Fallback seguro de path sem acessar propriedades internas
+        const path = 'query' in memoizedTargetRefOrQuery ? 'collection_query' : (memoizedTargetRefOrQuery as any).path || 'unknown';
         const contextualError = new FirestorePermissionError({
           operation: 'list',
           path: path,
