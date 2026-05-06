@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AppHeader } from "@/components/layout/app-header";
@@ -148,7 +147,9 @@ export default function CustomersPage() {
                             <TableCell>{customer.phone}</TableCell>
                             <TableCell className="text-center">{customer.totalOrders}</TableCell>
                             <TableCell>
-                                {customer.createdAt ? format(new Date(customer.createdAt.seconds * 1000), "dd/MM/yyyy", { locale: ptBR }) : 'Recentemente'}
+                                {customer.createdAt?.seconds 
+                                    ? format(new Date(customer.createdAt.seconds * 1000), "dd/MM/yyyy", { locale: ptBR }) 
+                                    : 'Recentemente'}
                             </TableCell>
                             <TableCell className="text-right">
                                 <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setCustomerToDelete(customer)}>

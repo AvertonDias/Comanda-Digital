@@ -1,4 +1,3 @@
-
 'use client';
 import { useState } from 'react';
 import type { MenuItem, OrderItem, Table, Order, MenuItemCategory } from '@/lib/types';
@@ -8,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Plus, Minus, MessageSquare } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/tabs';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -28,9 +27,20 @@ export function CreateOrderForm({ restaurantId, onSuccess }: { restaurantId: str
     const [orderItems, setOrderItems] = useState<NewOrderItem[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const categoriesQuery = useMemoFirebase(() => query(collection(firestore, `restaurants/${restaurantId}/menuItemCategories`), orderBy('order', 'asc')), [restaurantId, firestore]);
-    const itemsQuery = useMemoFirebase(() => query(collection(firestore, `restaurants/${restaurantId}/menuItems`)), [restaurantId, firestore]);
-    const tablesQuery = useMemoFirebase(() => query(collection(firestore, `restaurants/${restaurantId}/tables`), orderBy('name', 'asc')), [restaurantId, firestore]);
+    const categoriesQuery = useMemoFirebase(() => {
+        if (!restaurantId) return null;
+        return query(collection(firestore, `restaurants/${restaurantId}/menuItemCategories`), orderBy('order', 'asc'));
+    }, [restaurantId, firestore]);
+
+    const itemsQuery = useMemoFirebase(() => {
+        if (!restaurantId) return null;
+        return query(collection(firestore, `restaurants/${restaurantId}/menuItems`));
+    }, [restaurantId, firestore]);
+
+    const tablesQuery = useMemoFirebase(() => {
+        if (!restaurantId) return null;
+        return query(collection(firestore, `restaurants/${restaurantId}/tables`), orderBy('name', 'asc'));
+    }, [restaurantId, firestore]);
 
     const { data: categories, isLoading: isCatsLoading } = useCollection<MenuItemCategory>(categoriesQuery);
     const { data: items, isLoading: isItemsLoading } = useCollection<MenuItem>(itemsQuery);

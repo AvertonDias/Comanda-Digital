@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AppHeader } from "@/components/layout/app-header";
@@ -7,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/tabs";
 import { Shield, User as UserIcon, PlusCircle, Trash2, Printer as PrinterIcon, Wifi, Usb, Bluetooth, AlertCircle, Info, Edit2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -72,8 +71,6 @@ function ProfileTab({ restaurantId }: { restaurantId: string }) {
     const { register, handleSubmit, reset, setValue, watch, formState: { isSubmitting, errors } } = useForm<ProfileFormData>({
         resolver: zodResolver(profileSchema),
     });
-
-    const phoneValue = watch("phone");
 
     useEffect(() => {
         if (restaurantData) {
@@ -314,8 +311,15 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
     const [printerAddress, setPrinterAddress] = useState('');
     const [selectedSectors, setSelectedSectors] = useState<string[]>([]);
     
-    const sectorsQuery = useMemoFirebase(() => query(collection(firestore, `restaurants/${restaurantId}/printSectors`)), [firestore, restaurantId]);
-    const printersQuery = useMemoFirebase(() => query(collection(firestore, `restaurants/${restaurantId}/printers`)), [firestore, restaurantId]);
+    const sectorsQuery = useMemoFirebase(() => {
+        if (!restaurantId) return null;
+        return query(collection(firestore, `restaurants/${restaurantId}/printSectors`));
+    }, [firestore, restaurantId]);
+
+    const printersQuery = useMemoFirebase(() => {
+        if (!restaurantId) return null;
+        return query(collection(firestore, `restaurants/${restaurantId}/printers`));
+    }, [firestore, restaurantId]);
     
     const { data: sectors, isLoading: isSectorsLoading } = useCollection<PrintSector>(sectorsQuery);
     const { data: printers, isLoading: isPrintersLoading } = useCollection<Printer>(printersQuery);
