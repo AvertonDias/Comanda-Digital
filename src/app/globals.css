@@ -1,10 +1,11 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 120 23% 95%;
+    --background: 0 0% 100%;
     --foreground: 135 10% 20%;
     --card: 0 0% 100%;
     --card-foreground: 135 10% 20%;
@@ -14,13 +15,13 @@
     --primary-foreground: 120 25% 98%;
     --secondary: 120 15% 90%;
     --secondary-foreground: 135 10% 20%;
-    --muted: 120 15% 90%;
+    --muted: 120 15% 94%;
     --muted-foreground: 135 5% 45%;
     --accent: 83 67% 70%;
     --accent-foreground: 135 45% 15%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 120 10% 88%;
+    --border: 120 10% 92%;
     --input: 120 10% 92%;
     --ring: 135 45% 38%;
     --radius: 0.8rem;
@@ -82,4 +83,13 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Custom Scrollbar for Categories */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
