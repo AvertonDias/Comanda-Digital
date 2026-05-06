@@ -249,6 +249,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
     const { toast } = useToast();
     const [newSector, setNewSector] = useState('');
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [editingPrinterId, setEditingPrinterId] = useState<string | null>(null);
     
     const [printerName, setPrinterName] = useState('');
     const [printerType, setPrinterType] = useState<PrinterConnectionType>('network');
@@ -285,7 +286,6 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
             return;
         }
 
-        const colRef = collection(firestore, `restaurants/${restaurantId}/printers`);
         const printerData = {
             name: printerName,
             connectionType: printerType,
@@ -295,16 +295,35 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
             isActive: true,
         };
 
-        addDoc(colRef, printerData).catch(async () => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: colRef.path, operation: 'create', requestResourceData: printerData }));
-        });
+        if (editingPrinterId) {
+            const docRef = doc(firestore, `restaurants/${restaurantId}/printers`, editingPrinterId);
+            updateDoc(docRef, printerData).catch(async () => {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'update', requestResourceData: printerData }));
+            });
+            toast({ title: "Impressora atualizada!" });
+        } else {
+            const colRef = collection(firestore, `restaurants/${restaurantId}/printers`);
+            addDoc(colRef, printerData).catch(async () => {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: colRef.path, operation: 'create', requestResourceData: printerData }));
+            });
+            toast({ title: "Impressora cadastrada!" });
+        }
 
-        toast({ title: "Impressora cadastrada!" });
         setIsDialogOpen(false);
         resetPrinterForm();
     };
 
+    const handleEditPrinter = (printer: Printer) => {
+        setEditingPrinterId(printer.id);
+        setPrinterName(printer.name);
+        setPrinterType(printer.connectionType);
+        setPrinterAddress(printer.address);
+        setSelectedSectors(printer.printSectors);
+        setIsDialogOpen(true);
+    };
+
     const resetPrinterForm = () => {
+        setEditingPrinterId(null);
         setPrinterName('');
         setPrinterType('network');
         setPrinterAddress('');
@@ -363,7 +382,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                         <CardTitle>Impressoras Reais</CardTitle>
                         <CardDescription>Dispositivos físicos vinculados ao sistema.</CardDescription>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => setIsDialogOpen(true)}>
+                    <Button variant="outline" size="sm" onClick={() => { resetPrinterForm(); setIsDialogOpen(true); }}>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Cadastrar Impressora
                     </Button>
@@ -401,7 +420,10 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                                             })}
                                         </div>
                                     </TableCell>
-                                    <TableCell className="text-right">
+                                    <TableCell className="text-right space-x-2">
+                                        <Button variant="ghost" size="sm" onClick={() => handleEditPrinter(p)}>
+                                            <Edit2 className="h-4 w-4" />
+                                        </Button>
                                         <Button variant="ghost" size="sm" onClick={() => deleteDoc(doc(firestore, `restaurants/${restaurantId}/printers`, p.id))}>
                                             <Trash2 className="h-4 w-4 text-destructive" />
                                         </Button>
@@ -419,7 +441,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="sm:max-w-[500px]">
                     <DialogHeader>
-                        <DialogTitle>Configurar Impressora</DialogTitle>
+                        <DialogTitle>{editingPrinterId ? 'Editar Impressora' : 'Configurar Impressora'}</DialogTitle>
                         <DialogDescription>Vincule uma impressora do seu sistema ou rede local.</DialogDescription>
                     </DialogHeader>
                     

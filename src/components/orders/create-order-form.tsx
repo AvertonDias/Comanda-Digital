@@ -10,7 +10,8 @@ import { Separator } from '@/components/ui/separator';
 import { Plus, Minus, MessageSquare } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '../ui/label';
-import { Textarea } from '../ui/textarea';
+import { Input } from '../ui/input';
+import { Badge } from '@/components/ui/badge';
 import { useFirestore, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, query, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -78,7 +79,6 @@ export function CreateOrderForm({ restaurantId, onSuccess }: { restaurantId: str
         
         const colRef = collection(firestore, `restaurants/${restaurantId}/orders`);
         addDoc(colRef, orderData).then(() => {
-            // Se for mesa, marca como ocupada
             if (tableId) {
                 const tableRef = doc(firestore, `restaurants/${restaurantId}/tables`, tableId);
                 updateDoc(tableRef, { status: 'ocupada' });
