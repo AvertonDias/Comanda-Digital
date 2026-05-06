@@ -1,6 +1,6 @@
 
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { Order, OrderStatus, Restaurant } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { formatDistanceToNow } from 'date-fns';
@@ -88,6 +88,53 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
 
   const { data: orders, isLoading } = useCollection<Order>(ordersQuery);
 
+  // AGRUPAMENTO: Transforma múltiplos pedidos da mesma mesa em um único cartão visual por status
+  const groupedOrdersByStatus = useMemo(() => {
+    const result: Record<OrderStatus, Order[]> = {
+        'aberto': [],
+        'preparando': [],
+        'pronto': [],
+        'finalizado': [],
+        'cancelado': []
+    };
+    
+    if (!orders) return result;
+
+    statusesToShow.forEach(status => {
+        const statusOrders = orders.filter(o => o.status === status);
+        const groups: Record<string, Order> = {};
+        
+        statusOrders.forEach(order => {
+            // Agrupa por tableId (se houver), senão mantém individual (pedidos avulsos)
+            const key = order.tableId || order.id;
+            
+            if (!groups[key]) {
+                groups[key] = { ...order };
+            } else {
+                // Consolida dados para exibição no cartão
+                groups[key].total += order.total;
+                groups[key].items = [...groups[key].items, ...order.items];
+                
+                // Mantém o número do pedido mais recente como referência
+                if (order.orderNumber && (!groups[key].orderNumber || order.orderNumber > groups[key].orderNumber)) {
+                    groups[key].orderNumber = order.orderNumber;
+                }
+
+                // Mantém a data do pedido mais antigo para mostrar há quanto tempo a mesa está ativa
+                const currentCreated = groups[key].createdAt?.seconds || Infinity;
+                const newCreated = order.createdAt?.seconds || Infinity;
+                if (newCreated < currentCreated) {
+                    groups[key].createdAt = order.createdAt;
+                }
+            }
+        });
+        
+        result[status] = Object.values(groups);
+    });
+
+    return result;
+  }, [orders]);
+
   const handleStatusChange = (orderIds: string | string[], newStatus: OrderStatus, extraData: any = {}) => {
     const ids = Array.isArray(orderIds) ? orderIds : [orderIds];
     
@@ -136,7 +183,7 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
   };
 
   const getOrdersCount = (status: OrderStatus) => {
-    return orders?.filter(order => order.status === status).length || 0;
+    return groupedOrdersByStatus[status].length;
   }
   
   if (isLoading) return <Skeleton className="h-full w-full" />;
@@ -158,7 +205,7 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
               <TabsContent key={status} value={status} className="mt-0 flex-1 min-h-0">
                    <ScrollArea className="h-full px-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 py-4">
-                          {orders?.filter(o => o.status === status).map(order => (
+                          {groupedOrdersByStatus[status].map(order => (
                               <OrderCard key={order.id} order={order} onDetailsClick={setSelectedOrder} />
                           ))}
                           {getOrdersCount(status) === 0 && (
