@@ -32,6 +32,7 @@ service cloud.firestore {
     }
 
     // Regra Crítica para Collection Group (Identificação do Restaurante)
+    // Permite que o app encontre a qual restaurante o usuário pertence
     match /{path=**}/restaurantRoles/{restaurantId} {
       allow read, list: if isSignedIn() && (
         request.auth.uid == resource.data.userId || 
