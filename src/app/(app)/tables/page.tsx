@@ -21,7 +21,7 @@ export default function TablesPage() {
         if (!restaurantId || !firestore) return null;
         return query(
             collection(firestore, `restaurants/${restaurantId}/tables`), 
-            orderBy('name', 'asc')
+            orderBy('name', 'asc') // Ordenação alfabética obrigatória
         );
     }, [restaurantId, firestore]);
 

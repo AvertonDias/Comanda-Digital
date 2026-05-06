@@ -1,7 +1,7 @@
 'use client';
 
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where } from "firebase/firestore";
+import { collection, query } from "firebase/firestore";
 import { useMemo } from "react";
 import type { RestaurantUserRole } from "@/lib/types";
 
@@ -15,7 +15,7 @@ export function useRestaurant() {
 
     const rolesQuery = useMemoFirebase(() => {
         if (!user || !firestore) return null;
-        // Consulta os papéis do usuário logado
+        // Consulta direta na subcoleção do usuário logado - Mais seguro e evita varreduras globais
         return query(collection(firestore, `users/${user.uid}/restaurantRoles`));
     }, [user, firestore]);
 
