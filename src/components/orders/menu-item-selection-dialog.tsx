@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -20,7 +19,7 @@ type SelectionAddon = MenuItemAddonOption & { groupId: string };
 type MenuItemSelectionDialogProps = {
   item: MenuItem | null;
   isOpen: boolean;
-  onClose: ()void;
+  onClose: () => void;
   onConfirm: (data: {
     item: MenuItem;
     quantity: number;
@@ -38,7 +37,6 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
 
   const ingredientsList = useMemo(() => {
     if (!item?.ingredients) return [];
-    // Agora ingredientes é um array nativo
     return Array.isArray(item.ingredients) ? item.ingredients : [];
   }, [item?.ingredients]);
 
