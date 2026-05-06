@@ -4,10 +4,8 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Sparkles, Plus, Trash2, X } from 'lucide-react';
-import { generateDescriptionAction } from '@/app/actions/menu';
+import { Plus, Trash2, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -23,7 +21,6 @@ import { Badge } from '@/components/ui/badge';
 
 const formSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres."),
-  description: z.string().min(1, "A descrição é obrigatória."),
   ingredients: z.array(z.string()).default([]),
   price: z.coerce.number().min(0.01, "Preço deve ser maior que zero."),
   categoryId: z.string().min(1, "Selecione uma categoria."),
@@ -51,14 +48,12 @@ type MenuItemFormProps = {
 export function MenuItemForm({ restaurantId, categories, onSuccess, initialData }: MenuItemFormProps) {
   const { toast } = useToast();
   const firestore = useFirestore();
-  const [isGenerating, setIsGenerating] = useState(false);
   const [newIngredient, setNewIngredient] = useState("");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: initialData?.name || "",
-      description: initialData?.description || "",
       ingredients: Array.isArray(initialData?.ingredients) ? initialData.ingredients : [],
       price: initialData?.price || 0,
       categoryId: initialData?.categoryId || "",
@@ -71,7 +66,6 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
     if (initialData) {
       form.reset({
         name: initialData.name,
-        description: initialData.description,
         ingredients: Array.isArray(initialData.ingredients) ? initialData.ingredients : [],
         price: initialData.price,
         categoryId: initialData.categoryId,
@@ -100,37 +94,10 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
     form.setValue("ingredients", current.filter((_, i) => i !== idx));
   };
 
-  async function handleGenerateAI() {
-    const dishName = form.getValues('name');
-    const ingredients = form.getValues('ingredients');
-
-    if (!dishName) {
-      toast({ variant: "destructive", title: "Erro", description: "Digite o nome do prato primeiro." });
-      return;
-    }
-
-    setIsGenerating(true);
-    try {
-      const formData = new FormData();
-      formData.append('dishName', dishName);
-      formData.append('ingredients', Array.isArray(ingredients) && ingredients.length > 0 ? ingredients.join(', ') : dishName);
-      
-      const result = await generateDescriptionAction(null, formData);
-      if (result.message === 'success' && result.description) {
-        form.setValue('description', result.description);
-        toast({ title: "Descrição Gerada!", description: "A IA criou uma descrição atrativa para seu prato." });
-      }
-    } catch (error) {
-      console.error(error);
-      toast({ variant: "destructive", title: "Erro", description: "Falha ao gerar descrição com IA." });
-    } finally {
-      setIsGenerating(false);
-    }
-  }
-
   function onSubmit(values: z.infer<typeof formSchema>) {
     const itemData = {
       ...values,
+      description: "", // Mantendo vazio já que foi removido do form
       restaurantId,
       updatedAt: serverTimestamp(),
       imageUrl: initialData?.imageUrl || `https://picsum.photos/seed/${values.name}/600/400`, 
@@ -197,7 +164,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
-              <FormDescription>Adicione cada item da receita. Eles aparecerão para o cliente poder retirar se desejar.</FormDescription>
+              <FormDescription>Adicione item por item. Eles aparecerão como opcionais para o cliente.</FormDescription>
               <div className="flex flex-wrap gap-2 pt-2">
                 {ingredientsArray.map((ing, idx) => (
                   <Badge key={idx} variant="secondary" className="gap-1 px-3 py-1.5 font-bold uppercase text-[10px] bg-white border-2">
@@ -244,30 +211,6 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
                 )}
               />
             </div>
-
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="flex justify-between items-center">
-                    <FormLabel>Descrição de Venda</FormLabel>
-                    <Button 
-                      type="button" 
-                      variant="ghost" 
-                      size="sm" 
-                      className="text-primary font-bold h-7"
-                      onClick={handleGenerateAI}
-                      disabled={isGenerating}
-                    >
-                      <Sparkles className="mr-1 h-3 w-3" /> IA
-                    </Button>
-                  </div>
-                  <FormControl><Textarea className="min-h-[100px] text-xs" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
           </div>
 
           <div className="space-y-5">

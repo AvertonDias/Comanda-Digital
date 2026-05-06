@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Restaurant": {
@@ -167,7 +168,7 @@
           "description": "URL da imagem do item."
         }
       },
-      "required": ["restaurantId", "categoryId", "printSectorId", "name", "description", "price", "isAvailable"]
+      "required": ["restaurantId", "categoryId", "printSectorId", "name", "price", "isAvailable"]
     },
     "PrintSector": {
       "$schema": "http://json-schema.org/draft-07/schema#",
