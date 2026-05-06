@@ -8,7 +8,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { PlusCircle } from "lucide-react";
 import { useRestaurant } from "@/hooks/use-restaurant";
 import { useFirestore, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from "@/firebase";
-import { collection, query, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, addDoc, serverTimestamp, orderBy } from "firebase/firestore";
 import type { Table } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -20,7 +20,11 @@ export default function TablesPage() {
 
     const tablesQuery = useMemoFirebase(() => {
         if (!restaurantId || !firestore) return null;
-        return query(collection(firestore, `restaurants/${restaurantId}/tables`));
+        // Adicionada ordenação alfabética por nome
+        return query(
+            collection(firestore, `restaurants/${restaurantId}/tables`), 
+            orderBy('name', 'asc')
+        );
     }, [restaurantId, firestore]);
 
     const { data: tables, isLoading: isTablesLoading } = useCollection<Table>(tablesQuery);
@@ -64,8 +68,14 @@ export default function TablesPage() {
             </AppHeader>
             <main className="flex-1 overflow-y-auto p-4 md:p-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                    {tables?.map(table => <TableCard key={table.id} table={table} />)}
-                    {tables?.length === 0 && <p className="col-span-full text-center text-muted-foreground py-12">Nenhuma mesa cadastrada.</p>}
+                    {tables?.map(table => (
+                        <TableCard key={table.id} table={table} />
+                    ))}
+                    {tables?.length === 0 && (
+                        <p className="col-span-full text-center text-muted-foreground py-12">
+                            Nenhuma mesa cadastrada. Use o botão no topo para criar uma.
+                        </p>
+                    )}
                 </div>
             </main>
         </div>
