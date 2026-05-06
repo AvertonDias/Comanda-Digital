@@ -19,6 +19,16 @@ import {
     DialogFooter,
     DialogDescription,
 } from "@/components/ui/dialog";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import {
@@ -42,6 +52,7 @@ export function TableCard({ table }: TableCardProps) {
     const firestore = useFirestore();
     const { toast } = useToast();
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [newName, setNewName] = useState(table.name);
     const config = statusConfig[table.status];
 
@@ -65,8 +76,6 @@ export function TableCard({ table }: TableCardProps) {
     };
 
     const handleDelete = () => {
-        if (!confirm(`Tem certeza que deseja excluir a ${table.name}?`)) return;
-
         const docRef = doc(firestore, `restaurants/${table.restaurantId}/tables`, table.id);
         deleteDoc(docRef).catch(async () => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -76,11 +85,12 @@ export function TableCard({ table }: TableCardProps) {
         });
         
         toast({ title: "Mesa removida." });
+        setIsDeleteDialogOpen(false);
     };
 
     return (
         <>
-            <Card className="relative">
+            <Card className="relative hover:shadow-md transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-lg font-medium">{table.name}</CardTitle>
                     <div className="flex items-center gap-1">
@@ -98,7 +108,7 @@ export function TableCard({ table }: TableCardProps) {
                                     <Edit2 className="mr-2 h-4 w-4" />
                                     Editar
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={handleDelete} className="text-destructive">
+                                <DropdownMenuItem onClick={() => setIsDeleteDialogOpen(true)} className="text-destructive">
                                     <Trash2 className="mr-2 h-4 w-4" />
                                     Excluir
                                 </DropdownMenuItem>
@@ -112,6 +122,7 @@ export function TableCard({ table }: TableCardProps) {
                 </CardContent>
             </Card>
 
+            {/* Modal de Edição */}
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
@@ -139,6 +150,24 @@ export function TableCard({ table }: TableCardProps) {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Alerta de Exclusão */}
+            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Esta ação não pode ser desfeita. Isso excluirá permanentemente a <strong>{table.name}</strong> e todos os vínculos associados.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Excluir Mesa
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 }

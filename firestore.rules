@@ -26,13 +26,12 @@ service cloud.firestore {
 
       match /restaurantRoles/{restaurantId} {
         allow read: if isSignedIn();
-        // Membros da equipe podem gerenciar papéis para o mesmo restaurante (ex: adicionar garçom)
+        // Membros da equipe podem gerenciar papéis para o mesmo restaurante
         allow write: if isSignedIn() && (request.auth.uid == userId || isRestaurantStaff(restaurantId));
       }
     }
 
     // Regra Crítica para Collection Group (Identificação do Restaurante)
-    // Permite que o usuário consulte seus próprios papéis em qualquer lugar do banco
     match /{path=**}/restaurantRoles/{restaurantId} {
       allow read, list: if isSignedIn() && (
         request.auth.uid == resource.data.userId || 
@@ -42,7 +41,7 @@ service cloud.firestore {
 
     // Coleção Principal de Restaurantes e suas Subcoleções
     match /restaurants/{restaurantId} {
-      // Qualquer usuário logado pode criar um restaurante (se tornando admin)
+      // Qualquer usuário logado pode criar um restaurante
       allow create: if isSignedIn();
       
       // Permite acesso total se for membro da equipe do restaurante específico
