@@ -101,6 +101,9 @@ export type Order = {
   tableId?: string;
   tableName?: string;
   customerId?: string;
+  customerName?: string;
+  customerPhone?: string;
+  deliveryAddress?: string;
   items: OrderItem[];
   total: number;
   status: OrderStatus;

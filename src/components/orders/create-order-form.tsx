@@ -1,13 +1,15 @@
+
 'use client';
 import { useState, useEffect } from 'react';
 import type { MenuItem, Table, MenuItemCategory } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Plus, ShoppingBag, Trash2 } from 'lucide-react';
+import { Plus, ShoppingBag, Trash2, User, Phone, MapPin } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, addDoc, serverTimestamp, doc, updateDoc, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -39,6 +41,9 @@ export function CreateOrderForm({
     const { toast } = useToast();
     const [tableId, setTableId] = useState<string | undefined>(initialTableId);
     const [orderType, setOrderType] = useState<string>(initialTableId ? 'mesa' : 'balcao');
+    const [customerName, setCustomerName] = useState('');
+    const [customerPhone, setCustomerPhone] = useState('');
+    const [deliveryAddress, setDeliveryAddress] = useState('');
     const [orderItems, setOrderItems] = useState<NewOrderItem[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
@@ -98,6 +103,17 @@ export function CreateOrderForm({
 
     const handleCreateOrder = async () => {
         if (orderItems.length === 0 || isSubmitting || !restaurantId) return;
+        
+        // Validação básica de campos obrigatórios
+        if ((orderType === 'retirada' || orderType === 'entrega') && (!customerName || !customerPhone)) {
+            toast({ variant: "destructive", title: "Dados do cliente obrigatórios" });
+            return;
+        }
+        if (orderType === 'entrega' && !deliveryAddress) {
+            toast({ variant: "destructive", title: "Endereço de entrega obrigatório" });
+            return;
+        }
+
         setIsSubmitting(true);
         
         let origin: any = 'mesa';
@@ -131,6 +147,9 @@ export function CreateOrderForm({
                 destination,
                 tableId: orderType === 'mesa' ? (tableId || null) : null,
                 tableName,
+                customerName: (orderType === 'retirada' || orderType === 'entrega') ? customerName : null,
+                customerPhone: (orderType === 'retirada' || orderType === 'entrega') ? customerPhone : null,
+                deliveryAddress: orderType === 'entrega' ? deliveryAddress : null,
                 status: 'aberto',
                 total: orderItems.reduce((acc, item) => {
                     const addonsPrice = item.addons?.reduce((sum, a) => sum + a.price, 0) || 0;
@@ -170,37 +189,76 @@ export function CreateOrderForm({
     return (
         <div className="flex flex-col h-full bg-background overflow-hidden">
             {/* Passo 1: Identificação (Topo Fixo) */}
-            <div className="p-4 bg-muted/20 border-b-2 space-y-3">
+            <div className="p-4 bg-muted/20 border-b-2 space-y-4">
                 <label className="text-[10px] font-black uppercase text-primary tracking-widest flex items-center gap-2">
                     <span className="h-4 w-1 bg-primary rounded-full" />
-                    1. Identificação do Cliente
+                    1. Identificação do Pedido
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Select value={orderType} onValueChange={setOrderType}>
-                        <SelectTrigger className="h-12 border-2 bg-background font-bold text-xs uppercase">
-                            <SelectValue placeholder="Tipo de Atendimento" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="mesa">Mesa</SelectItem>
-                            <SelectItem value="balcao">Balcão</SelectItem>
-                            <SelectItem value="retirada">Retirada (Takeaway)</SelectItem>
-                            <SelectItem value="entrega">Entrega (Delivery)</SelectItem>
-                        </SelectContent>
-                    </Select>
-
-                    {orderType === 'mesa' && (
-                        <Select value={tableId} onValueChange={setTableId}>
+                
+                <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <Select value={orderType} onValueChange={setOrderType}>
                             <SelectTrigger className="h-12 border-2 bg-background font-bold text-xs uppercase">
-                                <SelectValue placeholder="Qual a Mesa?" />
+                                <SelectValue placeholder="Tipo de Atendimento" />
                             </SelectTrigger>
                             <SelectContent>
-                                {tables?.map(t => (
-                                    <SelectItem key={t.id} value={t.id}>
-                                        {t.name} ({t.status})
-                                    </SelectItem>
-                                ))}
+                                <SelectItem value="mesa">Mesa</SelectItem>
+                                <SelectItem value="balcao">Balcão</SelectItem>
+                                <SelectItem value="retirada">Retirada (Takeaway)</SelectItem>
+                                <SelectItem value="entrega">Entrega (Delivery)</SelectItem>
                             </SelectContent>
                         </Select>
+
+                        {orderType === 'mesa' && (
+                            <Select value={tableId} onValueChange={setTableId}>
+                                <SelectTrigger className="h-12 border-2 bg-background font-bold text-xs uppercase">
+                                    <SelectValue placeholder="Qual a Mesa?" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {tables?.map(t => (
+                                        <SelectItem key={t.id} value={t.id}>
+                                            {t.name} ({t.status})
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    </div>
+
+                    {(orderType === 'retirada' || orderType === 'entrega') && (
+                        <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="relative">
+                                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input 
+                                        placeholder="Nome do Cliente" 
+                                        className="h-12 pl-10 border-2 font-bold text-xs uppercase"
+                                        value={customerName}
+                                        onChange={(e) => setCustomerName(e.target.value)}
+                                    />
+                                </div>
+                                <div className="relative">
+                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input 
+                                        placeholder="Telefone / WhatsApp" 
+                                        className="h-12 pl-10 border-2 font-bold text-xs uppercase"
+                                        value={customerPhone}
+                                        onChange={(e) => setCustomerPhone(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                            {orderType === 'entrega' && (
+                                <div className="relative">
+                                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input 
+                                        placeholder="Endereço de Entrega Completo" 
+                                        className="h-12 pl-10 border-2 font-bold text-xs uppercase"
+                                        value={deliveryAddress}
+                                        onChange={(e) => setDeliveryAddress(e.target.value)}
+                                    />
+                                </div>
+                            )}
+                        </div>
                     )}
                 </div>
             </div>

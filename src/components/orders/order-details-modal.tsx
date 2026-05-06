@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -15,7 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Order, OrderStatus } from "@/lib/types";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowRight, ChefHat, Bike, ShoppingBag, Trash2 } from "lucide-react";
+import { ArrowRight, ChefHat, Bike, ShoppingBag, Trash2, MapPin, Phone, User } from "lucide-react";
 
 type OrderDetailsModalProps = {
     order: Order | null;
@@ -74,70 +75,99 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle>Detalhes do Pedido #{order.id.slice(-4)}</DialogTitle>
-                    <DialogDescription>
+            <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col p-0 overflow-hidden">
+                <DialogHeader className="p-6 pb-0">
+                    <DialogTitle className="font-black uppercase tracking-tight">Pedido #{order.id.slice(-4)}</DialogTitle>
+                    <DialogDescription className="font-bold uppercase text-[10px] text-primary">
                         {order.tableName || `Pedido de ${originText[order.origin]}`}
                     </DialogDescription>
                 </DialogHeader>
-                <Separator />
-                <div className="grid gap-4 py-4 text-sm">
-                    <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Status</span>
-                        <Badge className={`${STATUS_CONFIG[order.status].color} hover:${STATUS_CONFIG[order.status].color} text-white`}>
-                            {STATUS_CONFIG[order.status].title}
-                        </Badge>
-                    </div>
-                    <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Horário</span>
-                        <span>{formattedDate}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Origem / Destino</span>
-                        <span className="font-medium text-right">{originText[order.origin]} / {destinationText[order.destination]}</span>
-                    </div>
-                </div>
-                <Separator />
-                <p className="font-medium text-sm">Itens do Pedido</p>
-                <ScrollArea className="max-h-48 -mx-6 px-6">
-                    <ul className="space-y-3 py-2 text-sm">
-                        {order.items.map((item, idx) => (
-                            <li key={idx} className="flex justify-between items-start">
-                                <div className="flex items-center gap-2">
-                                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs font-medium">{item.quantity}</span>
-                                    <div>
-                                        <p className="font-medium">{item.name}</p>
-                                        {item.notes && <p className="text-sm text-muted-foreground">{item.notes}</p>}
+                
+                <ScrollArea className="flex-1">
+                    <div className="p-6 space-y-6">
+                        <div className="grid grid-cols-2 gap-4 text-[10px] font-black uppercase">
+                            <div className="space-y-1">
+                                <span className="text-muted-foreground">Status</span>
+                                <Badge className={`${STATUS_CONFIG[order.status].color} hover:${STATUS_CONFIG[order.status].color} text-white w-full justify-center h-6`}>
+                                    {STATUS_CONFIG[order.status].title}
+                                </Badge>
+                            </div>
+                            <div className="space-y-1">
+                                <span className="text-muted-foreground">Horário</span>
+                                <div className="bg-muted h-6 flex items-center justify-center rounded-full px-2">{formattedDate}</div>
+                            </div>
+                        </div>
+
+                        {(order.customerName || order.customerPhone || order.deliveryAddress) && (
+                            <div className="bg-primary/5 p-4 rounded-xl border-2 border-dashed border-primary/20 space-y-3">
+                                <p className="text-[10px] font-black uppercase text-primary">Dados do Cliente</p>
+                                {order.customerName && (
+                                    <div className="flex items-center gap-2 text-xs font-bold uppercase">
+                                        <User className="h-3 w-3 text-primary" /> {order.customerName}
                                     </div>
-                                </div>
-                                <span className="font-mono">
-                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.priceAtOrder * item.quantity)}
-                                </span>
-                            </li>
-                        ))}
-                    </ul>
+                                )}
+                                {order.customerPhone && (
+                                    <div className="flex items-center gap-2 text-xs font-bold uppercase">
+                                        <Phone className="h-3 w-3 text-primary" /> {order.customerPhone}
+                                    </div>
+                                )}
+                                {order.deliveryAddress && (
+                                    <div className="flex items-start gap-2 text-xs font-bold uppercase">
+                                        <MapPin className="h-3 w-3 text-primary mt-0.5 shrink-0" /> {order.deliveryAddress}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        <Separator />
+                        
+                        <div className="space-y-4">
+                            <p className="font-black text-[10px] uppercase text-muted-foreground">Itens do Pedido</p>
+                            <ul className="space-y-3">
+                                {order.items.map((item, idx) => (
+                                    <li key={idx} className="flex justify-between items-start border-b border-dashed pb-2 last:border-0">
+                                        <div className="flex items-start gap-3">
+                                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-white text-[10px] font-black shrink-0">{item.quantity}x</span>
+                                            <div>
+                                                <p className="font-black text-xs uppercase">{item.name}</p>
+                                                {item.addons?.map((a, ai) => (
+                                                    <p key={ai} className="text-[9px] text-muted-foreground font-bold uppercase">+ {a.name}</p>
+                                                ))}
+                                                {item.notes && <p className="text-[9px] text-primary italic font-bold mt-1">OBS: {item.notes}</p>}
+                                            </div>
+                                        </div>
+                                        <span className="font-black text-xs shrink-0">
+                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.priceAtOrder * item.quantity)}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
                 </ScrollArea>
-                <Separator />
-                <div className="flex justify-between items-center text-lg font-bold py-2">
-                    <span>Total</span>
-                    <span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}</span>
+
+                <div className="p-6 bg-muted/20 border-t">
+                    <div className="flex justify-between items-center text-lg font-black uppercase mb-4">
+                        <span>Total</span>
+                        <span className="text-primary">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}</span>
+                    </div>
+                    
+                    <DialogFooter className="flex-col sm:flex-row gap-2">
+                        {canCancel && (
+                            <Button variant="destructive" className="w-full sm:w-auto font-black uppercase text-[10px]" onClick={() => onStatusChange(order.id, 'cancelado')}>
+                                <Trash2 className="mr-2 h-3 w-3"/>
+                                Cancelar
+                            </Button>
+                        )}
+                        {nextStatus && (
+                            <Button className="flex-1 font-black uppercase text-[10px] h-11" onClick={() => onStatusChange(order.id, nextStatus)}>
+                                {nextStatusIcon}
+                                {nextStatusText}
+                                <ArrowRight className="ml-auto h-3 w-3"/>
+                            </Button>
+                        )}
+                    </DialogFooter>
                 </div>
-                <DialogFooter className="sm:justify-between gap-2 pt-4">
-                    {canCancel && (
-                        <Button variant="destructive" className="sm:mr-auto" onClick={() => onStatusChange(order.id, 'cancelado')}>
-                            <Trash2 className="mr-2 h-4 w-4"/>
-                            Cancelar
-                        </Button>
-                    )}
-                    {nextStatus && (
-                        <Button className="w-full" onClick={() => onStatusChange(order.id, nextStatus)}>
-                            {nextStatusIcon}
-                            {nextStatusText}
-                            <ArrowRight className="ml-auto h-4 w-4"/>
-                        </Button>
-                    )}
-                </DialogFooter>
             </DialogContent>
         </Dialog>
     );
