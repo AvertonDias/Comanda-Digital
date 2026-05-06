@@ -59,7 +59,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
     defaultValues: {
       name: initialData?.name || "",
       description: initialData?.description || "",
-      ingredients: initialData?.ingredients || [],
+      ingredients: Array.isArray(initialData?.ingredients) ? initialData.ingredients : [],
       price: initialData?.price || 0,
       categoryId: initialData?.categoryId || "",
       isAvailable: initialData?.isAvailable ?? true,
@@ -72,7 +72,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
       form.reset({
         name: initialData.name,
         description: initialData.description,
-        ingredients: initialData.ingredients || [],
+        ingredients: Array.isArray(initialData.ingredients) ? initialData.ingredients : [],
         price: initialData.price,
         categoryId: initialData.categoryId,
         isAvailable: initialData.isAvailable,
@@ -88,7 +88,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
 
   const handleAddIngredient = () => {
     if (!newIngredient.trim()) return;
-    const current = form.getValues("ingredients") || [];
+    const current = Array.isArray(form.getValues("ingredients")) ? form.getValues("ingredients") : [];
     if (!current.includes(newIngredient.trim())) {
       form.setValue("ingredients", [...current, newIngredient.trim()]);
     }
@@ -96,7 +96,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
   };
 
   const handleRemoveIngredient = (idx: number) => {
-    const current = form.getValues("ingredients") || [];
+    const current = Array.isArray(form.getValues("ingredients")) ? form.getValues("ingredients") : [];
     form.setValue("ingredients", current.filter((_, i) => i !== idx));
   };
 
@@ -113,8 +113,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
     try {
       const formData = new FormData();
       formData.append('dishName', dishName);
-      // O server action espera uma string de ingredientes separada por vírgula para dar o split
-      formData.append('ingredients', ingredients.length > 0 ? ingredients.join(', ') : dishName);
+      formData.append('ingredients', Array.isArray(ingredients) && ingredients.length > 0 ? ingredients.join(', ') : dishName);
       
       const result = await generateDescriptionAction(null, formData);
       if (result.message === 'success' && result.description) {
@@ -163,6 +162,9 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
     onSuccess?.();
   }
 
+  const watchedIngredients = form.watch("ingredients");
+  const ingredientsArray = Array.isArray(watchedIngredients) ? watchedIngredients : [];
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
@@ -195,7 +197,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
               </div>
               <FormDescription>Adicione item por item. Eles aparecerão como opcionais para o cliente.</FormDescription>
               <div className="flex flex-wrap gap-2 pt-2">
-                {form.watch("ingredients")?.map((ing, idx) => (
+                {ingredientsArray.map((ing, idx) => (
                   <Badge key={idx} variant="secondary" className="gap-1 px-2 py-1">
                     {ing}
                     <X className="h-3 w-3 cursor-pointer hover:text-destructive" onClick={() => handleRemoveIngredient(idx)} />
