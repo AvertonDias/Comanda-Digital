@@ -56,28 +56,43 @@ const PAYMENT_METHODS = [
 ];
 
 /**
- * Helper to generate a simple Pix Static Payload (BRCode)
- * Note: This is a simplified implementation. For production, consider a full Pix library.
+ * Normaliza o texto para o padrão Pix (sem acentos e em maiúsculas)
+ */
+function normalizeText(text: string) {
+    return text
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9 ]/g, "")
+        .toUpperCase();
+}
+
+/**
+ * Helper to generate a Pix Static Payload (BRCode)
  */
 function generatePixPayload(key: string, amount: number, name: string, city: string = 'SAO PAULO') {
     const amountStr = amount.toFixed(2);
+    const merchantName = normalizeText(name).slice(0, 25);
+    const merchantCity = normalizeText(city).slice(0, 15);
     
-    // Static payload structure
+    // Tag 26: Merchant Account Information
+    const gui = '0014br.gov.bcb.pix';
+    const keyTag = `01${key.length.toString().padStart(2, '0')}${key}`;
+    const merchantAccountInfo = `${gui}${keyTag}`;
+
     const payload = [
         '000201', // Payload Format Indicator
-        '26', // Merchant Account Information - Pix
-        `${(key.length + 22).toString().padStart(2, '0')}0014br.gov.bcb.pix01${key.length.toString().padStart(2, '0')}${key}`,
+        `26${merchantAccountInfo.length.toString().padStart(2, '0')}${merchantAccountInfo}`,
         '52040000', // Merchant Category Code
         '5303986', // Transaction Currency (BRL)
-        `54${amountStr.length.toString().padStart(2, '0')}${amountStr}`, // Transaction Amount
+        `54${amountStr.length.toString().padStart(2, '0')}${amountStr}`, // Transaction Amount (O VALOR SAI AQUI)
         '5802BR', // Country Code
-        `59${name.length.toString().padStart(2, '0')}${name.slice(0, 25)}`, // Merchant Name
-        `60${city.length.toString().padStart(2, '0')}${city}`, // Merchant City
-        '62070503***', // Additional Data Field
+        `59${merchantName.length.toString().padStart(2, '0')}${merchantName}`, // Merchant Name
+        `60${merchantCity.length.toString().padStart(2, '0')}${merchantCity}`, // Merchant City
+        '62070503***', // Additional Data Field (TxID)
         '6304' // CRC16 Placeholder
     ].join('');
 
-    // Very simple CRC16 calculation
+    // CRC16 calculation
     let crc = 0xFFFF;
     for (let i = 0; i < payload.length; i++) {
         crc ^= (payload.charCodeAt(i) << 8);
@@ -86,9 +101,9 @@ function generatePixPayload(key: string, amount: number, name: string, city: str
             else crc <<= 1;
         }
     }
-    crc = (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+    const crcResult = (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
     
-    return payload + crc;
+    return payload + crcResult;
 }
 
 export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange }: OrderDetailsModalProps) {
@@ -294,8 +309,9 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                     <Image src={qrCodeUrl} alt="Pix QR Code" width={200} height={200} className="rounded" />
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <p className="text-[10px] font-black uppercase text-primary">QR Code para Pagamento</p>
-                                                    <p className="text-[9px] text-muted-foreground uppercase font-bold">Mostre para o cliente ou envie o código abaixo</p>
+                                                    <p className="text-[10px] font-black uppercase text-primary">QR Code com Valor Incluso</p>
+                                                    <p className="text-sm font-black">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}</p>
+                                                    <p className="text-[9px] text-muted-foreground uppercase font-bold">O cliente não precisa digitar o valor</p>
                                                 </div>
                                                 <Button 
                                                     variant="secondary" 
@@ -312,7 +328,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                 <QrCode className="h-8 w-8 mx-auto text-primary opacity-30" />
                                                 <p className="text-[10px] font-black uppercase text-primary">Chave Pix não configurada</p>
                                                 <p className="text-[9px] text-muted-foreground uppercase leading-tight font-bold">
-                                                    Cadastre sua Chave Pix nas configurações do perfil para gerar o QR Code automático.
+                                                    Cadastre sua Chave Pix nas configurações do perfil para gerar o QR Code automático com o valor da comanda.
                                                 </p>
                                             </div>
                                         )}
