@@ -12,6 +12,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -23,12 +33,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useRestaurant } from "@/hooks/use-restaurant";
 import { useFirestore, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from "@/firebase";
-import { collection, query, addDoc, serverTimestamp, orderBy } from "firebase/firestore";
+import { collection, query, addDoc, serverTimestamp, orderBy, deleteDoc, doc } from "firebase/firestore";
 import type { Customer } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
@@ -41,6 +51,7 @@ export default function CustomersPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
+  const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
 
   const customersQuery = useMemoFirebase(() => {
     if (!restaurantId || !firestore) return null;
@@ -75,6 +86,15 @@ export default function CustomersPage() {
     setIsDialogOpen(false);
     setNewName('');
     setNewPhone('');
+  };
+
+  const handleDeleteCustomer = () => {
+    if (!customerToDelete || !restaurantId) return;
+    const docRef = doc(firestore, `restaurants/${restaurantId}/customers`, customerToDelete.id);
+    deleteDoc(docRef).then(() => {
+        toast({ title: "Cliente removido." });
+    });
+    setCustomerToDelete(null);
   };
 
   if (isRestLoading || isCustLoading) return <div className="p-8"><Skeleton className="h-screen w-full" /></div>;
@@ -118,6 +138,7 @@ export default function CustomersPage() {
                         <TableHead>Telefone</TableHead>
                         <TableHead className="text-center">Total de Pedidos</TableHead>
                         <TableHead>Cliente Desde</TableHead>
+                        <TableHead />
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -129,15 +150,33 @@ export default function CustomersPage() {
                             <TableCell>
                                 {customer.createdAt ? format(new Date(customer.createdAt.seconds * 1000), "dd/MM/yyyy", { locale: ptBR }) : 'Recentemente'}
                             </TableCell>
+                            <TableCell className="text-right">
+                                <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setCustomerToDelete(customer)}>
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </TableCell>
                         </TableRow>
                     ))}
                     {customers?.length === 0 && (
-                        <TableRow><TableCell colSpan={4} className="text-center py-12 text-muted-foreground">Nenhum cliente cadastrado.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground">Nenhum cliente cadastrado.</TableCell></TableRow>
                     )}
                 </TableBody>
             </Table>
         </div>
       </main>
+
+      <AlertDialog open={!!customerToDelete} onOpenChange={(open) => !open && setCustomerToDelete(null)}>
+          <AlertDialogContent>
+              <AlertDialogHeader>
+                  <AlertDialogTitle>Excluir Cliente?</AlertDialogTitle>
+                  <AlertDialogDescription>Deseja remover o histórico de "{customerToDelete?.name}"? Esta ação é irreversível.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteCustomer} className="bg-destructive hover:bg-destructive/90 text-white">Excluir</AlertDialogAction>
+              </AlertDialogFooter>
+          </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

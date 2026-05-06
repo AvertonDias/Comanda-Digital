@@ -31,6 +31,16 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -104,6 +114,7 @@ function UserRow({ userRole }: { userRole: RestaurantUserRole }) {
     const firestore = useFirestore();
     const { toast } = useToast();
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [newRole, setNewRole] = useState(userRole.role);
     const userProfileRef = useMemoFirebase(() => doc(firestore, 'users', userRole.userId), [firestore, userRole.userId]);
     const { data: userProfile, isLoading } = useDoc<UserProfile>(userProfileRef);
@@ -132,6 +143,13 @@ function UserRow({ userRole }: { userRole: RestaurantUserRole }) {
                 requestResourceData: { role: newRole }
             }));
         });
+    };
+
+    const handleDeleteUserRole = () => {
+        deleteDoc(doc(firestore, `users/${userRole.userId}/restaurantRoles/${userRole.restaurantId}`)).then(() => {
+            toast({ title: "Usuário removido da equipe." });
+        });
+        setIsDeleteDialogOpen(false);
     };
 
     if (isLoading) {
@@ -170,7 +188,7 @@ function UserRow({ userRole }: { userRole: RestaurantUserRole }) {
                     <Button variant="ghost" size="sm" onClick={() => setIsEditDialogOpen(true)}>
                         <Edit2 className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-destructive" onClick={() => deleteDoc(doc(firestore, `users/${userRole.userId}/restaurantRoles/${userRole.restaurantId}`))}>
+                    <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setIsDeleteDialogOpen(true)}>
                         <Trash2 className="h-4 w-4" />
                     </Button>
                 </TableCell>
@@ -200,6 +218,19 @@ function UserRow({ userRole }: { userRole: RestaurantUserRole }) {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Remover da Equipe?</AlertDialogTitle>
+                        <AlertDialogDescription>Esta ação removerá o acesso de {userProfile?.name} a este restaurante.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteUserRole} className="bg-destructive hover:bg-destructive/90 text-white">Confirmar</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 }
@@ -250,6 +281,8 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
     const [newSector, setNewSector] = useState('');
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingPrinterId, setEditingPrinterId] = useState<string | null>(null);
+    const [sectorToDelete, setSectorToDelete] = useState<PrintSector | null>(null);
+    const [printerToDelete, setPrinterToDelete] = useState<Printer | null>(null);
     
     const [printerName, setPrinterName] = useState('');
     const [printerType, setPrinterType] = useState<PrinterConnectionType>('network');
@@ -272,12 +305,14 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
         toast({ title: "Setor adicionado." });
     };
 
-    const handleDeleteSector = (id: string) => {
-        const docRef = doc(firestore, `restaurants/${restaurantId}/printSectors`, id);
+    const handleDeleteSector = () => {
+        if (!sectorToDelete) return;
+        const docRef = doc(firestore, `restaurants/${restaurantId}/printSectors`, sectorToDelete.id);
         deleteDoc(docRef).catch(async () => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'delete' }));
         });
         toast({ title: "Setor removido." });
+        setSectorToDelete(null);
     };
 
     const handleSavePrinter = () => {
@@ -320,6 +355,14 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
         setPrinterAddress(printer.address);
         setSelectedSectors(printer.printSectors);
         setIsDialogOpen(true);
+    };
+
+    const handleDeletePrinter = () => {
+        if (!printerToDelete) return;
+        deleteDoc(doc(firestore, `restaurants/${restaurantId}/printers`, printerToDelete.id)).then(() => {
+            toast({ title: "Impressora removida." });
+        });
+        setPrinterToDelete(null);
     };
 
     const resetPrinterForm = () => {
@@ -367,7 +410,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                         {sectors?.map(s => (
                             <Badge key={s.id} variant="secondary" className="px-3 py-1 flex items-center gap-2">
                                 {s.name}
-                                <button onClick={() => handleDeleteSector(s.id)} className="hover:text-destructive transition-colors">
+                                <button onClick={() => setSectorToDelete(s)} className="hover:text-destructive transition-colors">
                                     <Trash2 className="h-3 w-3" />
                                 </button>
                             </Badge>
@@ -424,7 +467,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                                         <Button variant="ghost" size="sm" onClick={() => handleEditPrinter(p)}>
                                             <Edit2 className="h-4 w-4" />
                                         </Button>
-                                        <Button variant="ghost" size="sm" onClick={() => deleteDoc(doc(firestore, `restaurants/${restaurantId}/printers`, p.id))}>
+                                        <Button variant="ghost" size="sm" onClick={() => setPrinterToDelete(p)}>
                                             <Trash2 className="h-4 w-4 text-destructive" />
                                         </Button>
                                     </TableCell>
@@ -437,6 +480,34 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                     </Table>
                 </CardContent>
             </Card>
+
+            {/* Setor Deletion Alert */}
+            <AlertDialog open={!!sectorToDelete} onOpenChange={(open) => !open && setSectorToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir Setor?</AlertDialogTitle>
+                        <AlertDialogDescription>Esta ação removerá o setor "{sectorToDelete?.name}". Certifique-se de que não há itens vinculados a ele.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteSector} className="bg-destructive hover:bg-destructive/90 text-white">Excluir</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Printer Deletion Alert */}
+            <AlertDialog open={!!printerToDelete} onOpenChange={(open) => !open && setPrinterToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir Impressora?</AlertDialogTitle>
+                        <AlertDialogDescription>Esta ação removerá a configuração da impressora "{printerToDelete?.name}".</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeletePrinter} className="bg-destructive hover:bg-destructive/90 text-white">Excluir</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="sm:max-w-[500px]">
