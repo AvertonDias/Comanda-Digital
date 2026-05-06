@@ -118,7 +118,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
       const result = await generateDescriptionAction(null, formData);
       if (result.message === 'success' && result.description) {
         form.setValue('description', result.description);
-        toast({ title: "Descrição Gerada!", description: "AI criou uma descrição para você." });
+        toast({ title: "Descrição Gerada!", description: "A IA criou uma descrição atrativa para seu prato." });
       }
     } catch (error) {
       console.error(error);
@@ -168,8 +168,10 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="space-y-5">
+            <h3 className="text-sm font-black uppercase tracking-widest text-primary">Informações Básicas</h3>
+            
             <FormField
               control={form.control}
               name="name"
@@ -182,8 +184,8 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
               )}
             />
 
-            <div className="space-y-2">
-              <FormLabel>Ingredientes Base</FormLabel>
+            <div className="space-y-3 bg-muted/20 p-4 rounded-lg border-2 border-dashed">
+              <FormLabel className="text-primary font-black">Ingredientes Base (+)</FormLabel>
               <div className="flex gap-2">
                 <Input 
                   placeholder="Ex: Pão brioche" 
@@ -191,18 +193,19 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
                   onChange={e => setNewIngredient(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddIngredient())}
                 />
-                <Button type="button" size="icon" onClick={handleAddIngredient}>
+                <Button type="button" size="icon" onClick={handleAddIngredient} className="shrink-0">
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
-              <FormDescription>Adicione item por item. Eles aparecerão como opcionais para o cliente.</FormDescription>
+              <FormDescription>Adicione cada item da receita. Eles aparecerão para o cliente poder retirar se desejar.</FormDescription>
               <div className="flex flex-wrap gap-2 pt-2">
                 {ingredientsArray.map((ing, idx) => (
-                  <Badge key={idx} variant="secondary" className="gap-1 px-2 py-1">
+                  <Badge key={idx} variant="secondary" className="gap-1 px-3 py-1.5 font-bold uppercase text-[10px] bg-white border-2">
                     {ing}
-                    <X className="h-3 w-3 cursor-pointer hover:text-destructive" onClick={() => handleRemoveIngredient(idx)} />
+                    <X className="h-3 w-3 cursor-pointer text-destructive hover:scale-125 transition-transform" onClick={() => handleRemoveIngredient(idx)} />
                   </Badge>
                 ))}
+                {ingredientsArray.length === 0 && <span className="text-[10px] text-muted-foreground uppercase italic">Nenhum ingrediente adicionado</span>}
               </div>
             </div>
 
@@ -251,28 +254,30 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
                     <FormLabel>Descrição de Venda</FormLabel>
                     <Button 
                       type="button" 
-                      variant="outline" 
+                      variant="ghost" 
                       size="sm" 
+                      className="text-primary font-bold h-7"
                       onClick={handleGenerateAI}
                       disabled={isGenerating}
                     >
-                      <Sparkles className="mr-2 h-4 w-4" /> Gerar com IA
+                      <Sparkles className="mr-1 h-3 w-3" /> IA
                     </Button>
                   </div>
-                  <FormControl><Textarea className="min-h-[100px]" {...field} /></FormControl>
+                  <FormControl><Textarea className="min-h-[100px] text-xs" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
           </div>
 
-          <div className="space-y-4 border-l pl-6">
+          <div className="space-y-5">
             <div className="flex justify-between items-center">
-              <h3 className="text-sm font-bold uppercase">Grupos de Adicionais Pagos</h3>
+              <h3 className="text-sm font-black uppercase tracking-widest text-primary">Adicionais Pagos</h3>
               <Button 
                 type="button" 
                 variant="outline" 
                 size="sm" 
+                className="h-8 font-bold text-[10px] uppercase"
                 onClick={() => appendGroup({ 
                   id: Math.random().toString(36).substr(2, 9),
                   name: "", 
@@ -282,31 +287,31 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
                   options: [] 
                 })}
               >
-                <Plus className="mr-2 h-4 w-4" /> Novo Grupo
+                <Plus className="mr-1 h-3 w-3" /> Novo Grupo
               </Button>
             </div>
 
-            <div className="space-y-4 h-[400px] overflow-y-auto pr-2">
+            <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
               {addonGroups.map((group, groupIdx) => (
-                <Card key={group.id} className="p-4 space-y-4 relative bg-muted/20 border-2">
+                <Card key={group.id} className="p-4 space-y-4 relative bg-muted/10 border-2">
                   <Button 
                     type="button" 
                     variant="ghost" 
                     size="icon" 
-                    className="absolute top-2 right-2 h-8 w-8 text-destructive"
+                    className="absolute top-2 right-2 h-7 w-7 text-destructive"
                     onClick={() => removeGroup(groupIdx)}
                   >
                     <X className="h-4 w-4" />
                   </Button>
 
-                  <div className="grid grid-cols-1 gap-3 pr-8">
+                  <div className="space-y-3 pr-8">
                     <FormField
                       control={form.control}
                       name={`addonGroups.${groupIdx}.name`}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-xs uppercase">Título do Grupo</FormLabel>
-                          <FormControl><Input {...field} className="h-8" placeholder="Ex: Escolha o queijo" /></FormControl>
+                          <FormLabel className="text-[10px] uppercase font-black text-muted-foreground">Título do Grupo</FormLabel>
+                          <FormControl><Input {...field} className="h-8 text-xs font-bold" placeholder="Ex: Escolha o queijo" /></FormControl>
                         </FormItem>
                       )}
                     />
@@ -317,16 +322,16 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
                         render={({ field }) => (
                           <FormItem className="flex items-center gap-2 space-y-0">
                             <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                            <FormLabel className="text-xs cursor-pointer">Obrigatório</FormLabel>
+                            <FormLabel className="text-[10px] font-black uppercase cursor-pointer">Obrigatório</FormLabel>
                           </FormItem>
                         )}
                       />
-                      <div className="flex items-center gap-2 flex-1">
-                        <Label className="text-xs">Máx Opções:</Label>
+                      <div className="flex items-center gap-2">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Máx:</Label>
                         <Input 
                           type="number" 
                           {...form.register(`addonGroups.${groupIdx}.maxQuantity`, { valueAsNumber: true })} 
-                          className="h-8 w-16" 
+                          className="h-7 w-12 text-center p-0 text-xs" 
                         />
                       </div>
                     </div>
@@ -335,12 +340,11 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
                   <Separator />
 
                   <div className="space-y-2">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Opções do Grupo</Label>
                     <div className="space-y-2">
                       {form.watch(`addonGroups.${groupIdx}.options`)?.map((_, optIdx) => (
                         <div key={optIdx} className="flex gap-2 items-center">
                           <Input 
-                            placeholder="Nome" 
+                            placeholder="Opção (Ex: Cheddar)" 
                             {...form.register(`addonGroups.${groupIdx}.options.${optIdx}.name`)} 
                             className="h-8 text-xs"
                           />
@@ -348,7 +352,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
                             type="number" 
                             placeholder="R$" 
                             {...form.register(`addonGroups.${groupIdx}.options.${optIdx}.price`, { valueAsNumber: true })} 
-                            className="h-8 w-24 text-xs"
+                            className="h-8 w-20 text-xs"
                           />
                           <Button 
                             type="button" 
@@ -368,7 +372,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
                         type="button" 
                         variant="ghost" 
                         size="sm" 
-                        className="w-full h-8 border-dashed border-2 text-[10px]"
+                        className="w-full h-8 border-dashed border-2 text-[9px] font-black uppercase"
                         onClick={() => {
                           const options = form.getValues(`addonGroups.${groupIdx}.options`) || [];
                           form.setValue(`addonGroups.${groupIdx}.options`, [...options, { name: "", price: 0 }]);
@@ -380,13 +384,18 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
                   </div>
                 </Card>
               ))}
+              {addonGroups.length === 0 && (
+                <div className="text-center py-10 bg-muted/10 rounded-lg border-2 border-dashed">
+                  <p className="text-[10px] font-black uppercase text-muted-foreground">Nenhum grupo de adicionais</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 border-t pt-4">
-          <Button type="submit" size="lg" className="w-full md:w-auto font-bold uppercase">
-            {initialData ? "Salvar Alterações" : "Criar Item no Cardápio"}
+        <div className="flex justify-end pt-4 border-t">
+          <Button type="submit" size="lg" className="w-full md:w-auto bg-primary font-black uppercase px-12">
+            {initialData ? "Salvar Alterações" : "Cadastrar no Cardápio"}
           </Button>
         </div>
       </form>

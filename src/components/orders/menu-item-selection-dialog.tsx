@@ -1,8 +1,9 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
-import { X, ChevronLeft, Plus, Minus, Share2, Maximize2, ShoppingBag, Info } from 'lucide-react';
+import { X, ChevronLeft, Plus, Minus, Share2, Maximize2, ShoppingBag, Info, Check } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -35,6 +36,7 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
   const [notes, setNotes] = useState('');
   const [excludedIngredients, setExcludedIngredients] = useState<string[]>([]);
 
+  // Memoizar ingredientes e total antes de qualquer retorno condicional para evitar erro de ordem de hooks
   const ingredientsList = useMemo(() => {
     if (!item?.ingredients) return [];
     return Array.isArray(item.ingredients) ? item.ingredients : [];
@@ -134,9 +136,6 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
                 <Button variant="secondary" size="icon" className="rounded-full pointer-events-auto h-8 w-8 bg-black/40 text-white hover:bg-black/60 border-none">
                   <Maximize2 className="h-4 w-4" />
                 </Button>
-                <Button variant="secondary" size="icon" className="rounded-full pointer-events-auto h-8 w-8 bg-black/40 text-white hover:bg-black/60 border-none">
-                  <Share2 className="h-4 w-4" />
-                </Button>
               </div>
             </div>
           </div>
@@ -149,37 +148,45 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
               </p>
             </div>
 
+            {/* Seção de Ingredientes Base (Opcionais de Retirada) */}
             {ingredientsList.length > 0 && (
               <div className="space-y-4">
-                <div className="flex justify-between items-center bg-muted/30 p-2 rounded-md">
+                <div className="flex justify-between items-center bg-primary/5 p-3 rounded-md border-l-4 border-primary">
                   <div>
-                    <h3 className="font-bold text-sm uppercase">Personalizar Ingredientes</h3>
-                    <p className="text-xs text-muted-foreground">
-                      Remova os itens que não deseja
+                    <h3 className="font-black text-sm uppercase text-primary">Personalizar Prato</h3>
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold">
+                      Desmarque o que deseja retirar do prato
                     </p>
                   </div>
-                  <Info className="h-4 w-4 text-muted-foreground" />
+                  <Info className="h-4 w-4 text-primary opacity-50" />
                 </div>
                 
-                <div className="space-y-0 divide-y">
+                <div className="space-y-0 divide-y bg-muted/10 rounded-lg">
                   {ingredientsList.map((ingredient, idx) => {
                     const isExcluded = excludedIngredients.includes(ingredient);
                     return (
                       <div 
                         key={idx} 
-                        className="flex items-center justify-between py-4 cursor-pointer hover:bg-muted/5 transition-colors"
+                        className="flex items-center justify-between px-4 py-4 cursor-pointer hover:bg-muted/20 transition-colors"
                         onClick={() => handleIngredientToggle(ingredient)}
                       >
-                        <p className={cn(
-                          "text-sm font-medium uppercase transition-colors",
-                          isExcluded ? "text-muted-foreground line-through" : "text-foreground"
-                        )}>
-                          {ingredient}
-                        </p>
-                        <Checkbox 
-                          checked={!isExcluded}
-                          className="rounded-full h-6 w-6 border-2 data-[state=checked]:bg-black data-[state=checked]:border-black"
-                        />
+                        <div className="flex items-center gap-3">
+                            <div className={cn(
+                                "flex items-center justify-center h-5 w-5 rounded border-2 transition-all",
+                                isExcluded ? "border-muted-foreground bg-muted" : "border-black bg-black"
+                            )}>
+                                {!isExcluded && <Check className="h-3 w-3 text-white" />}
+                            </div>
+                            <p className={cn(
+                            "text-xs font-black uppercase transition-colors",
+                            isExcluded ? "text-muted-foreground line-through opacity-50" : "text-foreground"
+                            )}>
+                            {ingredient}
+                            </p>
+                        </div>
+                        <span className="text-[9px] font-bold uppercase text-muted-foreground">
+                            {isExcluded ? "Retirado" : "No Prato"}
+                        </span>
                       </div>
                     );
                   })}
@@ -187,13 +194,14 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
               </div>
             )}
 
+            {/* Seção de Adicionais Pagos */}
             {item.addonGroups?.map((group) => (
               <div key={group.id} className="space-y-4">
-                <div className="flex justify-between items-center bg-muted/30 p-2 rounded-md">
+                <div className="flex justify-between items-center bg-muted/30 p-3 rounded-md">
                   <div>
-                    <h3 className="font-bold text-sm uppercase">{group.name}</h3>
-                    <p className="text-xs text-muted-foreground">
-                      {group.isMandatory ? `Obrigatório • Escolha ${group.minQuantity || 1}` : `Opcional • Máx ${group.maxQuantity}`}
+                    <h3 className="font-black text-sm uppercase">{group.name}</h3>
+                    <p className="text-[10px] text-muted-foreground font-bold uppercase">
+                      {group.isMandatory ? `Obrigatório • Escolha no mínimo ${group.minQuantity || 1}` : `Opcional • Máximo ${group.maxQuantity}`}
                     </p>
                   </div>
                 </div>
@@ -208,20 +216,20 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
                         onClick={() => handleAddonToggle(group, option)}
                       >
                         <div className="space-y-0.5">
-                          <p className="text-sm font-medium uppercase">{option.name}</p>
-                          <p className="text-primary text-xs font-bold">
-                            +R$ {option.price.toFixed(2)}
+                          <p className="text-xs font-black uppercase">{option.name}</p>
+                          <p className="text-primary text-[10px] font-black">
+                            + R$ {option.price.toFixed(2)}
                           </p>
                         </div>
                         <Button 
                           variant={isSelected ? "default" : "outline"} 
                           size="icon" 
                           className={cn(
-                            "h-7 w-7 rounded-full transition-all",
-                            isSelected && "bg-black text-white scale-110"
+                            "h-8 w-8 rounded-full transition-all border-2",
+                            isSelected ? "bg-black text-white scale-110 border-black" : "border-muted-foreground/20"
                           )}
                         >
-                          {isSelected ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                          {isSelected ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
                         </Button>
                       </div>
                     );
@@ -231,10 +239,10 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
             ))}
 
             <div className="space-y-3 pb-8">
-              <h3 className="font-bold text-sm uppercase">Observações Extras</h3>
+              <h3 className="font-black text-sm uppercase">Observações Extras</h3>
               <Textarea 
-                placeholder="Ex: Ponto da carne, talheres, etc..." 
-                className="bg-muted/30 border-none resize-none h-24 focus-visible:ring-black"
+                placeholder="Ex: Ponto da carne, sem pimenta, etc..." 
+                className="bg-muted/20 border-none resize-none h-24 focus-visible:ring-black text-xs font-medium"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />
@@ -242,17 +250,17 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
           </div>
         </ScrollArea>
 
-        <div className="p-4 border-t bg-background shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+        <div className="p-4 border-t bg-background shadow-[0_-4px_20px_rgba(0,0,0,0.1)]">
           <div className="flex items-center justify-between gap-4">
             <div className="flex flex-col">
-              <span className="text-xs text-muted-foreground font-bold uppercase">Total</span>
+              <span className="text-[10px] text-muted-foreground font-black uppercase">Subtotal</span>
               <span className="text-xl font-black">
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(currentTotal)}
               </span>
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="flex items-center bg-black text-white rounded-full h-10 px-1">
+              <div className="flex items-center bg-black text-white rounded-lg h-10 px-1">
                 <Button 
                   variant="ghost" 
                   size="icon" 
@@ -261,7 +269,7 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
                 >
                   <Minus className="h-4 w-4" />
                 </Button>
-                <span className="w-8 text-center font-bold">{quantity}</span>
+                <span className="w-8 text-center font-black text-sm">{quantity}</span>
                 <Button 
                   variant="ghost" 
                   size="icon" 
@@ -273,12 +281,12 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
               </div>
 
               <Button 
-                className="h-10 px-8 rounded-md bg-[#EF3B33] hover:bg-[#D32F2F] text-white font-bold uppercase flex-1 shadow-lg disabled:opacity-50 transition-all active:scale-95"
+                className="h-10 px-8 rounded-lg bg-[#EF3B33] hover:bg-[#D32F2F] text-white font-black uppercase text-xs flex-1 shadow-lg disabled:opacity-50 transition-all active:scale-95"
                 disabled={!isMandatoryGroupsMet}
                 onClick={handleConfirm}
               >
                 <ShoppingBag className="mr-2 h-4 w-4" />
-                Confirmar
+                Adicionar
               </Button>
             </div>
           </div>
