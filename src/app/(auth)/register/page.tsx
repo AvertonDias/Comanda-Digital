@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth, useUser, useFirestore } from '@/firebase';
 import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { collection, doc, serverTimestamp, writeBatch, getDoc } from 'firebase/firestore';
-import { UtensilsCrossed, Loader2, UserPlus } from 'lucide-react';
+import { UtensilsCrossed, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, FormEvent, useEffect, Suspense } from 'react';
@@ -53,7 +53,6 @@ function RegisterContent() {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
       await signInWithPopup(auth, provider);
-      toast({ title: 'Autenticado!', description: 'Agora finalize seu cadastro.' });
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Erro', description: 'Erro ao entrar com Google.' });
     } finally {
@@ -82,12 +81,11 @@ function RegisterContent() {
       let targetRole = 'waiter';
 
       if (inviteId && invitedRestId) {
-          // Validar convite
           const inviteRef = doc(firestore, `restaurants/${invitedRestId}/invitations/${inviteId}`);
           const inviteSnap = await getDoc(inviteRef);
           
           if (!inviteSnap.exists()) {
-              toast({ variant: 'destructive', title: 'Erro', description: 'Convite inválido ou expirado.' });
+              toast({ variant: 'destructive', title: 'Erro', description: 'Convite inválido.' });
               setIsSubmitting(false);
               return;
           }
@@ -95,7 +93,6 @@ function RegisterContent() {
           targetRole = inviteSnap.data().role || 'waiter';
           batch.update(inviteRef, { status: 'accepted' });
       } else {
-          // Criar novo restaurante
           const restaurantRef = doc(collection(firestore, "restaurants"));
           targetRestaurantId = restaurantRef.id;
           targetRole = 'admin';
@@ -108,7 +105,6 @@ function RegisterContent() {
           });
       }
 
-      // Perfil do Usuário
       const userProfileRef = doc(firestore, `users/${targetUser.uid}`);
       batch.set(userProfileRef, {
         name: targetUser.displayName || userName || targetUser.email,
@@ -117,7 +113,6 @@ function RegisterContent() {
         activeRestaurantId: targetRestaurantId
       }, { merge: true });
       
-      // Papel no Restaurante
       const userRoleRef = doc(firestore, `users/${targetUser.uid}/restaurantRoles/${targetRestaurantId}`);
       batch.set(userRoleRef, {
           userId: targetUser.uid,
@@ -131,8 +126,7 @@ function RegisterContent() {
       toast({ title: 'Sucesso!', description: inviteId ? 'Você entrou para a equipe!' : 'Seu restaurante foi configurado.' });
       router.push('/dashboard');
     } catch (error: any) {
-        console.error(error);
-        toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao finalizar o registro.' });
+        toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao registrar.' });
     } finally {
         setIsSubmitting(false);
     }
@@ -143,10 +137,10 @@ function RegisterContent() {
       <CardHeader className="space-y-1 text-center">
         <UtensilsCrossed className="mx-auto h-8 w-8 text-primary" />
         <CardTitle className="text-2xl font-bold">
-            {inviteId ? 'Participar da Equipe' : 'Criar Restaurante'}
+            {inviteId ? 'Aceitar Convite' : 'Criar Restaurante'}
         </CardTitle>
         <CardDescription>
-            {inviteId ? 'Finalize seu perfil para começar a trabalhar.' : 'Configure seu negócio em segundos.'}
+            {inviteId ? 'Finalize seu perfil para começar.' : 'Configure seu negócio em segundos.'}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -186,21 +180,14 @@ function RegisterContent() {
           {!user && (
             <>
               <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">Ou</span>
-                </div>
+                <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">Ou</span></div>
               </div>
-
               <Button type="button" variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isSubmitting}>
-                <GoogleIcon className="mr-2 h-4 w-4" />
-                Registrar com Google
+                <GoogleIcon className="mr-2 h-4 w-4" /> Registrar com Google
               </Button>
             </>
           )}
-
           <p className="text-center text-xs text-muted-foreground mt-4">
             Já tem uma conta? <Link href="/login" className="underline">Faça login</Link>
           </p>

@@ -14,7 +14,7 @@ type UseRestaurantReturn = {
 };
 
 /**
- * useRestaurant() BLINDADO v2
+ * useRestaurant() BLINDADO v3
  * 
  * Busca o ID do restaurante diretamente do perfil do usuário para evitar consultas globais.
  * Garante que nunca retorne 'undefined' para as queries subsequentes.

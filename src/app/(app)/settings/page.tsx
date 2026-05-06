@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { HelpCircle, Edit2, Trash2, PlusCircle, UserPlus, Copy, Link as LinkIcon } from "lucide-react";
+import { HelpCircle, Edit2, Trash2, PlusCircle, UserPlus, Copy, Link as LinkIcon, Check } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
@@ -80,7 +80,7 @@ function ProfileTab({ restaurantId }: { restaurantId: string }) {
                             onChange={(e) => setValue("phone", formatPhone(e.target.value))} 
                         />
                     </div>
-                    <Button type="submit">Salvar</Button>
+                    <Button type="submit">Salvar Alterações</Button>
                 </CardContent>
             </form>
         </Card>
@@ -108,7 +108,7 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
 
     const { data: users, isLoading } = useCollection(teamQuery);
 
-    const handleUpdateRole = async (userId: string, currentId: string, role: string) => {
+    const handleUpdateRole = async (userId: string, role: string) => {
         const docRef = doc(firestore, `users/${userId}/restaurantRoles/${restaurantId}`);
         await updateDoc(docRef, { role });
         toast({ title: "Função atualizada!" });
@@ -136,7 +136,8 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
 
     const handleDelete = async () => {
         if (!deletingUser) return;
-        await deleteDoc(doc(firestore, `users/${deletingUser.userId}/restaurantRoles/${restaurantId}`));
+        const docRef = doc(firestore, `users/${deletingUser.userId}/restaurantRoles/${restaurantId}`);
+        await deleteDoc(docRef);
         toast({ title: "Membro removido." });
         setDeletingUser(null);
     };
@@ -147,7 +148,7 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
                 <CardTitle>Equipe</CardTitle>
                 <Button onClick={() => { setInviteLink(""); setIsInviteModal(true); }} size="sm">
                     <UserPlus className="mr-2 h-4 w-4" />
-                    Gerar Link de Convite
+                    Novo Membro (Link)
                 </Button>
             </CardHeader>
             <CardContent>
@@ -164,20 +165,21 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
                             {users?.map((u: any) => (
                                 <TableRow key={u.id}>
                                     <TableCell>{u.email || u.userId}</TableCell>
-                                    <TableCell><Badge variant="secondary">{u.role === 'admin' ? 'Administrador' : 'Garçom'}</Badge></TableCell>
+                                    <TableCell>
+                                        <Badge variant={u.role === 'admin' ? 'default' : 'secondary'}>
+                                            {u.role === 'admin' ? 'Administrador' : 'Garçom'}
+                                        </Badge>
+                                    </TableCell>
                                     <TableCell className="text-right space-x-2">
-                                        <Button variant="ghost" size="icon" onClick={() => setEditingUser(u)}><Edit2 className="h-4 w-4" /></Button>
-                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDeletingUser(u)}><Trash2 className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="icon" onClick={() => setEditingUser(u)}>
+                                            <Edit2 className="h-4 w-4" />
+                                        </Button>
+                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDeletingUser(u)}>
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
                                     </TableCell>
                                 </TableRow>
                             ))}
-                            {users?.length === 0 && (
-                                <TableRow>
-                                    <TableCell colSpan={3} className="text-center py-6 text-muted-foreground">
-                                        Nenhum outro membro na equipe.
-                                    </TableCell>
-                                </TableRow>
-                            )}
                         </TableBody>
                     </Table>
                 )}
@@ -211,7 +213,9 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
                                     <Input value={inviteLink} readOnly />
                                     <Button size="icon" onClick={copyToClipboard}><Copy className="h-4 w-4" /></Button>
                                 </div>
-                                <p className="text-xs text-muted-foreground">Este link permite que qualquer pessoa com acesso a ele se registre como {inviteRole === 'admin' ? 'Administrador' : 'Garçom'}.</p>
+                                <p className="text-xs text-muted-foreground">
+                                    Este link permite que o colaborador se registre como {inviteRole === 'admin' ? 'Administrador' : 'Garçom'}.
+                                </p>
                             </div>
                         )}
                     </div>
@@ -223,7 +227,8 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
                     <DialogHeader><DialogTitle>Editar Função</DialogTitle></DialogHeader>
                     {editingUser && (
                         <div className="space-y-4 py-4">
-                            <Select defaultValue={editingUser.role} onValueChange={(val) => handleUpdateRole(editingUser.userId, editingUser.id, val)}>
+                            <Label>Função para {editingUser.email}</Label>
+                            <Select defaultValue={editingUser.role} onValueChange={(val) => handleUpdateRole(editingUser.userId, val)}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="admin">Administrador</SelectItem>
@@ -238,7 +243,7 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
             <AlertDialog open={!!deletingUser} onOpenChange={() => setDeletingUser(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader><AlertDialogTitle>Remover Membro?</AlertDialogTitle></AlertDialogHeader>
-                    <AlertDialogDescription>Deseja remover o acesso de "{deletingUser?.email || deletingUser?.userId}" ao restaurante?</AlertDialogDescription>
+                    <AlertDialogDescription>Deseja remover o acesso de "{deletingUser?.email}"? Esta ação é imediata.</AlertDialogDescription>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Não</AlertDialogCancel>
                         <AlertDialogAction onClick={handleDelete} className="bg-destructive">Sim, Remover</AlertDialogAction>
@@ -320,8 +325,10 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
         <div className="space-y-6">
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>Setores</CardTitle>
-                    <Button onClick={() => { setEditingSec(null); setSecName(""); setIsSecModal(true); }} size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Novo Setor</Button>
+                    <CardTitle>Setores de Impressão</CardTitle>
+                    <Button onClick={() => { setEditingSec(null); setSecName(""); setIsSecModal(true); }} size="sm">
+                        <PlusCircle className="mr-2 h-4 w-4" /> Novo Setor
+                    </Button>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -330,8 +337,12 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                                 <TableRow key={s.id}>
                                     <TableCell>{s.name}</TableCell>
                                     <TableCell className="text-right">
-                                        <Button variant="ghost" size="icon" onClick={() => { setEditingSec(s); setSecName(s.name); setIsSecModal(true); }}><Edit2 className="h-4 w-4" /></Button>
-                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDelSec(s)}><Trash2 className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="icon" onClick={() => { setEditingSec(s); setSecName(s.name); setIsSecModal(true); }}>
+                                            <Edit2 className="h-4 w-4" />
+                                        </Button>
+                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDelSec(s)}>
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -351,7 +362,9 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                             </PopoverContent>
                         </Popover>
                     </div>
-                    <Button onClick={() => { setEditingPri(null); setPriName(""); setPriAddr(""); setIsPriModal(true); }} size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Nova Impressora</Button>
+                    <Button onClick={() => { setEditingPri(null); setPriName(""); setPriAddr(""); setIsPriModal(true); }} size="sm">
+                        <PlusCircle className="mr-2 h-4 w-4" /> Nova Impressora
+                    </Button>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -368,8 +381,12 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                                     <TableCell>{p.name}</TableCell>
                                     <TableCell className="font-mono text-xs">{p.address}</TableCell>
                                     <TableCell className="text-right">
-                                        <Button variant="ghost" size="icon" onClick={() => { setEditingPri(p); setPriName(p.name); setPriAddr(p.address); setPriType(p.connectionType); setIsPriModal(true); }}><Edit2 className="h-4 w-4" /></Button>
-                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDelPri(p)}><Trash2 className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="icon" onClick={() => { setEditingPri(p); setPriName(p.name); setPriAddr(p.address); setPriType(p.connectionType); setIsPriModal(true); }}>
+                                            <Edit2 className="h-4 w-4" />
+                                        </Button>
+                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDelPri(p)}>
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
                                     </TableCell>
                                 </TableRow>
                             ))}
