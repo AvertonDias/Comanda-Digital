@@ -45,9 +45,17 @@ export function useRestaurant(): UseRestaurantReturn {
     // O carregamento só termina quando o perfil E o cargo (se o id existir) terminarem
     const isLoading = isUserLoading || isProfileLoading || (!!restaurantId && isRoleLoading);
 
+    // Lógica de fallback: Se o usuário tem um restaurante mas não tem registro na equipe (usuários antigos ou erro de sync),
+    // assume-se como admin por padrão para não bloquear o acesso.
+    const detectedRole = useMemo(() => {
+        if (teamMember?.role) return teamMember.role;
+        if (restaurantId && !isRoleLoading) return 'admin';
+        return null;
+    }, [teamMember?.role, restaurantId, isRoleLoading]);
+
     return {
         restaurantId,
-        role: teamMember?.role || null,
+        role: detectedRole,
         isLoading,
         hasRestaurant: !!restaurantId,
         error: profileError || roleError

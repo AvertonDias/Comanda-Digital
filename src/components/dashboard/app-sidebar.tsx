@@ -42,7 +42,7 @@ export function AppSidebar() {
     const router = useRouter();
     const auth = useAuth();
     const { user, isUserLoading } = useUser();
-    const { role, isLoading: isResLoading } = useRestaurant();
+    const { role, isLoading: isResLoading, hasRestaurant } = useRestaurant();
     const { isMobile, setOpenMobile } = useSidebar();
 
     const isActive = (href: string) => pathname === href;
@@ -76,7 +76,6 @@ export function AppSidebar() {
             <SidebarContent className="p-2">
                 <SidebarMenu>
                     {isLoading ? (
-                        // Skeleton de carregamento para o menu
                         Array.from({ length: 5 }).map((_, i) => (
                             <SidebarMenuItem key={i}>
                                 <div className="flex items-center gap-2 p-2">
@@ -100,9 +99,13 @@ export function AppSidebar() {
                                  </SidebarMenuButton>
                              </SidebarMenuItem>
                         ))
+                    ) : hasRestaurant ? (
+                        <div className="p-4 text-xs text-muted-foreground text-center">
+                            Carregando acessos...
+                        </div>
                     ) : (
                         <div className="p-4 text-xs text-muted-foreground text-center">
-                            Nenhum acesso permitido.
+                            Nenhum restaurante vinculado.
                         </div>
                     )}
                 </SidebarMenu>
@@ -133,7 +136,7 @@ export function AppSidebar() {
                                     <>
                                         <span className="truncate font-medium text-xs">{userName}</span>
                                         <span className="text-[10px] text-muted-foreground capitalize">
-                                            {role === 'admin' ? 'Administrador' : 'Garçom'}
+                                            {role === 'admin' ? 'Administrador' : role === 'waiter' ? 'Garçom' : 'Usuário'}
                                         </span>
                                     </>
                                 )}
