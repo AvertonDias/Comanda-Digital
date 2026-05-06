@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, User as UserIcon, PlusCircle, Trash2, Printer as PrinterIcon, Wifi, Usb, Bluetooth, Search, AlertCircle } from "lucide-react";
+import { Shield, User as UserIcon, PlusCircle, Trash2, Printer as PrinterIcon, Wifi, Usb, Bluetooth, Search, AlertCircle, Info } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +34,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const profileSchema = z.object({
     name: z.string().min(1, "O nome do restaurante é obrigatório."),
@@ -201,7 +202,6 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
     const [newSector, setNewSector] = useState('');
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     
-    // Estados para o formulário de impressora real
     const [printerName, setPrinterName] = useState('');
     const [printerType, setPrinterType] = useState<PrinterConnectionType>('network');
     const [printerAddress, setPrinterAddress] = useState('');
@@ -280,32 +280,32 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
         <div className="space-y-6">
             <Alert variant="default" className="bg-primary/5 border-primary/20">
                 <AlertCircle className="h-4 w-4 text-primary" />
-                <AlertTitle>Dica de Configuração</AlertTitle>
+                <AlertTitle>Dica de Configuração Profissional</AlertTitle>
                 <AlertDescription>
-                    Para impressoras térmicas, use o endereço IP fixo da rede ou o ID Bluetooth do dispositivo.
+                    Configure suas impressoras reais aqui. Use o <strong>Endereço IP</strong> para impressoras de rede ou o <strong>Nome no Windows</strong> para impressoras USB/Locais.
                 </AlertDescription>
             </Alert>
 
             <Card>
                 <CardHeader>
                     <CardTitle>Setores de Impressão</CardTitle>
-                    <CardDescription>Defina para onde os pedidos devem ser enviados (ex: Cozinha, Bar).</CardDescription>
+                    <CardDescription>Defina os locais de produção (ex: Cozinha, Bar, Churrasqueira).</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="flex gap-2">
                         <Input placeholder="Ex: Cozinha" value={newSector} onChange={e => setNewSector(e.target.value)} />
-                        <Button onClick={handleAddSector}><PlusCircle className="mr-2 h-4 w-4" /> Adicionar</Button>
+                        <Button onClick={handleAddSector}><PlusCircle className="mr-2 h-4 w-4" /> Adicionar Setor</Button>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         {sectors?.map(s => (
                             <Badge key={s.id} variant="secondary" className="px-3 py-1 flex items-center gap-2">
                                 {s.name}
-                                <button onClick={() => handleDeleteSector(s.id)} className="hover:text-destructive">
+                                <button onClick={() => handleDeleteSector(s.id)} className="hover:text-destructive transition-colors">
                                     <Trash2 className="h-3 w-3" />
                                 </button>
                             </Badge>
                         ))}
-                        {sectors?.length === 0 && <p className="text-sm text-muted-foreground">Crie um setor para começar.</p>}
+                        {sectors?.length === 0 && <p className="text-sm text-muted-foreground italic">Cadastre ao menos um setor para gerenciar suas impressoras.</p>}
                     </div>
                 </CardContent>
             </Card>
@@ -313,12 +313,12 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                     <div>
-                        <CardTitle>Minhas Impressoras Reais</CardTitle>
-                        <CardDescription>Configure seus dispositivos físicos de impressão.</CardDescription>
+                        <CardTitle>Minhas Impressoras</CardTitle>
+                        <CardDescription>Dispositivos configurados para impressão automática de comandos.</CardDescription>
                     </div>
                     <Button variant="outline" size="sm" onClick={() => setIsDialogOpen(true)}>
                         <PlusCircle className="mr-2 h-4 w-4" />
-                        Configurar Impressora
+                        Nova Impressora
                     </Button>
                 </CardHeader>
                 <CardContent>
@@ -328,7 +328,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                                 <TableHead>Nome</TableHead>
                                 <TableHead>Conexão</TableHead>
                                 <TableHead>Endereço / ID</TableHead>
-                                <TableHead>Setores Atendidos</TableHead>
+                                <TableHead>Setores</TableHead>
                                 <TableHead />
                             </TableRow>
                         </TableHeader>
@@ -342,7 +342,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                                     <TableCell>
                                         <div className="flex items-center gap-2 text-xs capitalize">
                                             {getConnectionIcon(p.connectionType)}
-                                            {p.connectionType === 'network' ? 'Rede/IP' : p.connectionType}
+                                            {p.connectionType === 'network' ? 'Rede (IP)' : p.connectionType}
                                         </div>
                                     </TableCell>
                                     <TableCell className="font-mono text-xs">{p.address}</TableCell>
@@ -350,7 +350,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                                         <div className="flex flex-wrap gap-1">
                                             {p.printSectors.map(sId => {
                                                 const sector = sectors?.find(s => s.id === sId);
-                                                return <Badge key={sId} variant="outline" className="text-[10px]">{sector?.name || sId}</Badge>;
+                                                return <Badge key={sId} variant="outline" className="text-[10px] bg-primary/5">{sector?.name || 'Setor'}</Badge>;
                                             })}
                                         </div>
                                     </TableCell>
@@ -362,7 +362,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                                 </TableRow>
                             ))}
                             {printers?.length === 0 && (
-                                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Nenhuma impressora configurada.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground italic">Nenhuma impressora real vinculada ainda.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>
@@ -372,16 +372,16 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="sm:max-w-[500px]">
                     <DialogHeader>
-                        <DialogTitle>Vincular Impressora do Sistema</DialogTitle>
+                        <DialogTitle>Configurar Impressora Real</DialogTitle>
                         <DialogDescription>
-                            Insira os dados da sua impressora instalada no Windows ou na rede local.
+                            Vincule uma impressora do seu sistema ou rede local.
                         </DialogDescription>
                     </DialogHeader>
                     
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
                             <Label>Nome Identificador</Label>
-                            <Input placeholder="Ex: Impressora da Cozinha" value={printerName} onChange={e => setPrinterName(e.target.value)} />
+                            <Input placeholder="Ex: Impressora Térmica Cozinha" value={printerName} onChange={e => setPrinterName(e.target.value)} />
                         </div>
                         
                         <div className="grid grid-cols-2 gap-4">
@@ -399,9 +399,23 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label>{printerType === 'network' ? 'IP da Impressora' : 'ID do Dispositivo'}</Label>
+                                <div className="flex items-center gap-2">
+                                    <Label>{printerType === 'network' ? 'Endereço IP' : 'Nome no Windows'}</Label>
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                                            </TooltipTrigger>
+                                            <TooltipContent className="max-w-[200px] text-xs">
+                                                {printerType === 'network' 
+                                                    ? 'O IP pode ser encontrado na página de teste da impressora (Self-Test).' 
+                                                    : 'O nome deve ser idêntico ao que aparece no Painel de Controle > Dispositivos e Impressoras.'}
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </div>
                                 <Input 
-                                    placeholder={printerType === 'network' ? '192.168.1.100' : 'Nome/ID no Windows'} 
+                                    placeholder={printerType === 'network' ? '192.168.1.100' : 'Ex: TM-T20'} 
                                     value={printerAddress} 
                                     onChange={e => setPrinterAddress(e.target.value)} 
                                 />
@@ -409,22 +423,22 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                         </div>
 
                         <div className="space-y-3">
-                            <Label className="text-sm">Vincular aos Setores</Label>
+                            <Label className="text-sm">Vincular aos Setores de Produção</Label>
                             <div className="grid grid-cols-2 gap-2">
                                 {sectors?.map(s => (
-                                    <div key={s.id} className="flex items-center space-x-2 border p-2 rounded-md">
+                                    <div key={s.id} className="flex items-center space-x-2 border p-2 rounded-md hover:bg-accent transition-colors">
                                         <Checkbox 
                                             id={`sector-config-${s.id}`} 
                                             checked={selectedSectors.includes(s.id)} 
                                             onCheckedChange={() => toggleSector(s.id)}
                                         />
-                                        <label htmlFor={`sector-config-${s.id}`} className="text-sm font-medium leading-none cursor-pointer">
+                                        <label htmlFor={`sector-config-${s.id}`} className="text-sm font-medium leading-none cursor-pointer flex-1">
                                             {s.name}
                                         </label>
                                     </div>
                                 ))}
                                 {sectors?.length === 0 && (
-                                    <p className="text-xs text-muted-foreground col-span-2">Cadastre os setores primeiro.</p>
+                                    <p className="text-xs text-destructive col-span-2 italic">⚠️ Cadastre os setores primeiro na tela anterior.</p>
                                 )}
                             </div>
                         </div>

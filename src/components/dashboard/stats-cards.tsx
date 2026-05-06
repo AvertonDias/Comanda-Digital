@@ -13,7 +13,7 @@ export function StatsCards() {
   const { restaurantId } = useRestaurant();
   const firestore = useFirestore();
 
-  // Consultas reais para estatísticas
+  // Consultas reais para estatísticas do dashboard
   const ordersQuery = useMemoFirebase(() => {
     if (!restaurantId || !firestore) return null;
     return query(collection(firestore, `restaurants/${restaurantId}/orders`));
@@ -42,32 +42,33 @@ export function StatsCards() {
         return orderDate >= today;
     }) || [];
 
+    // Faturamento apenas de pedidos finalizados hoje
     const revenueToday = todayOrders.reduce((acc, curr) => acc + (curr.status === 'finalizado' ? curr.total : 0), 0);
     const newOrdersToday = todayOrders.length;
 
     return [
         {
-            title: "Faturamento Finalizado",
+            title: "Faturamento Hoje",
             value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(revenueToday),
-            change: "Vendas concluídas hoje",
+            change: "Vendas finalizadas",
             icon: DollarSign,
         },
         {
             title: "Clientes",
             value: (customers?.length || 0).toString(),
-            change: "Base total",
+            change: "Base cadastrada",
             icon: Users,
         },
         {
-            title: "Pedidos Hoje",
+            title: "Novos Pedidos",
             value: newOrdersToday.toString(),
-            change: "Todos os status",
+            change: "Pedidos hoje",
             icon: CreditCard,
         },
         {
             title: "Mesas Ativas",
             value: (activeTables?.length || 0).toString(),
-            change: "Atendimento no local",
+            change: "Em atendimento",
             icon: Activity,
         },
     ];

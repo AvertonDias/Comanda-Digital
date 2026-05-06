@@ -10,7 +10,7 @@ service cloud.firestore {
     }
 
     // Verifica se o usuário logado tem um papel ativo no restaurante
-    // Membros da equipe têm acesso total para garantir operação fluida
+    // Membros da equipe têm acesso total para garantir operação fluida conforme solicitado
     function isRestaurantStaff(restaurantId) {
       return isSignedIn() && (
         exists(/databases/$(database)/documents/users/$(request.auth.uid)/restaurantRoles/$(restaurantId))
@@ -31,7 +31,7 @@ service cloud.firestore {
     }
 
     // Regra crítica para o login e identificação de restaurante
-    // Permite a consulta de grupo para encontrar os papéis do usuário
+    // Permite a consulta de grupo (collectionGroup) para encontrar os papéis do usuário logado
     match /{path=**}/restaurantRoles/{roleId} {
       allow read, list: if isSignedIn();
     }
@@ -42,7 +42,7 @@ service cloud.firestore {
       allow create: if isSignedIn();
       
       // Permite acesso total se for membro da equipe (Staff)
-      // Nivelado para "fazer tudo" conforme solicitado
+      // Nivelado para "fazer tudo" para garantir fluidez no atendimento
       allow read, write: if isRestaurantStaff(restaurantId);
 
       // Regras recursivas para todas as subcoleções (menu, pedidos, mesas, etc.)
