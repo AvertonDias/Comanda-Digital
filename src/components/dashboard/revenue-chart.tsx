@@ -1,27 +1,29 @@
 'use client';
 
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
 
+// Dados vazios para o estado inicial "limpo"
 const data = [
-  { name: 'Jan', total: Math.floor(Math.random() * 5000) + 1000 },
-  { name: 'Fev', total: Math.floor(Math.random() * 5000) + 1000 },
-  { name: 'Mar', total: Math.floor(Math.random() * 5000) + 1000 },
-  { name: 'Abr', total: Math.floor(Math.random() * 5000) + 1000 },
-  { name: 'Mai', total: Math.floor(Math.random() * 5000) + 1000 },
-  { name: 'Jun', total: Math.floor(Math.random() * 5000) + 1000 },
-  { name: 'Jul', total: Math.floor(Math.random() * 5000) + 1000 },
-  { name: 'Ago', total: Math.floor(Math.random() * 5000) + 1000 },
-  { name: 'Set', total: Math.floor(Math.random() * 5000) + 1000 },
-  { name: 'Out', total: Math.floor(Math.random() * 5000) + 1000 },
-  { name: 'Nov', total: Math.floor(Math.random() * 5000) + 1000 },
-  { name: 'Dez', total: Math.floor(Math.random() * 5000) + 1000 },
+  { name: 'Jan', total: 0 },
+  { name: 'Fev', total: 0 },
+  { name: 'Mar', total: 0 },
+  { name: 'Abr', total: 0 },
+  { name: 'Mai', total: 0 },
+  { name: 'Jun', total: 0 },
+  { name: 'Jul', total: 0 },
+  { name: 'Ago', total: 0 },
+  { name: 'Set', total: 0 },
+  { name: 'Out', total: 0 },
+  { name: 'Nov', total: 0 },
+  { name: 'Dez', total: 0 },
 ];
+
 const chartConfig = {
   total: {
     label: 'Total',
@@ -34,6 +36,7 @@ export function RevenueChart() {
     <Card className="lg:col-span-2">
       <CardHeader>
         <CardTitle>Visão Geral do Faturamento</CardTitle>
+        <CardDescription>Acompanhamento mensal das vendas.</CardDescription>
       </CardHeader>
       <CardContent className="pl-2">
         <ChartContainer config={chartConfig} className="h-[350px] w-full">
@@ -51,7 +54,7 @@ export function RevenueChart() {
                 fontSize={12}
                 tickLine={false}
                 axisLine={false}
-                tickFormatter={(value) => `R$${value / 1000}k`}
+                tickFormatter={(value) => `R$${value}`}
               />
               <ChartTooltip
                 cursor={false}

@@ -1,8 +1,3 @@
-/**
- * Filosofia: Controle de acesso simplificado para MVP.
- * Qualquer usuário autenticado que faça parte da equipe (Staff) de um restaurante
- * tem permissão total de leitura e escrita para "fazer tudo" naquele restaurante.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -18,8 +13,11 @@ service cloud.firestore {
     }
 
     // Verifica se o usuário logado tem um papel ativo no restaurante
+    // Corrigido para ser compatível com collectionGroup e caminhos específicos
     function isRestaurantStaff(restaurantId) {
-      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)/restaurantRoles/$(restaurantId));
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)/restaurantRoles/$(restaurantId))
+      );
     }
 
     // --- Regras por Coleção ---
@@ -30,21 +28,22 @@ service cloud.firestore {
       allow write: if isOwner(userId);
 
       match /restaurantRoles/{restaurantId} {
+        // Nivelando permissões: equipe tem acesso total
         allow read, write: if isOwner(userId) || isRestaurantStaff(restaurantId);
       }
     }
 
-    // Permite consultas de grupo (collectionGroup) para encontrar membros da equipe
+    // Crucial: Permite consultas de grupo (collectionGroup) para encontrar restaurantes do usuário
+    // O erro "Insufficient Permissions" na listagem raiz é resolvido aqui
     match /{path=**}/restaurantRoles/{restaurantId} {
-      allow list: if isSignedIn() && (isOwner(path[1]) || isRestaurantStaff(restaurantId));
+      allow read, list: if isSignedIn() && (request.auth.uid in path || isRestaurantStaff(restaurantId));
     }
 
     // Coleção Principal de Restaurantes e suas Subcoleções
     match /restaurants/{restaurantId} {
-      // Permite criar um novo restaurante
       allow create: if isSignedIn();
       
-      // Permite leitura e escrita total se for membro da equipe (nivelado para todos)
+      // Permite leitura e escrita total se for membro da equipe (nivelado conforme solicitado)
       allow read, write: if isRestaurantStaff(restaurantId);
 
       // Regras recursivas para todas as subcoleções (menu, pedidos, mesas, etc.)

@@ -4,26 +4,26 @@ import { DollarSign, Users, CreditCard, Activity } from 'lucide-react';
 const stats = [
     {
         title: "Faturamento Hoje",
-        value: "R$ 4,231.89",
-        change: "+20.1% do último mês",
+        value: "R$ 0,00",
+        change: "Aguardando vendas",
         icon: DollarSign,
     },
     {
         title: "Clientes Hoje",
-        value: "+235",
-        change: "+180.1% do último mês",
+        value: "0",
+        change: "Nenhum cliente registrado",
         icon: Users,
     },
     {
         title: "Novos Pedidos",
-        value: "+12,234",
-        change: "+19% do último mês",
+        value: "0",
+        change: "Nenhum pedido hoje",
         icon: CreditCard,
     },
     {
         title: "Mesas Ativas",
-        value: "8",
-        change: "+2 desde a última hora",
+        value: "0",
+        change: "Nenhuma mesa ocupada",
         icon: Activity,
     },
 ]
