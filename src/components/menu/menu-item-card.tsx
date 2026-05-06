@@ -57,6 +57,16 @@ export function MenuItemCard({ item }: MenuItemCardProps) {
   return (
     <>
         <Card className="flex p-3 gap-4 hover:shadow-md transition-shadow cursor-pointer relative group">
+          <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-muted">
+            <Image
+                src={item.imageUrl}
+                alt={item.name}
+                data-ai-hint={item.imageHint}
+                fill
+                className="object-cover"
+            />
+          </div>
+
           <div className="flex-1 space-y-1 min-w-0">
             <div className="flex items-center gap-2">
                 <h4 className="font-bold text-base truncate">{item.name}</h4>
@@ -95,16 +105,6 @@ export function MenuItemCard({ item }: MenuItemCardProps) {
                     </Button>
                 </div>
             </div>
-          </div>
-          
-          <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-muted">
-            <Image
-                src={item.imageUrl}
-                alt={item.name}
-                data-ai-hint={item.imageHint}
-                fill
-                className="object-cover"
-            />
           </div>
         </Card>
 
