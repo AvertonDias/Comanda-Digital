@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -6,7 +7,7 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Função ultra-rápida baseada na desnormalização (activeRestaurantId no doc do user)
+    // Validação ultra-rápida baseada na desnormalização (activeRestaurantId no doc do user)
     function isStaff(restaurantId) {
       return isSignedIn() && (
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.activeRestaurantId == restaurantId
@@ -39,6 +40,11 @@ service cloud.firestore {
       match /{allSubcollections=**} {
         allow read, write: if isStaff(restaurantId);
       }
+    }
+
+    // Support for collectionGroup queries (e.g. searching roles across restaurants)
+    match /{path=**}/restaurantRoles/{roleId} {
+      allow read, list: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid || isStaff(resource.data.restaurantId));
     }
   }
 }

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
@@ -13,26 +14,24 @@ type UseRestaurantReturn = {
 };
 
 /**
- * useRestaurant() BLINDADO
+ * useRestaurant() BLINDADO v2
  * 
- * Utiliza a desnormalização estratégica do perfil do usuário para buscar o ID do restaurante.
- * Isso evita consultas na raiz que disparam erros de permissão e garante performance.
+ * Busca o ID do restaurante diretamente do perfil do usuário para evitar consultas globais.
+ * Garante que nunca retorne 'undefined' para as queries subsequentes.
  */
 export function useRestaurant(): UseRestaurantReturn {
     const { user, isUserLoading } = useUser();
     const firestore = useFirestore();
 
-    // Memoiza a referência para evitar re-renderizações infinitas
     const userRef = useMemoFirebase(() => {
         if (!user?.uid || !firestore) return null;
         return doc(firestore, 'users', user.uid);
     }, [user?.uid, firestore]);
 
-    const { data: userProfile, isLoading: isProfileLoading, error } = useDoc<UserProfile & { activeRestaurantId?: string }>(userRef);
+    const { data: userProfile, isLoading: isProfileLoading, error } = useDoc<UserProfile>(userRef);
 
     const restaurantId = useMemo(() => {
-        // Retorna explicitamente null se não houver dado, evitando undefined que quebra queries
-        return userProfile?.activeRestaurantId ?? null;
+        return userProfile?.activeRestaurantId || null;
     }, [userProfile]);
 
     return {

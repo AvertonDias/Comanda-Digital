@@ -3,6 +3,7 @@ export type UserProfile = {
   name: string;
   email: string;
   avatarUrl?: string;
+  activeRestaurantId?: string;
 };
 
 export type RestaurantUserRole = {
@@ -49,6 +50,7 @@ export type MenuItem = {
 };
 
 export type OrderStatus = 'aberto' | 'preparando' | 'pronto' | 'finalizado' | 'cancelado';
+export type OrderItemStatus = 'pendente' | 'preparando' | 'pronto' | 'entregue' | 'cancelado';
 
 export type OrderItem = {
   id: string;
@@ -57,6 +59,8 @@ export type OrderItem = {
   quantity: number;
   priceAtOrder: number;
   notes?: string;
+  status: OrderItemStatus;
+  printSectorId: string;
 };
 
 export type Order = {
@@ -82,6 +86,7 @@ export type Table = {
   status: TableStatus;
   restaurantId: string;
   qrCodeUrl: string;
+  currentOrderId?: string;
 };
 
 export type Customer = {

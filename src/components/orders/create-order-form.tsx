@@ -1,3 +1,4 @@
+
 'use client';
 import { useState } from 'react';
 import type { MenuItem, OrderItem, Table, Order, MenuItemCategory } from '@/lib/types';
@@ -13,7 +14,7 @@ import { collection, query, addDoc, serverTimestamp, doc, updateDoc, orderBy } f
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
-type NewOrderItem = Omit<OrderItem, 'id' | 'priceAtOrder' | 'orderId'> & { price: number };
+type NewOrderItem = Omit<OrderItem, 'id' | 'priceAtOrder' | 'orderId'> & { price: number; printSectorId: string };
 
 export function CreateOrderForm({ restaurantId, onSuccess }: { restaurantId: string, onSuccess: () => void }) {
     const firestore = useFirestore();
@@ -46,7 +47,15 @@ export function CreateOrderForm({ restaurantId, onSuccess }: { restaurantId: str
         setOrderItems(prev => {
             const existing = prev.find(i => i.menuItemId === item.id && !i.notes);
             if (existing) return prev.map(i => (i.menuItemId === item.id && !i.notes) ? { ...i, quantity: i.quantity + 1 } : i);
-            return [...prev, { menuItemId: item.id, name: item.name, quantity: 1, price: item.price, notes: '' }];
+            return [...prev, { 
+                menuItemId: item.id, 
+                name: item.name, 
+                quantity: 1, 
+                price: item.price, 
+                notes: '', 
+                status: 'pendente', 
+                printSectorId: item.printSectorId 
+            }];
         });
     };
 
@@ -73,7 +82,9 @@ export function CreateOrderForm({ restaurantId, onSuccess }: { restaurantId: str
                 name: item.name,
                 quantity: item.quantity,
                 priceAtOrder: item.price,
-                notes: item.notes || null
+                notes: item.notes || null,
+                status: 'pendente',
+                printSectorId: item.printSectorId
             }))
         };
         

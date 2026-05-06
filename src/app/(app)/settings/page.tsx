@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AppHeader } from "@/components/layout/app-header";
@@ -72,8 +73,12 @@ function ProfileTab({ restaurantId }: { restaurantId: string }) {
                         <Input {...register("name")} />
                     </div>
                     <div className="space-y-2">
-                        <Label>Telefone (xx) x xxxx xxxx</Label>
-                        <Input {...register("phone")} onChange={(e) => setValue("phone", formatPhone(e.target.value))} />
+                        <Label>Telefone</Label>
+                        <Input 
+                            {...register("phone")} 
+                            placeholder="(xx) x xxxx xxxx"
+                            onChange={(e) => setValue("phone", formatPhone(e.target.value))} 
+                        />
                     </div>
                     <Button type="submit">Salvar</Button>
                 </CardContent>
@@ -90,14 +95,6 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
     const [editingUser, setEditingUser] = useState<any>(null);
     const [deletingUser, setDeletingUser] = useState<any>(null);
 
-    const rolesQuery = useMemoFirebase(() => {
-        if (!restaurantId) return null;
-        // Blindagem: Busca os papéis vinculados a este restaurante
-        return query(collection(firestore, "users"), query(collection(firestore, "restaurantRoles")));
-    }, [firestore, restaurantId]);
-
-    // Consultando os membros da equipe (ajuste para a sua estrutura real)
-    // Aqui usamos uma subcoleção se o restaurantId for conhecido
     const teamQuery = useMemoFirebase(() => {
         if (!restaurantId) return null;
         return query(collection(firestore, `restaurants/${restaurantId}/roles`));
