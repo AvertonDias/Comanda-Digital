@@ -1,10 +1,9 @@
-
 'use client';
 
 import Image from 'next/image';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import type { MenuItem } from '@/lib/types';
+import type { MenuItem, MenuItemCategory } from '@/lib/types';
 import { Badge } from '../ui/badge';
 import { Trash2, Edit, MoreHorizontal, Plus } from 'lucide-react';
 import { useState } from 'react';
@@ -12,6 +11,13 @@ import { useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase
 import { doc, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRestaurant } from '@/hooks/use-restaurant';
+import { MenuItemForm } from './menu-item-form';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -31,13 +37,15 @@ import {
 
 type MenuItemCardProps = {
   item: MenuItem & { categoryName: string };
+  categories: MenuItemCategory[];
 };
 
-export function MenuItemCard({ item }: MenuItemCardProps) {
+export function MenuItemCard({ item, categories }: MenuItemCardProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
   const { role } = useRestaurant();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const isAdmin = role === 'admin';
 
@@ -91,7 +99,7 @@ export function MenuItemCard({ item }: MenuItemCardProps) {
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
                                     <Edit className="mr-2 h-4 w-4" /> Editar
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => setIsDeleteDialogOpen(true)} className="text-destructive">
@@ -107,6 +115,20 @@ export function MenuItemCard({ item }: MenuItemCardProps) {
             </div>
           </div>
         </Card>
+
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent className="sm:max-w-[625px]">
+                <DialogHeader>
+                    <DialogTitle>Editar Item: {item.name}</DialogTitle>
+                </DialogHeader>
+                <MenuItemForm 
+                    restaurantId={item.restaurantId}
+                    categories={categories}
+                    initialData={item}
+                    onSuccess={() => setIsEditDialogOpen(false)}
+                />
+            </DialogContent>
+        </Dialog>
 
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
             <AlertDialogContent>

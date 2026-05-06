@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AppHeader } from '@/components/layout/app-header';
@@ -204,7 +203,8 @@ export default function MenuPage() {
                             {categoryItems.map(item => (
                                 <MenuItemCard 
                                     key={item.id} 
-                                    item={{...item, categoryName: category.name}} 
+                                    item={{...item, categoryName: category.name}}
+                                    categories={categories || []}
                                 />
                             ))}
                         </div>
