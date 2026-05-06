@@ -68,15 +68,17 @@ function OrdersContent() {
                 Novo Pedido
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-4xl">
-              <DialogHeader>
+            <DialogContent className="max-w-full w-full h-[100dvh] sm:h-auto sm:max-w-4xl p-0 overflow-hidden flex flex-col gap-0 border-none sm:border">
+              <DialogHeader className="p-4 border-b bg-background sticky top-0 z-10 sm:static">
                 <DialogTitle>Criar Novo Pedido</DialogTitle>
               </DialogHeader>
-              <CreateOrderForm 
-                restaurantId={restaurantId!} 
-                initialTableId={tableId || undefined}
-                onSuccess={() => setIsDialogOpen(false)} 
-              />
+              <div className="flex-1 overflow-y-auto sm:p-6">
+                <CreateOrderForm 
+                  restaurantId={restaurantId!} 
+                  initialTableId={tableId || undefined}
+                  onSuccess={() => setIsDialogOpen(false)} 
+                />
+              </div>
             </DialogContent>
           </Dialog>
         </div>
