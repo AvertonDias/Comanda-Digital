@@ -20,6 +20,8 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ArrowRight, ChefHat, Bike, ShoppingBag, Trash2, MapPin, Phone, User, MessageCircle } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useFirestore, useDoc, useMemoFirebase } from "@/firebase";
+import { doc } from "firebase/firestore";
 
 type OrderDetailsModalProps = {
     order: Order | null;
@@ -45,6 +47,14 @@ const originText = {
 
 export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange }: OrderDetailsModalProps) {
     const [notifyWhatsApp, setNotifyWhatsApp] = useState(true);
+    const firestore = useFirestore();
+
+    // Busca dados do restaurante para capturar o nome oficial
+    const restaurantRef = useMemoFirebase(() => 
+        order?.restaurantId ? doc(firestore, 'restaurants', order.restaurantId) : null,
+        [firestore, order?.restaurantId]
+    );
+    const { data: restaurant } = useDoc(restaurantRef);
 
     useEffect(() => {
         if (isOpen) setNotifyWhatsApp(true);
@@ -52,6 +62,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
 
     if (!order) return null;
 
+    const restaurantName = restaurant?.name || 'nosso estabelecimento';
     const currentStatus = order.status;
     const canCancel = currentStatus === 'aberto';
     const nextStatus: OrderStatus | null =
@@ -84,12 +95,13 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const handleStatusUpdate = () => {
         if (!nextStatus) return;
 
+        // Dispara mensagem se estiver marcando como PRONTO e o cliente tiver telefone
         if (nextStatus === 'pronto' && notifyWhatsApp && order.customerPhone) {
             const cleanPhone = order.customerPhone.replace(/\D/g, '');
             const finalPhone = cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone;
             
             const message = encodeURIComponent(
-                `Olá ${order.customerName || 'Cliente'}! 👋\n\nBoas notícias: Seu pedido #${displayOrderNumber} no Comanda Digital já está PRONTO! 🚀\n\nTotal: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}\n\nAgradecemos a preferência! ✨`
+                `Olá ${order.customerName || 'Cliente'}! 👋\n\nBoas notícias: Seu pedido #${displayOrderNumber} no *${restaurantName}* já está PRONTO! 🚀\n\nTotal: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}\n\nAgradecemos a preferência! ✨`
             );
             
             window.open(`https://wa.me/${finalPhone}?text=${message}`, '_blank');
