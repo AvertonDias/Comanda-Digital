@@ -78,14 +78,14 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const handleStatusUpdate = () => {
         if (!nextStatus) return;
 
-        // Se for finalizar e tiver telefone, abre o WhatsApp
-        if (nextStatus === 'finalizado' && notifyWhatsApp && order.customerPhone) {
+        // Se for marcar como PRONTO e tiver telefone, abre o WhatsApp
+        if (nextStatus === 'pronto' && notifyWhatsApp && order.customerPhone) {
             const cleanPhone = order.customerPhone.replace(/\D/g, '');
             // Adiciona o prefixo do país se não houver
             const finalPhone = cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone;
             
             const message = encodeURIComponent(
-                `Olá ${order.customerName || 'Cliente'}! 👋\n\nBoas notícias: Seu pedido #${order.id.slice(-4)} no Comanda Digital foi finalizado e já está pronto!\n\nTotal: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}\n\nAgradecemos a preferência! ✨`
+                `Olá ${order.customerName || 'Cliente'}! 👋\n\nBoas notícias: Seu pedido #${order.id.slice(-4)} no Comanda Digital já está PRONTO! 🚀\n\nTotal: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}\n\nAgradecemos a preferência! ✨`
             );
             
             window.open(`https://wa.me/${finalPhone}?text=${message}`, '_blank');
@@ -173,7 +173,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                         <span className="text-primary">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}</span>
                     </div>
 
-                    {nextStatus === 'finalizado' && order.customerPhone && (
+                    {nextStatus === 'pronto' && order.customerPhone && (
                         <div className="flex items-center justify-between bg-background p-3 rounded-lg border-2 border-primary/20 mb-4 animate-in fade-in slide-in-from-bottom-2">
                             <div className="flex items-center gap-2">
                                 <MessageCircle className="h-4 w-4 text-green-600" />
