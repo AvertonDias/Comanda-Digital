@@ -11,22 +11,22 @@ import { generateDescriptionAction } from '@/app/actions/menu';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import type { MenuItem, MenuItemCategory, MenuItemAddonGroup } from '@/lib/types';
+import type { MenuItem, MenuItemCategory } from '@/lib/types';
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Switch } from '@/components/ui/switch';
 import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 
 const formSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres."),
-  description: z.string().min(10, "A descrição deve ser mais detalhada."),
+  description: z.string().min(1, "A descrição é obrigatória."),
+  ingredients: z.string().optional(),
   price: z.coerce.number().min(0.01, "Preço deve ser maior que zero."),
   categoryId: z.string().min(1, "Selecione uma categoria."),
   isAvailable: z.boolean().default(true),
-  ingredients: z.string().optional(),
   addonGroups: z.array(z.object({
     id: z.string(),
     name: z.string().min(1, "Nome do grupo é obrigatório"),
@@ -57,10 +57,10 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
     defaultValues: {
       name: initialData?.name || "",
       description: initialData?.description || "",
+      ingredients: initialData?.ingredients || "",
       price: initialData?.price || 0,
       categoryId: initialData?.categoryId || "",
       isAvailable: initialData?.isAvailable ?? true,
-      ingredients: "",
       addonGroups: initialData?.addonGroups || []
     },
   });
@@ -149,6 +149,19 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="ingredients"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Ingredientes Base (Separados por vírgula)</FormLabel>
+                  <FormControl><Input placeholder="Ex: Pão brioche, Carne 180g, Queijo cheddar, Alface" {...field} /></FormControl>
+                  <FormDescription>Esses itens aparecerão como opcionais para o cliente retirar ou adicionar mais.</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -191,7 +204,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
               render={({ field }) => (
                 <FormItem>
                   <div className="flex justify-between items-center">
-                    <FormLabel>Descrição</FormLabel>
+                    <FormLabel>Descrição de Venda</FormLabel>
                     <Button 
                       type="button" 
                       variant="outline" 
@@ -199,7 +212,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
                       onClick={handleGenerateAI}
                       disabled={isGenerating}
                     >
-                      <Sparkles className="mr-2 h-4 w-4" /> IA
+                      <Sparkles className="mr-2 h-4 w-4" /> Gerar com IA
                     </Button>
                   </div>
                   <FormControl><Textarea className="min-h-[100px]" {...field} /></FormControl>
@@ -211,7 +224,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
 
           <div className="space-y-4 border-l pl-6">
             <div className="flex justify-between items-center">
-              <h3 className="text-sm font-bold uppercase">Complementos / Adicionais</h3>
+              <h3 className="text-sm font-bold uppercase">Grupos de Adicionais Pagos</h3>
               <Button 
                 type="button" 
                 variant="outline" 
@@ -225,7 +238,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
                   options: [] 
                 })}
               >
-                <Plus className="mr-2 h-4 w-4" /> Grupo
+                <Plus className="mr-2 h-4 w-4" /> Novo Grupo
               </Button>
             </div>
 
@@ -248,8 +261,8 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
                       name={`addonGroups.${groupIdx}.name`}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-xs uppercase">Nome do Grupo (Ex: Escolha o queijo)</FormLabel>
-                          <FormControl><Input {...field} className="h-8" /></FormControl>
+                          <FormLabel className="text-xs uppercase">Título do Grupo</FormLabel>
+                          <FormControl><Input {...field} className="h-8" placeholder="Ex: Escolha o queijo" /></FormControl>
                         </FormItem>
                       )}
                     />
@@ -265,7 +278,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
                         )}
                       />
                       <div className="flex items-center gap-2 flex-1">
-                        <Label className="text-xs">Qtd Máx:</Label>
+                        <Label className="text-xs">Máx Opções:</Label>
                         <Input 
                           type="number" 
                           {...form.register(`addonGroups.${groupIdx}.maxQuantity`, { valueAsNumber: true })} 
@@ -278,7 +291,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
                   <Separator />
 
                   <div className="space-y-2">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Opções de Adicionais</Label>
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Opções do Grupo</Label>
                     <div className="space-y-2">
                       {form.watch(`addonGroups.${groupIdx}.options`)?.map((_, optIdx) => (
                         <div key={optIdx} className="flex gap-2 items-center">
@@ -289,7 +302,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
                           />
                           <Input 
                             type="number" 
-                            placeholder="Preço" 
+                            placeholder="R$" 
                             {...form.register(`addonGroups.${groupIdx}.options.${optIdx}.price`, { valueAsNumber: true })} 
                             className="h-8 w-24 text-xs"
                           />

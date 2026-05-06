@@ -1,21 +1,19 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
-import { X, ChevronLeft, Plus, Minus, Share2, Maximize2, ShoppingBag } from 'lucide-react';
+import { X, ChevronLeft, Plus, Minus, Share2, Maximize2, ShoppingBag, Info } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import type { MenuItem, MenuItemAddonOption } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
 
 type SelectionAddon = MenuItemAddonOption & { groupId: string };
 
@@ -36,6 +34,23 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
   const [quantity, setQuantity] = useState(1);
   const [selectedAddons, setSelectedAddons] = useState<SelectionAddon[]>([]);
   const [notes, setNotes] = useState('');
+  const [excludedIngredients, setExcludedIngredients] = useState<string[]>([]);
+
+  // Parse ingredients from item
+  const ingredientsList = useMemo(() => {
+    if (!item?.ingredients) return [];
+    return item.ingredients.split(',').map(i => i.trim()).filter(Boolean);
+  }, [item?.ingredients]);
+
+  // Reset state when opening/closing
+  useEffect(() => {
+    if (!isOpen) {
+      setQuantity(1);
+      setSelectedAddons([]);
+      setNotes('');
+      setExcludedIngredients([]);
+    }
+  }, [isOpen]);
 
   if (!item) return null;
 
@@ -57,6 +72,14 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
     });
   };
 
+  const handleIngredientToggle = (ingredient: string) => {
+    setExcludedIngredients(prev => 
+      prev.includes(ingredient) 
+        ? prev.filter(i => i !== ingredient) 
+        : [...prev, ingredient]
+    );
+  };
+
   const currentTotal = useMemo(() => {
     const addonsTotal = selectedAddons.reduce((acc, curr) => acc + curr.price, 0);
     return (item.price + addonsTotal) * quantity;
@@ -73,21 +96,27 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
 
   const handleConfirm = () => {
     if (!isMandatoryGroupsMet) return;
+
+    // Build notes from excluded ingredients and additional notes
+    let finalNotes = notes;
+    if (excludedIngredients.length > 0) {
+      const exclusionString = `SEM: ${excludedIngredients.join(', ')}`;
+      finalNotes = finalNotes ? `${exclusionString} | ${finalNotes}` : exclusionString;
+    }
+
     onConfirm({
       item,
       quantity,
       addons: selectedAddons,
-      notes,
+      notes: finalNotes,
       totalPrice: currentTotal
     });
-    setQuantity(1);
-    setSelectedAddons([]);
-    setNotes('');
+    onClose();
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[450px] p-0 overflow-hidden flex flex-col h-[90vh] sm:h-[80vh]">
+      <DialogContent className="max-w-[450px] p-0 overflow-hidden flex flex-col h-[95vh] sm:h-[85vh]">
         <ScrollArea className="flex-1">
           <div className="relative w-full aspect-[4/3] bg-muted">
             <Image
@@ -124,13 +153,53 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
               </p>
             </div>
 
+            {/* Dynamic Ingredients Section (Add/Remove) */}
+            {ingredientsList.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center bg-muted/30 p-2 rounded-md">
+                  <div>
+                    <h3 className="font-bold text-sm uppercase">Personalizar Ingredientes</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Remova os itens que não deseja
+                    </p>
+                  </div>
+                  <Info className="h-4 w-4 text-muted-foreground" />
+                </div>
+                
+                <div className="space-y-0 divide-y">
+                  {ingredientsList.map((ingredient, idx) => {
+                    const isExcluded = excludedIngredients.includes(ingredient);
+                    return (
+                      <div 
+                        key={idx} 
+                        className="flex items-center justify-between py-4 cursor-pointer hover:bg-muted/5 transition-colors"
+                        onClick={() => handleIngredientToggle(ingredient)}
+                      >
+                        <p className={cn(
+                          "text-sm font-medium uppercase transition-colors",
+                          isExcluded ? "text-muted-foreground line-through" : "text-foreground"
+                        )}>
+                          {ingredient}
+                        </p>
+                        <Checkbox 
+                          checked={!isExcluded}
+                          className="rounded-full h-6 w-6 border-2 data-[state=checked]:bg-black data-[state=checked]:border-black"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Paid Addon Groups */}
             {item.addonGroups?.map((group) => (
               <div key={group.id} className="space-y-4">
                 <div className="flex justify-between items-center bg-muted/30 p-2 rounded-md">
                   <div>
                     <h3 className="font-bold text-sm uppercase">{group.name}</h3>
                     <p className="text-xs text-muted-foreground">
-                      {group.isMandatory ? `Obrigatório • Escolha ${group.minQuantity}` : 'Opcional'}
+                      {group.isMandatory ? `Obrigatório • Escolha ${group.minQuantity || 1}` : `Opcional • Máx ${group.maxQuantity}`}
                     </p>
                   </div>
                 </div>
@@ -154,8 +223,8 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
                           variant={isSelected ? "default" : "outline"} 
                           size="icon" 
                           className={cn(
-                            "h-7 w-7 rounded-full",
-                            isSelected && "bg-black text-white"
+                            "h-7 w-7 rounded-full transition-all",
+                            isSelected && "bg-black text-white scale-110"
                           )}
                         >
                           {isSelected ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
@@ -167,11 +236,11 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
               </div>
             ))}
 
-            <div className="space-y-3">
-              <h3 className="font-bold text-sm uppercase">Observações</h3>
+            <div className="space-y-3 pb-8">
+              <h3 className="font-bold text-sm uppercase">Observações Extras</h3>
               <Textarea 
-                placeholder="Ex: sem cebola, ponto da carne, etc..." 
-                className="bg-muted/30 border-none resize-none h-24"
+                placeholder="Ex: Ponto da carne, talheres, etc..." 
+                className="bg-muted/30 border-none resize-none h-24 focus-visible:ring-black"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />
@@ -210,12 +279,12 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
               </div>
 
               <Button 
-                className="h-10 px-8 rounded-md bg-[#EF3B33] hover:bg-[#D32F2F] text-white font-bold uppercase flex-1 shadow-lg disabled:opacity-50"
+                className="h-10 px-8 rounded-md bg-[#EF3B33] hover:bg-[#D32F2F] text-white font-bold uppercase flex-1 shadow-lg disabled:opacity-50 transition-all active:scale-95"
                 disabled={!isMandatoryGroupsMet}
                 onClick={handleConfirm}
               >
                 <ShoppingBag className="mr-2 h-4 w-4" />
-                Adicionar
+                Confirmar
               </Button>
             </div>
           </div>

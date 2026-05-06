@@ -65,6 +65,7 @@ export type MenuItem = {
   id: string;
   name: string;
   description: string;
+  ingredients?: string;
   price: number;
   isAvailable: boolean;
   categoryId: string;
