@@ -6,16 +6,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Plus, Trash2, X } from 'lucide-react';
 import { generateDescriptionAction } from '@/app/actions/menu';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import type { MenuItem, MenuItemCategory } from '@/lib/types';
-import { useForm } from "react-hook-form";
+import type { MenuItem, MenuItemCategory, MenuItemAddonGroup } from '@/lib/types';
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Switch } from '@/components/ui/switch';
+import { Card } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 
 const formSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres."),
@@ -24,6 +27,17 @@ const formSchema = z.object({
   categoryId: z.string().min(1, "Selecione uma categoria."),
   isAvailable: z.boolean().default(true),
   ingredients: z.string().optional(),
+  addonGroups: z.array(z.object({
+    id: z.string(),
+    name: z.string().min(1, "Nome do grupo é obrigatório"),
+    isMandatory: z.boolean(),
+    minQuantity: z.number().min(0),
+    maxQuantity: z.number().min(1),
+    options: z.array(z.object({
+      name: z.string().min(1, "Nome da opção é obrigatório"),
+      price: z.coerce.number().min(0)
+    }))
+  })).optional()
 });
 
 type MenuItemFormProps = {
@@ -47,7 +61,13 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
       categoryId: initialData?.categoryId || "",
       isAvailable: initialData?.isAvailable ?? true,
       ingredients: "",
+      addonGroups: initialData?.addonGroups || []
     },
+  });
+
+  const { fields: addonGroups, append: appendGroup, remove: removeGroup } = useFieldArray({
+    control: form.control,
+    name: "addonGroups"
   });
 
   async function handleGenerateAI() {
@@ -114,93 +134,203 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Nome do Prato</FormLabel>
-              <FormControl><Input placeholder="Ex: Hambúrguer Artesanal" {...field} /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome do Prato</FormLabel>
+                  <FormControl><Input placeholder="Ex: Hambúrguer Artesanal" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="price"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Preço (R$)</FormLabel>
-                <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="categoryId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Categoria</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {categories.map(cat => (
-                      <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="price"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Preço Base (R$)</FormLabel>
+                    <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="categoryId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Categoria</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {categories.map(cat => (
+                          <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <div className="flex justify-between items-center">
+                    <FormLabel>Descrição</FormLabel>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleGenerateAI}
+                      disabled={isGenerating}
+                    >
+                      <Sparkles className="mr-2 h-4 w-4" /> IA
+                    </Button>
+                  </div>
+                  <FormControl><Textarea className="min-h-[100px]" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className="space-y-4 border-l pl-6">
+            <div className="flex justify-between items-center">
+              <h3 className="text-sm font-bold uppercase">Complementos / Adicionais</h3>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                onClick={() => appendGroup({ 
+                  id: Math.random().toString(36).substr(2, 9),
+                  name: "", 
+                  isMandatory: false, 
+                  minQuantity: 0, 
+                  maxQuantity: 1, 
+                  options: [] 
+                })}
+              >
+                <Plus className="mr-2 h-4 w-4" /> Grupo
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              {addonGroups.map((group, groupIdx) => (
+                <Card key={group.id} className="p-4 space-y-4 relative bg-muted/20 border-2">
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="icon" 
+                    className="absolute top-2 right-2 h-8 w-8 text-destructive"
+                    onClick={() => removeGroup(groupIdx)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+
+                  <div className="grid grid-cols-1 gap-3 pr-8">
+                    <FormField
+                      control={form.control}
+                      name={`addonGroups.${groupIdx}.name`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs uppercase">Nome do Grupo (Ex: Escolha o queijo)</FormLabel>
+                          <FormControl><Input {...field} className="h-8" /></FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <div className="flex items-center gap-4">
+                      <FormField
+                        control={form.control}
+                        name={`addonGroups.${groupIdx}.isMandatory`}
+                        render={({ field }) => (
+                          <FormItem className="flex items-center gap-2 space-y-0">
+                            <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                            <FormLabel className="text-xs cursor-pointer">Obrigatório</FormLabel>
+                          </FormItem>
+                        )}
+                      />
+                      <div className="flex items-center gap-2 flex-1">
+                        <Label className="text-xs">Qtd Máx:</Label>
+                        <Input 
+                          type="number" 
+                          {...form.register(`addonGroups.${groupIdx}.maxQuantity`, { valueAsNumber: true })} 
+                          className="h-8 w-16" 
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-2">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Opções de Adicionais</Label>
+                    <div className="space-y-2">
+                      {form.watch(`addonGroups.${groupIdx}.options`)?.map((_, optIdx) => (
+                        <div key={optIdx} className="flex gap-2 items-center">
+                          <Input 
+                            placeholder="Nome" 
+                            {...form.register(`addonGroups.${groupIdx}.options.${optIdx}.name`)} 
+                            className="h-8 text-xs"
+                          />
+                          <Input 
+                            type="number" 
+                            placeholder="Preço" 
+                            {...form.register(`addonGroups.${groupIdx}.options.${optIdx}.price`, { valueAsNumber: true })} 
+                            className="h-8 w-24 text-xs"
+                          />
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-destructive"
+                            onClick={() => {
+                              const options = form.getValues(`addonGroups.${groupIdx}.options`);
+                              form.setValue(`addonGroups.${groupIdx}.options`, options.filter((_, i) => i !== optIdx));
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="sm" 
+                        className="w-full h-8 border-dashed border-2 text-[10px]"
+                        onClick={() => {
+                          const options = form.getValues(`addonGroups.${groupIdx}.options`) || [];
+                          form.setValue(`addonGroups.${groupIdx}.options`, [...options, { name: "", price: 0 }]);
+                        }}
+                      >
+                        <Plus className="h-3 w-3 mr-1" /> Adicionar Opção
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
         </div>
 
-        <FormField
-          control={form.control}
-          name="ingredients"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Ingredientes (para a IA)</FormLabel>
-              <FormControl><Input placeholder="Ex: pão brioche, carne 180g, cheddar..." {...field} /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <div className="flex justify-between items-center">
-                <FormLabel>Descrição</FormLabel>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleGenerateAI}
-                  disabled={isGenerating}
-                >
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Gerar com IA
-                </Button>
-              </div>
-              <FormControl><Textarea className="min-h-[100px]" {...field} /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="flex justify-end gap-2">
-          <Button type="submit">{initialData ? "Atualizar Item" : "Criar Item"}</Button>
+        <div className="flex justify-end gap-2 border-t pt-4">
+          <Button type="submit" size="lg" className="w-full md:w-auto font-bold uppercase">
+            {initialData ? "Salvar Alterações" : "Criar Item no Cardápio"}
+          </Button>
         </div>
       </form>
     </Form>

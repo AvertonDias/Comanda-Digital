@@ -47,6 +47,20 @@ export type Printer = {
   isActive: boolean;
 };
 
+export type MenuItemAddonOption = {
+  name: string;
+  price: number;
+};
+
+export type MenuItemAddonGroup = {
+  id: string;
+  name: string;
+  isMandatory: boolean;
+  minQuantity: number;
+  maxQuantity: number;
+  options: MenuItemAddonOption[];
+};
+
 export type MenuItem = {
   id: string;
   name: string;
@@ -57,10 +71,16 @@ export type MenuItem = {
   printSectorId: string;
   imageUrl: string;
   imageHint: string;
+  addonGroups?: MenuItemAddonGroup[];
 };
 
 export type OrderStatus = 'aberto' | 'preparando' | 'pronto' | 'finalizado' | 'cancelado';
 export type OrderItemStatus = 'pendente' | 'preparando' | 'pronto' | 'entregue' | 'cancelado';
+
+export type OrderItemAddon = {
+  name: string;
+  price: number;
+};
 
 export type OrderItem = {
   id: string;
@@ -71,6 +91,7 @@ export type OrderItem = {
   notes?: string;
   status: OrderItemStatus;
   printSectorId: string;
+  addons?: OrderItemAddon[];
 };
 
 export type Order = {
