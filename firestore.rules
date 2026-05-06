@@ -30,8 +30,9 @@ service cloud.firestore {
       }
     }
 
-    // Regra crítica para o login: permite buscar o restaurante do usuário
-    match /{path=**}/restaurantRoles/{restaurantId} {
+    // Regra crítica para o login e identificação de restaurante
+    // Permite a consulta de grupo para encontrar os papéis do usuário
+    match /{path=**}/restaurantRoles/{roleId} {
       allow read, list: if isSignedIn();
     }
 
@@ -41,6 +42,7 @@ service cloud.firestore {
       allow create: if isSignedIn();
       
       // Permite acesso total se for membro da equipe (Staff)
+      // Nivelado para "fazer tudo" conforme solicitado
       allow read, write: if isRestaurantStaff(restaurantId);
 
       // Regras recursivas para todas as subcoleções (menu, pedidos, mesas, etc.)
