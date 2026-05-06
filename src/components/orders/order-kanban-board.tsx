@@ -1,4 +1,3 @@
-
 'use client';
 import { useState } from 'react';
 import type { Order, OrderStatus, Restaurant } from '@/lib/types';
@@ -91,6 +90,9 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
   const handleStatusChange = (orderId: string, newStatus: OrderStatus, extraData: any = {}) => {
     const orderRef = doc(firestore, `restaurants/${restaurantId}/orders/${orderId}`);
     
+    // Captura o objeto atual do pedido antes da atualização para o recibo
+    const currentOrder = orders?.find(o => o.id === orderId);
+
     const updatePayload = { 
         status: newStatus, 
         ...extraData 
@@ -101,11 +103,13 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
     }
 
     updateDoc(orderRef, updatePayload).then(() => {
-        if (newStatus === 'finalizado') {
-            const finishedOrder = orders?.find(o => o.id === orderId);
-            if (finishedOrder) {
-                setLastFinalizedOrder({ ...finishedOrder, ...updatePayload });
-            }
+        if (newStatus === 'finalizado' && currentOrder) {
+            // Mescla os dados atuais com a atualização para garantir que o modal de recibo tenha tudo
+            setLastFinalizedOrder({ 
+                ...currentOrder, 
+                ...updatePayload,
+                paymentMethod: extraData.paymentMethod || currentOrder.paymentMethod 
+            });
         }
     }).catch(async () => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
