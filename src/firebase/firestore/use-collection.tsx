@@ -57,14 +57,15 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (firebaseError: FirestoreError) => {
-        // Tenta extrair o caminho de forma segura
-        let path = 'unknown_path';
+        // Tenta extrair o caminho de forma segura sem acessar propriedades internas
+        let path = 'unknown';
         
-        if ('path' in memoizedTargetRefOrQuery) {
+        if (memoizedTargetRefOrQuery instanceof CollectionReference) {
+          path = memoizedTargetRefOrQuery.path;
+        } else if ('path' in memoizedTargetRefOrQuery) {
           path = (memoizedTargetRefOrQuery as any).path;
-        } else if ('_query' in memoizedTargetRefOrQuery) {
-          // Acesso a propriedade interna do SDK para facilitar debug em desenvolvimento
-          path = (memoizedTargetRefOrQuery as any)._query?.path?.segments?.join('/') || 'query';
+        } else {
+          path = 'collection_query';
         }
 
         const contextualError = new FirestorePermissionError({

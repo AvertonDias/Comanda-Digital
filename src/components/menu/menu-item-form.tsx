@@ -1,6 +1,6 @@
 
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -64,6 +64,21 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
       addonGroups: initialData?.addonGroups || []
     },
   });
+
+  // Importante: Reiniciar o formulário quando os dados iniciais mudarem (ex: ao clicar em Editar)
+  useEffect(() => {
+    if (initialData) {
+      form.reset({
+        name: initialData.name,
+        description: initialData.description,
+        ingredients: initialData.ingredients || "",
+        price: initialData.price,
+        categoryId: initialData.categoryId,
+        isAvailable: initialData.isAvailable,
+        addonGroups: initialData.addonGroups || []
+      });
+    }
+  }, [initialData, form]);
 
   const { fields: addonGroups, append: appendGroup, remove: removeGroup } = useFieldArray({
     control: form.control,
@@ -180,7 +195,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Categoria</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione" />
@@ -242,7 +257,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
               </Button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-4 h-[400px] overflow-y-auto pr-2">
               {addonGroups.map((group, groupIdx) => (
                 <Card key={group.id} className="p-4 space-y-4 relative bg-muted/20 border-2">
                   <Button 
