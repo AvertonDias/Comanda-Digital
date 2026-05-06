@@ -113,13 +113,15 @@ function RegisterContent() {
         activeRestaurantId: targetRestaurantId
       }, { merge: true });
       
-      const userRoleRef = doc(firestore, `users/${targetUser.uid}/restaurantRoles/${targetRestaurantId}`);
-      batch.set(userRoleRef, {
+      // Salva na nova subcoleção de equipe do restaurante
+      const memberRef = doc(firestore, `restaurants/${targetRestaurantId}/team/${targetUser.uid}`);
+      batch.set(memberRef, {
           userId: targetUser.uid,
-          restaurantId: targetRestaurantId,
+          email: targetUser.email,
           role: targetRole,
           isActive: true,
-          email: targetUser.email
+          restaurantId: targetRestaurantId,
+          createdAt: serverTimestamp()
       });
       
       await batch.commit();

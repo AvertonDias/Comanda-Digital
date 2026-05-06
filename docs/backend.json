@@ -68,6 +68,10 @@
           "type": "string",
           "description": "ID do usuário do Firebase Authentication."
         },
+        "email": {
+          "type": "string",
+          "description": "Email do usuário para exibição."
+        },
         "restaurantId": {
           "type": "string",
           "description": "ID do restaurante ao qual o usuário pertence."
@@ -391,7 +395,7 @@
         }
       },
       {
-        "path": "/users/{userId}/restaurantRoles/{restaurantId}",
+        "path": "/restaurants/{restaurantId}/team/{userId}",
         "definition": {
           "entityName": "RestaurantUser",
           "schema": {
@@ -491,6 +495,6 @@
         }
       }
     ],
-    "reasoning": "Estrutura multi-tenancy robusta com isolamento total de dados por restaurante."
+    "reasoning": "Estrutura multi-tenancy robusta com isolamento total de dados por restaurante e acesso rápido via perfil do usuário."
   }
 }

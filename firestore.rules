@@ -16,7 +16,7 @@ service cloud.firestore {
 
     function isAdmin(restaurantId) {
       return isStaff(restaurantId) && (
-        get(/databases/$(database)/documents/users/$(request.auth.uid)/restaurantRoles/$(restaurantId)).data.role == "admin"
+        get(/databases/$(database)/documents/restaurants/$(restaurantId)/team/$(request.auth.uid)).data.role == "admin"
       );
     }
 
@@ -24,12 +24,6 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isSignedIn();
       allow write: if request.auth.uid == userId;
-
-      match /restaurantRoles/{restaurantId} {
-        allow read: if request.auth.uid == userId || isStaff(restaurantId);
-        allow create: if isSignedIn() && (request.auth.uid == userId || isAdmin(restaurantId));
-        allow update, delete: if isSignedIn() && (request.auth.uid == userId || isAdmin(restaurantId));
-      }
     }
 
     // RESTAURANTS
@@ -38,13 +32,18 @@ service cloud.firestore {
       allow read: if isSignedIn() || true; // Permitir leitura para o cardápio público
       allow update, delete: if isAdmin(restaurantId);
 
+      match /team/{memberId} {
+        allow read: if isStaff(restaurantId);
+        allow write: if isAdmin(restaurantId) || (isSignedIn() && request.auth.uid == memberId);
+      }
+
       match /invitations/{inviteId} {
         allow read: if true; // Validar convite publicamente
         allow write: if isAdmin(restaurantId);
       }
 
       match /menuItems/{itemId} {
-        allow read: if true; // Cardápio é público via link/QR
+        allow read: if true; // Cardápio é público
         allow write: if isStaff(restaurantId);
       }
 
@@ -61,11 +60,6 @@ service cloud.firestore {
       match /{allSubcollections=**} {
         allow read, write: if isStaff(restaurantId);
       }
-    }
-
-    // Support for collectionGroup queries (e.g. searching roles across restaurants)
-    match /{path=**}/restaurantRoles/{roleId} {
-      allow read, list: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid || isStaff(resource.data.restaurantId));
     }
   }
 }

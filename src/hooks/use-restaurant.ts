@@ -14,10 +14,10 @@ type UseRestaurantReturn = {
 };
 
 /**
- * useRestaurant() BLINDADO v3
+ * useRestaurant() BLINDADO v4
  * 
- * Busca o ID do restaurante diretamente do perfil do usuário para evitar consultas globais.
- * Garante que nunca retorne 'undefined' para as queries subsequentes.
+ * Busca o ID do restaurante diretamente do perfil desnormalizado do usuário.
+ * Isso resolve os erros de permissão ao tentar acessar caminhos globais.
  */
 export function useRestaurant(): UseRestaurantReturn {
     const { user, isUserLoading } = useUser();

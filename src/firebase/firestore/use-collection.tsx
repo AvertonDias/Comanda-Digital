@@ -34,7 +34,7 @@ export function useCollection<T = any>(
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
-    // Blindagem de segurança: evita consultas vazias na raiz
+    // Blindagem de segurança: evita consultas vazias ou inconsistentes
     if (!memoizedTargetRefOrQuery) {
       setData(null);
       setIsLoading(false);

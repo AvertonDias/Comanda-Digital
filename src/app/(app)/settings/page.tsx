@@ -12,7 +12,7 @@ import { HelpCircle, Edit2, Trash2, PlusCircle, UserPlus, Copy, Link as LinkIcon
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
-import { collection, doc, query, updateDoc, addDoc, deleteDoc, collectionGroup, where, serverTimestamp } from "firebase/firestore";
+import { collection, doc, query, updateDoc, addDoc, deleteDoc, serverTimestamp, orderBy } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -98,18 +98,16 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
     const [inviteLink, setInviteLink] = useState("");
     const [inviteRole, setInviteRole] = useState("waiter");
 
+    // Consulta simplificada para evitar erros de permissão de collectionGroup
     const teamQuery = useMemoFirebase(() => {
         if (!restaurantId || !firestore) return null;
-        return query(
-            collectionGroup(firestore, 'restaurantRoles'),
-            where('restaurantId', '==', restaurantId)
-        );
+        return query(collection(firestore, `restaurants/${restaurantId}/team`));
     }, [firestore, restaurantId]);
 
     const { data: users, isLoading } = useCollection(teamQuery);
 
     const handleUpdateRole = async (userId: string, role: string) => {
-        const docRef = doc(firestore, `users/${userId}/restaurantRoles/${restaurantId}`);
+        const docRef = doc(firestore, `restaurants/${restaurantId}/team/${userId}`);
         await updateDoc(docRef, { role });
         toast({ title: "Função atualizada!" });
         setEditingUser(null);
@@ -136,7 +134,7 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
 
     const handleDelete = async () => {
         if (!deletingUser) return;
-        const docRef = doc(firestore, `users/${deletingUser.userId}/restaurantRoles/${restaurantId}`);
+        const docRef = doc(firestore, `restaurants/${restaurantId}/team/${deletingUser.id}`);
         await deleteDoc(docRef);
         toast({ title: "Membro removido." });
         setDeletingUser(null);
