@@ -42,7 +42,7 @@ const STATUS_CONFIG: Record<OrderStatus, { title: string; color: string }> = {
     'preparando': { title: 'Em Preparação', color: 'bg-yellow-500' },
     'pronto': { title: 'Pronto', color: 'bg-green-500' },
     'finalizado': { title: 'Finalizado', color: 'bg-gray-500' },
-    'cancelado': { title: 'Cancelado', color: 'bg-red-500' },
+    'cancelado': { title: 'Cancelados', color: 'bg-red-500' },
 };
 
 const PAYMENT_METHODS = [
@@ -51,6 +51,23 @@ const PAYMENT_METHODS = [
     { id: 'cartao_debito', label: 'Débito', icon: CreditCard },
     { id: 'dinheiro', label: 'Dinheiro', icon: Banknote },
 ];
+
+/**
+ * Agrupa itens idênticos (mesmo id, adicionais e notas).
+ */
+function consolidateItems(items: any[]) {
+    const groups: Record<string, any> = {};
+    items.forEach(item => {
+        const addonsKey = item.addons?.map((a: any) => a.name).sort().join(',') || '';
+        const key = `${item.menuItemId}-${addonsKey}-${item.notes || ''}`;
+        if (groups[key]) {
+            groups[key].quantity += item.quantity;
+        } else {
+            groups[key] = { ...item };
+        }
+    });
+    return Object.values(groups);
+}
 
 function normalizeText(text: string) {
     return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9 ]/g, "").toUpperCase();
@@ -81,13 +98,11 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const firestore = useFirestore();
     const { toast } = useToast();
 
-    // Estados de Controle Geral
     const [lastOpenedOrderId, setLastOpenedOrderId] = useState<string | null>(null);
     const [notifyWhatsApp, setNotifyWhatsApp] = useState(true);
     const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
     
-    // Estados para Divisão de Conta
     const [isSplitting, setIsSplitting] = useState(false);
     const [splitMode, setSplitMode] = useState<'value' | 'items'>('value');
     const [peopleCount, setPeopleCount] = useState(2);
@@ -96,16 +111,13 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const [currentPartAmount, setCurrentPartAmount] = useState<number>(0);
     const [recordedSplitParts, setRecordedSplitParts] = useState<SplitPaymentPart[]>([]);
     
-    // Controle de Itens Pendentes
     const [itemsBalance, setItemsBalance] = useState<any[]>([]);
     const [selectedItemsForPart, setSelectedItemsForPart] = useState<Record<number, number>>({});
 
-    // Estados para Adicionar Mais Itens
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [selectedMenuCategoryId, setSelectedMenuCategoryId] = useState<string | null>(null);
     const [selectedItemToAdd, setSelectedItemToAdd] = useState<MenuItem | null>(null);
 
-    // BUSCA DE PEDIDOS RELACIONADOS (AGRUPAMENTO POR MESA)
     const relatedOrdersQuery = useMemoFirebase(() => {
         if (!order?.tableId || !order?.restaurantId || !firestore) return null;
         return query(
@@ -120,7 +132,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const allGroupedOrders = useMemo(() => {
         if (!order) return [];
         if (!relatedOrders || relatedOrders.length === 0) return [order];
-        // Garante que o pedido atual está na lista e evita duplicatas
         const list = [...relatedOrders];
         if (!list.some(o => o.id === order.id)) list.push(order);
         return list;
@@ -130,14 +141,15 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         return allGroupedOrders.reduce((acc, curr) => acc + curr.total, 0);
     }, [allGroupedOrders]);
 
+    // Consolida todos os itens de todos os pedidos da mesa
     const combinedItems = useMemo(() => {
-        return allGroupedOrders.flatMap(o => o.items);
+        const rawItems = allGroupedOrders.flatMap(o => o.items);
+        return consolidateItems(rawItems);
     }, [allGroupedOrders]);
 
     const restaurantRef = useMemoFirebase(() => order?.restaurantId ? doc(firestore, 'restaurants', order.restaurantId) : null, [firestore, order?.restaurantId]);
     const { data: restaurant } = useDoc<Restaurant>(restaurantRef);
 
-    // Queries para o Menu Extra
     const categoriesQuery = useMemoFirebase(() => {
         if (!order?.restaurantId || !firestore) return null;
         return query(collection(firestore, `restaurants/${order.restaurantId}/menuItemCategories`), orderBy('order', 'asc'));
@@ -155,7 +167,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         return Math.max(0, combinedTotal - accumulatedPaid);
     }, [combinedTotal, accumulatedPaid]);
 
-    // Resetar estados apenas quando abrir um novo pedido
     useEffect(() => {
         if (isOpen && order && order.id !== lastOpenedOrderId) {
             setLastOpenedOrderId(order.id);
@@ -172,21 +183,18 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         }
     }, [isOpen, order, lastOpenedOrderId]);
 
-    // Atualiza balanço de itens quando os pedidos agrupados mudarem
     useEffect(() => {
         if (isOpen) {
             setItemsBalance(combinedItems.map((item, idx) => ({ ...item, originalIndex: idx, remainingQty: item.quantity })));
         }
     }, [combinedItems, isOpen]);
 
-    // Resetar seletor de categoria quando o menu extra abrir/fechar
     useEffect(() => {
         if (!isMenuOpen) {
             setSelectedMenuCategoryId(null);
         }
     }, [isMenuOpen]);
 
-    // Calcula valor automático baseado nos itens selecionados
     useEffect(() => {
         if (splitMode === 'items') {
             let total = 0;
@@ -198,7 +206,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         }
     }, [selectedItemsForPart, splitMode, itemsBalance]);
 
-    // Sugere valor por pessoa no modo Valor
     useEffect(() => {
         if (isSplitting && splitMode === 'value' && remainingBalance > 0) {
             const suggested = paidPartsCount < peopleCount - 1 ? combinedTotal / peopleCount : remainingBalance;
@@ -321,7 +328,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                     
                     <ScrollArea className="flex-1">
                         <div className="p-6 space-y-6">
-                            {/* INFO STATUS */}
                             {!isSplitting && (
                                 <div className="grid grid-cols-2 gap-4 text-[10px] font-black uppercase">
                                     <div className="space-y-1">
@@ -342,8 +348,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                             {isFinalizing && (
                                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                                     <Separator />
-                                    
-                                    {/* CABEÇALHO DE DIVISÃO */}
                                     <div className="flex items-center justify-between">
                                         <p className="font-black text-[10px] uppercase text-primary flex items-center gap-2">
                                             <Users className="h-3 w-3" /> Divisão de Conta
@@ -356,7 +360,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
 
                                     {isSplitting ? (
                                         <div className="space-y-4">
-                                            {/* SELETOR DE MODO DE DIVISÃO */}
                                             <div className="flex bg-muted/50 p-1 rounded-lg">
                                                 <button 
                                                     onClick={() => setSplitMode('value')}
@@ -372,7 +375,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                 </button>
                                             </div>
 
-                                            {/* CONTEÚDO DINÂMICO DA DIVISÃO */}
                                             {splitMode === 'items' ? (
                                                 <div className="space-y-3 bg-muted/20 p-4 rounded-xl border-2">
                                                     <div className="flex justify-between items-center mb-1">
@@ -523,7 +525,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                 </div>
                             )}
 
-                            {/* LISTA DE ITENS CONSOLIDADA */}
                             {!isSplitting && (
                                 <div className="space-y-4">
                                     <div className="flex justify-between items-center">
@@ -585,7 +586,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                             splitPayments: isSplitting ? recordedSplitParts : null
                                         } : {};
 
-                                        // ENVIA TODOS OS IDS DOS PEDIDOS DA MESA PARA FINALIZAR EM LOTE
                                         const targetIds = isGrouped ? allGroupedOrders.map(o => o.id) : [order.id];
                                         onStatusChange(targetIds, nextStatusMap[order.status], finalData);
                                     }}
@@ -601,7 +601,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                 </DialogContent>
             </Dialog>
 
-            {/* Menu para Adicionar Item Extra */}
             <Dialog open={isMenuOpen} onOpenChange={setIsMenuOpen}>
                 <DialogContent className="max-w-full w-full h-[100dvh] sm:h-[80vh] sm:max-w-[450px] p-0 flex flex-col border-none sm:border overflow-hidden">
                     <DialogHeader className="p-4 border-b flex flex-row items-center gap-2 space-y-0">
@@ -611,7 +610,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                         <DialogTitle className="text-sm font-black uppercase">Adicionar Item Extra</DialogTitle>
                     </DialogHeader>
 
-                    {/* SELETOR DE CATEGORIA */}
                     <div className="p-4 bg-muted/10 border-b space-y-3">
                         <Label className="text-[10px] font-black uppercase text-muted-foreground">1. Escolha a Categoria</Label>
                         <Select value={selectedMenuCategoryId || ""} onValueChange={setSelectedMenuCategoryId}>
@@ -628,7 +626,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                         </Select>
                     </div>
 
-                    {/* LISTAGEM DINÂMICA DE ITENS */}
                     <ScrollArea className="flex-1 p-4 bg-background">
                         {selectedMenuCategoryId ? (
                             <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -651,12 +648,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                         </div>
                                     </Card>
                                 ))}
-                                {items?.filter(i => i.categoryId === selectedMenuCategoryId && i.isAvailable).length === 0 && (
-                                    <div className="flex flex-col items-center justify-center py-12 text-center opacity-40">
-                                        <ShoppingBag className="h-10 w-10 mb-2" />
-                                        <p className="text-[10px] font-black uppercase">Nenhum item disponível nesta categoria</p>
-                                    </div>
-                                )}
                             </div>
                         ) : (
                             <div className="flex flex-col items-center justify-center h-full py-20 text-center space-y-4 opacity-30">

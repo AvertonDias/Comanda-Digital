@@ -25,10 +25,30 @@ const STATUS_CONFIG: Record<OrderStatus, { title: string; color: string }> = {
 
 const statusesToShow: OrderStatus[] = ['aberto', 'preparando', 'pronto'];
 
+/**
+ * Agrupa itens idênticos para exibição limpa.
+ */
+function consolidateItems(items: any[]) {
+    const groups: Record<string, any> = {};
+    items.forEach(item => {
+        const addonsKey = item.addons?.map((a: any) => a.name).sort().join(',') || '';
+        const key = `${item.menuItemId}-${addonsKey}-${item.notes || ''}`;
+        if (groups[key]) {
+            groups[key].quantity += item.quantity;
+        } else {
+            groups[key] = { ...item };
+        }
+    });
+    return Object.values(groups);
+}
+
 const OrderCard = ({ order, onDetailsClick }: { order: Order, onDetailsClick: (order: Order) => void }) => {
     const displayOrderNumber = order.orderNumber 
         ? order.orderNumber.toString().padStart(3, '0') 
         : order.id.slice(-4).toUpperCase();
+
+    // Consolida itens repetidos para a prévia do cartão
+    const previewItems = useMemo(() => consolidateItems(order.items), [order.items]);
 
     return (
         <Card className="active:scale-[0.98] transition-transform shadow-sm hover:shadow-md">
@@ -45,13 +65,13 @@ const OrderCard = ({ order, onDetailsClick }: { order: Order, onDetailsClick: (o
             </CardHeader>
             <CardContent className="p-4 py-2">
                 <ul className="space-y-1 text-xs">
-                    {order.items.slice(0, 3).map((item, idx) => (
+                    {previewItems.slice(0, 3).map((item, idx) => (
                         <li key={idx} className="flex justify-between items-center text-muted-foreground">
                             <span className="truncate">{item.quantity}x {item.name}</span>
                         </li>
                     ))}
-                    {order.items.length > 3 && (
-                        <li className="text-[10px] text-primary font-bold">+ {order.items.length - 3} itens</li>
+                    {previewItems.length > 3 && (
+                        <li className="text-[10px] text-primary font-bold">+ {previewItems.length - 3} itens</li>
                     )}
                 </ul>
             </CardContent>
@@ -88,7 +108,6 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
 
   const { data: orders, isLoading } = useCollection<Order>(ordersQuery);
 
-  // AGRUPAMENTO: Transforma múltiplos pedidos da mesma mesa em um único cartão visual por status
   const groupedOrdersByStatus = useMemo(() => {
     const result: Record<OrderStatus, Order[]> = {
         'aberto': [],
@@ -105,22 +124,18 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
         const groups: Record<string, Order> = {};
         
         statusOrders.forEach(order => {
-            // Agrupa por tableId (se houver), senão mantém individual (pedidos avulsos)
             const key = order.tableId || order.id;
             
             if (!groups[key]) {
                 groups[key] = { ...order };
             } else {
-                // Consolida dados para exibição no cartão
                 groups[key].total += order.total;
-                groups[key].items = [...groups[key].items, ...order.items];
+                groups[key].items = consolidateItems([...groups[key].items, ...order.items]);
                 
-                // Mantém o número do pedido mais recente como referência
                 if (order.orderNumber && (!groups[key].orderNumber || order.orderNumber > groups[key].orderNumber)) {
                     groups[key].orderNumber = order.orderNumber;
                 }
 
-                // Mantém a data do pedido mais antigo para mostrar há quanto tempo a mesa está ativa
                 const currentCreated = groups[key].createdAt?.seconds || Infinity;
                 const newCreated = order.createdAt?.seconds || Infinity;
                 if (newCreated < currentCreated) {
@@ -138,7 +153,6 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
   const handleStatusChange = (orderIds: string | string[], newStatus: OrderStatus, extraData: any = {}) => {
     const ids = Array.isArray(orderIds) ? orderIds : [orderIds];
     
-    // Captura os dados para o recibo antes da atualização
     let mergedOrderForReceipt: any = null;
     if (newStatus === 'finalizado') {
         const selectedOrders = orders?.filter(o => ids.includes(o.id)) || [];
@@ -146,7 +160,7 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
             mergedOrderForReceipt = {
                 ...selectedOrders[0],
                 id: ids.join('_'),
-                items: selectedOrders.flatMap(o => o.items),
+                items: consolidateItems(selectedOrders.flatMap(o => o.items)),
                 total: selectedOrders.reduce((acc, o) => acc + o.total, 0),
                 status: 'finalizado',
                 paymentMethod: extraData.paymentMethod,

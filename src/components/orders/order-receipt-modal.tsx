@@ -13,7 +13,24 @@ import type { Order, Restaurant } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Separator } from "../ui/separator";
+import { Badge } from "../ui/badge";
+
+/**
+ * Agrupa itens idênticos para o recibo.
+ */
+function consolidateItems(items: any[]) {
+    const groups: Record<string, any> = {};
+    items.forEach(item => {
+        const addonsKey = item.addons?.map((a: any) => a.name).sort().join(',') || '';
+        const key = `${item.menuItemId}-${addonsKey}-${item.notes || ''}`;
+        if (groups[key]) {
+            groups[key].quantity += item.quantity;
+        } else {
+            groups[key] = { ...item };
+        }
+    });
+    return Object.values(groups);
+}
 
 export function OrderReceiptModal({ 
     order, 
@@ -30,6 +47,7 @@ export function OrderReceiptModal({
     if (!order) return null;
 
     const orderNum = order.orderNumber?.toString().padStart(3, '0') || order.id.slice(-4).toUpperCase();
+    const groupedItems = consolidateItems(order.items);
 
     const getReceiptText = () => {
         let text = `
@@ -37,7 +55,7 @@ export function OrderReceiptModal({
 📌 Pedido #${orderNum}
 📅 ${format(new Date(), "dd/MM/yy HH:mm")}
 ---
-${order.items.map(i => `${i.quantity}x ${i.name} - R$ ${(i.priceAtOrder * i.quantity).toFixed(2)}`).join('\n')}
+${groupedItems.map(i => `${i.quantity}x ${i.name} - R$ ${(i.priceAtOrder * i.quantity).toFixed(2)}`).join('\n')}
 ---`;
 
         if (order.splitPayments && order.splitPayments.length > 0) {
@@ -183,7 +201,7 @@ Obrigado pela preferência!
                         </tr>
                     </thead>
                     <tbody>
-                        {order.items.map((item, idx) => (
+                        {groupedItems.map((item, idx) => (
                             <tr key={idx}>
                                 <td className="py-1">
                                     <span className="font-bold">{item.quantity}x</span> {item.name}
