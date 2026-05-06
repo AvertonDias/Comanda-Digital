@@ -12,7 +12,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { PlusCircle, X } from "lucide-react";
+import { PlusCircle, X, ChevronLeft } from "lucide-react";
 import { useRestaurant } from "@/hooks/use-restaurant";
 import { useState, Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -69,7 +69,10 @@ function OrdersContent() {
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-full w-full h-[100dvh] sm:h-auto sm:max-w-4xl p-0 overflow-hidden flex flex-col gap-0 border-none sm:border">
-              <DialogHeader className="p-4 border-b bg-background sticky top-0 z-10 sm:static">
+              <DialogHeader className="p-4 border-b bg-background sticky top-0 z-10 sm:static flex flex-row items-center gap-2 space-y-0">
+                <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2" onClick={() => setIsDialogOpen(false)}>
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
                 <DialogTitle>Criar Novo Pedido</DialogTitle>
               </DialogHeader>
               <div className="flex-1 overflow-y-auto sm:p-6">

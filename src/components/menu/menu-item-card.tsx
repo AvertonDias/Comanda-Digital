@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import type { MenuItem, MenuItemCategory } from '@/lib/types';
 import { Badge } from '../ui/badge';
-import { Trash2, Edit, MoreHorizontal, Plus } from 'lucide-react';
+import { Trash2, Edit, MoreHorizontal, Plus, ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
 import { useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
@@ -119,7 +119,10 @@ export function MenuItemCard({ item, categories }: MenuItemCardProps) {
 
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
             <DialogContent className="max-w-full w-full h-[100dvh] sm:h-auto sm:max-w-[800px] p-0 overflow-hidden flex flex-col gap-0 border-none sm:border">
-                <DialogHeader className="p-4 border-b bg-background sticky top-0 z-10 sm:static">
+                <DialogHeader className="p-4 border-b bg-background sticky top-0 z-10 sm:static flex flex-row items-center gap-2 space-y-0">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2" onClick={() => setIsEditDialogOpen(false)}>
+                        <ChevronLeft className="h-5 w-5" />
+                    </Button>
                     <DialogTitle>Editar Item: {item.name}</DialogTitle>
                 </DialogHeader>
                 <ScrollArea className="flex-1 p-4 sm:p-6">

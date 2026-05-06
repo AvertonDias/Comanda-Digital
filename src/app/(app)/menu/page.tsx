@@ -2,7 +2,7 @@
 
 import { AppHeader } from '@/components/layout/app-header';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Settings2, Search, Info, Clock, MapPin } from 'lucide-react';
+import { PlusCircle, Settings2, Search, Info, Clock, MapPin, ChevronLeft } from 'lucide-react';
 import { MenuItemCard } from '@/components/menu/menu-item-card';
 import { MenuItemForm } from '@/components/menu/menu-item-form';
 import { CategoryManager } from '@/components/menu/category-manager';
@@ -100,7 +100,10 @@ export default function MenuPage() {
                   </Button>
               </DialogTrigger>
               <DialogContent className="max-w-full w-full h-[100dvh] sm:h-auto sm:max-w-[500px] p-0 overflow-hidden flex flex-col gap-0 border-none sm:border">
-                  <DialogHeader className="p-4 border-b bg-background sticky top-0 z-10 sm:static">
+                  <DialogHeader className="p-4 border-b bg-background sticky top-0 z-10 sm:static flex flex-row items-center gap-2 space-y-0">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2" onClick={() => setIsCatDialogOpen(false)}>
+                          <ChevronLeft className="h-5 w-5" />
+                      </Button>
                       <DialogTitle>Categorias</DialogTitle>
                   </DialogHeader>
                   <ScrollArea className="flex-1 p-4">
@@ -117,7 +120,10 @@ export default function MenuPage() {
                   </Button>
               </DialogTrigger>
               <DialogContent className="max-w-full w-full h-[100dvh] sm:h-auto sm:max-w-[800px] p-0 overflow-hidden flex flex-col gap-0 border-none sm:border">
-                  <DialogHeader className="p-4 border-b bg-background sticky top-0 z-10 sm:static">
+                  <DialogHeader className="p-4 border-b bg-background sticky top-0 z-10 sm:static flex flex-row items-center gap-2 space-y-0">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2" onClick={() => setIsItemDialogOpen(false)}>
+                          <ChevronLeft className="h-5 w-5" />
+                      </Button>
                       <DialogTitle>Novo Item</DialogTitle>
                   </DialogHeader>
                   <ScrollArea className="flex-1 p-4 sm:p-6">
