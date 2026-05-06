@@ -28,7 +28,7 @@ export function CreateOrderForm({ restaurantId, onSuccess }: { restaurantId: str
     const [orderItems, setOrderItems] = useState<NewOrderItem[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const categoriesQuery = useMemoFirebase(() => query(collection(firestore, `restaurants/${restaurantId}/menuItemCategories`)), [restaurantId, firestore]);
+    const categoriesQuery = useMemoFirebase(() => query(collection(firestore, `restaurants/${restaurantId}/menuItemCategories`), orderBy('order', 'asc')), [restaurantId, firestore]);
     const itemsQuery = useMemoFirebase(() => query(collection(firestore, `restaurants/${restaurantId}/menuItems`)), [restaurantId, firestore]);
     const tablesQuery = useMemoFirebase(() => query(collection(firestore, `restaurants/${restaurantId}/tables`), orderBy('name', 'asc')), [restaurantId, firestore]);
 

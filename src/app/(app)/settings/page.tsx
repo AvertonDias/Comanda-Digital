@@ -52,15 +52,28 @@ const profileSchema = z.object({
 });
 type ProfileFormData = z.infer<typeof profileSchema>;
 
+function formatPhone(value: string) {
+    if (!value) return value;
+    const phoneNumber = value.replace(/[^\d]/g, "");
+    const phoneNumberLength = phoneNumber.length;
+    if (phoneNumberLength < 3) return phoneNumber;
+    if (phoneNumberLength < 4) return `(${phoneNumber.slice(0, 2)}) ${phoneNumber.slice(2)}`;
+    if (phoneNumberLength < 8) return `(${phoneNumber.slice(0, 2)}) ${phoneNumber.slice(2, 3)} ${phoneNumber.slice(3)}`;
+    if (phoneNumberLength < 12) return `(${phoneNumber.slice(0, 2)}) ${phoneNumber.slice(2, 3)} ${phoneNumber.slice(3, 7)} ${phoneNumber.slice(7, 11)}`;
+    return `(${phoneNumber.slice(0, 2)}) ${phoneNumber.slice(2, 3)} ${phoneNumber.slice(3, 7)} ${phoneNumber.slice(7, 11)}`;
+}
+
 function ProfileTab({ restaurantId }: { restaurantId: string }) {
     const firestore = useFirestore();
     const { toast } = useToast();
     const restaurantRef = useMemoFirebase(() => doc(firestore, "restaurants", restaurantId), [firestore, restaurantId]);
     const { data: restaurantData, isLoading } = useDoc(restaurantRef);
 
-    const { register, handleSubmit, reset, formState: { isSubmitting, errors } } = useForm<ProfileFormData>({
+    const { register, handleSubmit, reset, setValue, watch, formState: { isSubmitting, errors } } = useForm<ProfileFormData>({
         resolver: zodResolver(profileSchema),
     });
+
+    const phoneValue = watch("phone");
 
     useEffect(() => {
         if (restaurantData) {
@@ -70,6 +83,11 @@ function ProfileTab({ restaurantId }: { restaurantId: string }) {
             });
         }
     }, [restaurantData, reset]);
+
+    const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const formatted = formatPhone(e.target.value);
+        setValue("phone", formatted);
+    };
 
     const onSubmit = (data: ProfileFormData) => {
         updateDoc(restaurantRef, data).catch(async () => {
@@ -99,7 +117,12 @@ function ProfileTab({ restaurantId }: { restaurantId: string }) {
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="restaurantPhone">Telefone de Contato</Label>
-                        <Input id="restaurantPhone" {...register("phone")} />
+                        <Input 
+                            id="restaurantPhone" 
+                            {...register("phone")} 
+                            onChange={handlePhoneChange}
+                            placeholder="(xx) x xxxx xxxx"
+                        />
                     </div>
                     <div className="flex justify-end pt-2">
                         <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Salvando..." : "Salvar Alterações"}</Button>
@@ -237,9 +260,10 @@ function UserRow({ userRole }: { userRole: RestaurantUserRole }) {
 
 function UsersTab({ restaurantId }: { restaurantId: string }) {
     const firestore = useFirestore();
-    const usersQuery = useMemoFirebase(() =>
-        query(collectionGroup(firestore, 'restaurantRoles'), where('restaurantId', '==', restaurantId)), 
-    [firestore, restaurantId]);
+    const usersQuery = useMemoFirebase(() => {
+        if (!restaurantId) return null;
+        return query(collectionGroup(firestore, 'restaurantRoles'), where('restaurantId', '==', restaurantId));
+    }, [firestore, restaurantId]);
 
     const { data: userRoles, isLoading } = useCollection<RestaurantUserRole>(usersQuery);
 
