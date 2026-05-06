@@ -19,11 +19,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Switch } from '@/components/ui/switch';
 import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 
 const formSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres."),
   description: z.string().min(1, "A descrição é obrigatória."),
-  ingredients: z.string().optional(),
+  ingredients: z.array(z.string()).default([]),
   price: z.coerce.number().min(0.01, "Preço deve ser maior que zero."),
   categoryId: z.string().min(1, "Selecione uma categoria."),
   isAvailable: z.boolean().default(true),
@@ -51,13 +52,14 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
   const { toast } = useToast();
   const firestore = useFirestore();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [newIngredient, setNewIngredient] = useState("");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: initialData?.name || "",
       description: initialData?.description || "",
-      ingredients: initialData?.ingredients || "",
+      ingredients: initialData?.ingredients || [],
       price: initialData?.price || 0,
       categoryId: initialData?.categoryId || "",
       isAvailable: initialData?.isAvailable ?? true,
@@ -65,13 +67,12 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
     },
   });
 
-  // Importante: Reiniciar o formulário quando os dados iniciais mudarem (ex: ao clicar em Editar)
   useEffect(() => {
     if (initialData) {
       form.reset({
         name: initialData.name,
         description: initialData.description,
-        ingredients: initialData.ingredients || "",
+        ingredients: initialData.ingredients || [],
         price: initialData.price,
         categoryId: initialData.categoryId,
         isAvailable: initialData.isAvailable,
@@ -84,6 +85,20 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
     control: form.control,
     name: "addonGroups"
   });
+
+  const handleAddIngredient = () => {
+    if (!newIngredient.trim()) return;
+    const current = form.getValues("ingredients") || [];
+    if (!current.includes(newIngredient.trim())) {
+      form.setValue("ingredients", [...current, newIngredient.trim()]);
+    }
+    setNewIngredient("");
+  };
+
+  const handleRemoveIngredient = (idx: number) => {
+    const current = form.getValues("ingredients") || [];
+    form.setValue("ingredients", current.filter((_, i) => i !== idx));
+  };
 
   async function handleGenerateAI() {
     const dishName = form.getValues('name');
@@ -98,7 +113,8 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
     try {
       const formData = new FormData();
       formData.append('dishName', dishName);
-      formData.append('ingredients', ingredients || dishName);
+      // O server action espera uma string de ingredientes separada por vírgula para dar o split
+      formData.append('ingredients', ingredients.length > 0 ? ingredients.join(', ') : dishName);
       
       const result = await generateDescriptionAction(null, formData);
       if (result.message === 'success' && result.description) {
@@ -164,18 +180,29 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="ingredients"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Ingredientes Base (Separados por vírgula)</FormLabel>
-                  <FormControl><Input placeholder="Ex: Pão brioche, Carne 180g, Queijo cheddar, Alface" {...field} /></FormControl>
-                  <FormDescription>Esses itens aparecerão como opcionais para o cliente retirar ou adicionar mais.</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="space-y-2">
+              <FormLabel>Ingredientes Base</FormLabel>
+              <div className="flex gap-2">
+                <Input 
+                  placeholder="Ex: Pão brioche" 
+                  value={newIngredient} 
+                  onChange={e => setNewIngredient(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddIngredient())}
+                />
+                <Button type="button" size="icon" onClick={handleAddIngredient}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              <FormDescription>Adicione item por item. Eles aparecerão como opcionais para o cliente.</FormDescription>
+              <div className="flex flex-wrap gap-2 pt-2">
+                {form.watch("ingredients")?.map((ing, idx) => (
+                  <Badge key={idx} variant="secondary" className="gap-1 px-2 py-1">
+                    {ing}
+                    <X className="h-3 w-3 cursor-pointer hover:text-destructive" onClick={() => handleRemoveIngredient(idx)} />
+                  </Badge>
+                ))}
+              </div>
+            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <FormField

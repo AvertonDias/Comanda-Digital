@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "Restaurant": {
@@ -148,6 +147,11 @@
         "description": {
           "type": "string",
           "description": "Descrição do item."
+        },
+        "ingredients": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Lista de ingredientes do item."
         },
         "price": {
           "type": "number",

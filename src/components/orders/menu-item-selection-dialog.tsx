@@ -20,7 +20,7 @@ type SelectionAddon = MenuItemAddonOption & { groupId: string };
 type MenuItemSelectionDialogProps = {
   item: MenuItem | null;
   isOpen: boolean;
-  onClose: () => void;
+  onClose: ()void;
   onConfirm: (data: {
     item: MenuItem;
     quantity: number;
@@ -36,10 +36,10 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
   const [notes, setNotes] = useState('');
   const [excludedIngredients, setExcludedIngredients] = useState<string[]>([]);
 
-  // Hooks must be called at the top level
   const ingredientsList = useMemo(() => {
     if (!item?.ingredients) return [];
-    return item.ingredients.split(',').map(i => i.trim()).filter(Boolean);
+    // Agora ingredientes é um array nativo
+    return Array.isArray(item.ingredients) ? item.ingredients : [];
   }, [item?.ingredients]);
 
   const currentTotal = useMemo(() => {
@@ -57,7 +57,6 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
     });
   }, [item, selectedAddons]);
 
-  // Reset state when opening/closing
   useEffect(() => {
     if (!isOpen) {
       setQuantity(1);
@@ -67,7 +66,6 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
     }
   }, [isOpen]);
 
-  // Early return after all hooks are called
   if (!item) return null;
 
   const handleAddonToggle = (group: any, option: MenuItemAddonOption) => {
@@ -78,7 +76,6 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
         return prev.filter(a => !(a.name === option.name && a.groupId === group.id));
       }
 
-      // Check max quantity for group
       const groupSelections = prev.filter(a => a.groupId === group.id);
       if (groupSelections.length >= (group.maxQuantity || 999)) {
         return prev;
@@ -99,7 +96,6 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
   const handleConfirm = () => {
     if (!isMandatoryGroupsMet || !item) return;
 
-    // Build notes from excluded ingredients and additional notes
     let finalNotes = notes;
     if (excludedIngredients.length > 0) {
       const exclusionString = `SEM: ${excludedIngredients.join(', ')}`;
@@ -155,7 +151,6 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
               </p>
             </div>
 
-            {/* Dynamic Ingredients Section (Add/Remove) */}
             {ingredientsList.length > 0 && (
               <div className="space-y-4">
                 <div className="flex justify-between items-center bg-muted/30 p-2 rounded-md">
@@ -194,7 +189,6 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
               </div>
             )}
 
-            {/* Paid Addon Groups */}
             {item.addonGroups?.map((group) => (
               <div key={group.id} className="space-y-4">
                 <div className="flex justify-between items-center bg-muted/30 p-2 rounded-md">
