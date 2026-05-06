@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AppHeader } from "@/components/layout/app-header";
@@ -91,12 +90,6 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
     const [editingUser, setEditingUser] = useState<any>(null);
     const [deletingUser, setDeletingUser] = useState<any>(null);
 
-    const usersQuery = useMemoFirebase(() => {
-        if (!restaurantId) return null;
-        return query(collection(firestore, `users`), z.any()); // Simplificado para fins de exemplo
-    }, [firestore, restaurantId]);
-
-    // Busca papéis via subcoleção direta do restaurante para ser mais robusto
     const rolesQuery = useMemoFirebase(() => {
         if (!restaurantId) return null;
         return query(collection(firestore, `restaurants/${restaurantId}/roles`));
