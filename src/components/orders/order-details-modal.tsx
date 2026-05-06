@@ -69,26 +69,30 @@ function normalizeText(text: string) {
 /**
  * Helper to generate a Pix Static Payload (BRCode)
  */
-function generatePixPayload(key: string, amount: number, name: string, city: string = 'SAO PAULO') {
+function generatePixPayload(key: string, amount: number, name: string, txid: string = '***', city: string = 'SAO PAULO') {
     const amountStr = amount.toFixed(2);
     const merchantName = normalizeText(name).slice(0, 25);
     const merchantCity = normalizeText(city).slice(0, 15);
+    const cleanTxid = normalizeText(txid).replace(/\s/g, '').slice(0, 25) || '***';
     
     // Tag 26: Merchant Account Information
     const gui = '0014br.gov.bcb.pix';
     const keyTag = `01${key.length.toString().padStart(2, '0')}${key}`;
     const merchantAccountInfo = `${gui}${keyTag}`;
 
+    // Tag 62: Additional Data Field (TxID)
+    const txidTag = `05${cleanTxid.length.toString().padStart(2, '0')}${cleanTxid}`;
+
     const payload = [
         '000201', // Payload Format Indicator
         `26${merchantAccountInfo.length.toString().padStart(2, '0')}${merchantAccountInfo}`,
         '52040000', // Merchant Category Code
         '5303986', // Transaction Currency (BRL)
-        `54${amountStr.length.toString().padStart(2, '0')}${amountStr}`, // Transaction Amount (O VALOR SAI AQUI)
+        `54${amountStr.length.toString().padStart(2, '0')}${amountStr}`, // Transaction Amount
         '5802BR', // Country Code
         `59${merchantName.length.toString().padStart(2, '0')}${merchantName}`, // Merchant Name
         `60${merchantCity.length.toString().padStart(2, '0')}${merchantCity}`, // Merchant City
-        '62070503***', // Additional Data Field (TxID)
+        `62${txidTag.length.toString().padStart(2, '0')}${txidTag}`, // Additional Data Field (TxID)
         '6304' // CRC16 Placeholder
     ].join('');
 
@@ -119,12 +123,18 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     );
     const { data: restaurant } = useDoc<Restaurant>(restaurantRef);
 
+    const displayOrderNumber = order?.orderNumber 
+        ? order.orderNumber.toString().padStart(3, '0') 
+        : order?.id.slice(-4).toUpperCase() || '000';
+
+    const txidLabel = `PEDIDO${displayOrderNumber}`;
+
     const pixPayload = useMemo(() => {
         if (paymentMethod === 'pix' && restaurant?.pixKey && order?.total) {
-            return generatePixPayload(restaurant.pixKey, order.total, restaurant.name || 'Restaurante');
+            return generatePixPayload(restaurant.pixKey, order.total, restaurant.name || 'Restaurante', txidLabel);
         }
         return null;
-    }, [paymentMethod, restaurant, order]);
+    }, [paymentMethod, restaurant, order, txidLabel]);
 
     const qrCodeUrl = useMemo(() => {
         if (pixPayload) {
@@ -170,10 +180,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const formattedDate = order.createdAt?.seconds 
         ? format(new Date(order.createdAt.seconds * 1000), "dd/MM/yy 'às' HH:mm", { locale: ptBR })
         : 'Recentemente';
-
-    const displayOrderNumber = order.orderNumber 
-        ? order.orderNumber.toString().padStart(3, '0') 
-        : order.id.slice(-4).toUpperCase();
 
     const handleStatusUpdate = () => {
         if (!nextStatus) return;
@@ -311,7 +317,8 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                 <div className="space-y-1">
                                                     <p className="text-[10px] font-black uppercase text-primary">QR Code com Valor Incluso</p>
                                                     <p className="text-sm font-black">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}</p>
-                                                    <p className="text-[9px] text-muted-foreground uppercase font-bold">O cliente não precisa digitar o valor</p>
+                                                    <p className="text-[9px] text-muted-foreground uppercase font-bold">Identificador: {txidLabel}</p>
+                                                    <p className="text-[9px] text-muted-foreground uppercase font-bold leading-tight">O cliente não precisa digitar o valor</p>
                                                 </div>
                                                 <Button 
                                                     variant="secondary" 
