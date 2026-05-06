@@ -25,17 +25,17 @@ export function CreateOrderForm({ restaurantId, onSuccess }: { restaurantId: str
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const categoriesQuery = useMemoFirebase(() => {
-        if (!restaurantId) return null;
+        if (!restaurantId || !firestore) return null;
         return query(collection(firestore, `restaurants/${restaurantId}/menuItemCategories`), orderBy('order', 'asc'));
     }, [restaurantId, firestore]);
 
     const itemsQuery = useMemoFirebase(() => {
-        if (!restaurantId) return null;
+        if (!restaurantId || !firestore) return null;
         return query(collection(firestore, `restaurants/${restaurantId}/menuItems`));
     }, [restaurantId, firestore]);
 
     const tablesQuery = useMemoFirebase(() => {
-        if (!restaurantId) return null;
+        if (!restaurantId || !firestore) return null;
         return query(collection(firestore, `restaurants/${restaurantId}/tables`), orderBy('name', 'asc'));
     }, [restaurantId, firestore]);
 

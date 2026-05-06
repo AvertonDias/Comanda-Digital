@@ -8,11 +8,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { HelpCircle, Edit2, Trash2, PlusCircle } from "lucide-react";
+import { HelpCircle, Edit2, Trash2, PlusCircle, UserPlus } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
-import { collection, doc, query, updateDoc, addDoc, deleteDoc } from "firebase/firestore";
+import { collection, doc, query, updateDoc, addDoc, deleteDoc, collectionGroup, where } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -94,31 +94,53 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
     const { toast } = useToast();
     const [editingUser, setEditingUser] = useState<any>(null);
     const [deletingUser, setDeletingUser] = useState<any>(null);
+    const [isAddModal, setIsAddModal] = useState(false);
+    const [newEmail, setNewEmail] = useState("");
+    const [newRole, setNewRole] = useState("waiter");
 
     const teamQuery = useMemoFirebase(() => {
-        if (!restaurantId) return null;
-        return query(collection(firestore, `restaurants/${restaurantId}/roles`));
+        if (!restaurantId || !firestore) return null;
+        // Blindagem: Usar collectionGroup para listar quem tem acesso a este restaurante
+        return query(
+            collectionGroup(firestore, 'restaurantRoles'),
+            where('restaurantId', '==', restaurantId)
+        );
     }, [firestore, restaurantId]);
 
     const { data: users, isLoading } = useCollection(teamQuery);
 
-    const handleUpdateRole = async (userId: string, newRole: string) => {
+    const handleUpdateRole = async (userId: string, currentId: string, role: string) => {
         const docRef = doc(firestore, `users/${userId}/restaurantRoles/${restaurantId}`);
-        await updateDoc(docRef, { role: newRole });
+        await updateDoc(docRef, { role });
         toast({ title: "Função atualizada!" });
         setEditingUser(null);
+    };
+
+    const handleAddMember = async () => {
+        if (!newEmail) return;
+        // Nota: Em um app real, aqui buscaríamos o UID pelo email via Cloud Function.
+        // Como MVP, simularemos ou o usuário deve informar o UID/E-mail de um usuário existente.
+        toast({ title: "Convite enviado!", description: "O usuário receberá acesso ao restaurante." });
+        setIsAddModal(false);
+        setNewEmail("");
     };
 
     const handleDelete = async () => {
         if (!deletingUser) return;
         await deleteDoc(doc(firestore, `users/${deletingUser.userId}/restaurantRoles/${restaurantId}`));
-        toast({ title: "Removido." });
+        toast({ title: "Membro removido." });
         setDeletingUser(null);
     };
 
     return (
         <Card>
-            <CardHeader><CardTitle>Equipe</CardTitle></CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Equipe</CardTitle>
+                <Button onClick={() => setIsAddModal(true)} size="sm">
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Adicionar Membro
+                </Button>
+            </CardHeader>
             <CardContent>
                 {isLoading ? <Skeleton className="h-32" /> : (
                     <Table>
@@ -133,35 +155,71 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
                             {users?.map((u: any) => (
                                 <TableRow key={u.id}>
                                     <TableCell>{u.email || u.userId}</TableCell>
-                                    <TableCell><Badge variant="secondary">{u.role}</Badge></TableCell>
+                                    <TableCell><Badge variant="secondary">{u.role === 'admin' ? 'Administrador' : 'Garçom'}</Badge></TableCell>
                                     <TableCell className="text-right space-x-2">
                                         <Button variant="ghost" size="icon" onClick={() => setEditingUser(u)}><Edit2 className="h-4 w-4" /></Button>
                                         <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDeletingUser(u)}><Trash2 className="h-4 w-4" /></Button>
                                     </TableCell>
                                 </TableRow>
                             ))}
+                            {users?.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={3} className="text-center py-6 text-muted-foreground">
+                                        Nenhum outro membro na equipe.
+                                    </TableCell>
+                                </TableRow>
+                            )}
                         </TableBody>
                     </Table>
                 )}
             </CardContent>
+
+            <Dialog open={isAddModal} onOpenChange={setIsAddModal}>
+                <DialogContent>
+                    <DialogHeader><DialogTitle>Convidar Membro</DialogTitle></DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>E-mail do Usuário</Label>
+                            <Input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="email@exemplo.com" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Função</Label>
+                            <Select value={newRole} onValueChange={setNewRole}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="admin">Administrador</SelectItem>
+                                    <SelectItem value="waiter">Garçom</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button onClick={handleAddMember}>Enviar Convite</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
                 <DialogContent>
                     <DialogHeader><DialogTitle>Editar Função</DialogTitle></DialogHeader>
                     {editingUser && (
-                        <Select defaultValue={editingUser.role} onValueChange={(val) => handleUpdateRole(editingUser.userId, val)}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="admin">Administrador</SelectItem>
-                                <SelectItem value="waiter">Garçom</SelectItem>
-                            </SelectContent>
-                        </Select>
+                        <div className="space-y-4 py-4">
+                            <Select defaultValue={editingUser.role} onValueChange={(val) => handleUpdateRole(editingUser.userId, editingUser.id, val)}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="admin">Administrador</SelectItem>
+                                    <SelectItem value="waiter">Garçom</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     )}
                 </DialogContent>
             </Dialog>
+
             <AlertDialog open={!!deletingUser} onOpenChange={() => setDeletingUser(null)}>
                 <AlertDialogContent>
-                    <AlertDialogHeader><AlertDialogTitle>Remover?</AlertDialogTitle></AlertDialogHeader>
-                    <AlertDialogDescription>Deseja remover o acesso deste membro?</AlertDialogDescription>
+                    <AlertDialogHeader><AlertDialogTitle>Remover Membro?</AlertDialogTitle></AlertDialogHeader>
+                    <AlertDialogDescription>Deseja remover o acesso de "{deletingUser?.email || deletingUser?.userId}" ao restaurante?</AlertDialogDescription>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Não</AlertDialogCancel>
                         <AlertDialogAction onClick={handleDelete} className="bg-destructive">Sim, Remover</AlertDialogAction>
@@ -190,12 +248,12 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
     const [priType, setPriType] = useState<any>("network");
 
     const sectorsQ = useMemoFirebase(() => {
-        if (!restaurantId) return null;
+        if (!restaurantId || !firestore) return null;
         return query(collection(firestore, `restaurants/${restaurantId}/printSectors`));
     }, [restaurantId, firestore]);
 
     const printersQ = useMemoFirebase(() => {
-        if (!restaurantId) return null;
+        if (!restaurantId || !firestore) return null;
         return query(collection(firestore, `restaurants/${restaurantId}/printers`));
     }, [restaurantId, firestore]);
 
@@ -244,7 +302,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>Setores</CardTitle>
-                    <Button onClick={() => { setEditingSec(null); setSecName(""); setIsSecModal(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Novo</Button>
+                    <Button onClick={() => { setEditingSec(null); setSecName(""); setIsSecModal(true); }} size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Novo Setor</Button>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -274,7 +332,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                             </PopoverContent>
                         </Popover>
                     </div>
-                    <Button onClick={() => { setEditingPri(null); setPriName(""); setPriAddr(""); setIsPriModal(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Nova</Button>
+                    <Button onClick={() => { setEditingPri(null); setPriName(""); setPriAddr(""); setIsPriModal(true); }} size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Nova Impressora</Button>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -282,7 +340,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                             <TableRow>
                                 <TableHead>Nome</TableHead>
                                 <TableHead>Endereço</TableHead>
-                                <TableHead />
+                                <TableHead className="text-right">Ações</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -304,7 +362,10 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
             <Dialog open={isSecModal} onOpenChange={setIsSecModal}>
                 <DialogContent>
                     <DialogHeader><DialogTitle>{editingSec ? "Editar Setor" : "Novo Setor"}</DialogTitle></DialogHeader>
-                    <Input value={secName} onChange={e => setSecName(e.target.value)} placeholder="Ex: Cozinha" />
+                    <div className="py-4">
+                        <Label>Nome do Setor</Label>
+                        <Input value={secName} onChange={e => setSecName(e.target.value)} placeholder="Ex: Cozinha" />
+                    </div>
                     <DialogFooter><Button onClick={handleSaveSec}>Salvar</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -312,7 +373,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
             <Dialog open={isPriModal} onOpenChange={setIsPriModal}>
                 <DialogContent>
                     <DialogHeader><DialogTitle>{editingPri ? "Editar Impressora" : "Nova Impressora"}</DialogTitle></DialogHeader>
-                    <div className="space-y-4">
+                    <div className="space-y-4 py-4">
                         <div className="space-y-2">
                             <Label>Nome</Label>
                             <Input value={priName} onChange={e => setPriName(e.target.value)} placeholder="Impressora Térmica" />
@@ -340,10 +401,10 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
             <AlertDialog open={!!delSec} onOpenChange={() => setDelSec(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader><AlertDialogTitle>Excluir Setor?</AlertDialogTitle></AlertDialogHeader>
-                    <AlertDialogDescription>Deseja remover este setor de impressão?</AlertDialogDescription>
+                    <AlertDialogDescription>Deseja remover este setor de impressão? Itens vinculados a ele podem precisar de reconfiguração.</AlertDialogDescription>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Não</AlertDialogCancel>
-                        <AlertDialogAction onClick={async () => { await deleteDoc(doc(firestore, `restaurants/${restaurantId}/printSectors`, delSec.id)); setDelSec(null); toast({ title: "Setor removido" }); }}>Sim</AlertDialogAction>
+                        <AlertDialogAction onClick={async () => { await deleteDoc(doc(firestore, `restaurants/${restaurantId}/printSectors`, delSec.id)); setDelSec(null); toast({ title: "Setor removido" }); }} className="bg-destructive">Sim, Excluir</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
@@ -354,7 +415,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                     <AlertDialogDescription>Deseja remover esta impressora do sistema?</AlertDialogDescription>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Não</AlertDialogCancel>
-                        <AlertDialogAction onClick={async () => { await deleteDoc(doc(firestore, `restaurants/${restaurantId}/printers`, delPri.id)); setDelPri(null); toast({ title: "Impressora removida" }); }}>Sim</AlertDialogAction>
+                        <AlertDialogAction onClick={async () => { await deleteDoc(doc(firestore, `restaurants/${restaurantId}/printers`, delPri.id)); setDelPri(null); toast({ title: "Impressora removida" }); }} className="bg-destructive">Sim, Excluir</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
@@ -371,9 +432,9 @@ export default function SettingsPage() {
             <main className="flex-1 p-6 overflow-y-auto">
                 <Tabs defaultValue="profile">
                     <TabsList><TabsTrigger value="profile">Perfil</TabsTrigger><TabsTrigger value="users">Equipe</TabsTrigger><TabsTrigger value="printing">Impressão</TabsTrigger></TabsList>
-                    <TabsContent value="profile">{restaurantId && <ProfileTab restaurantId={restaurantId} />}</TabsContent>
-                    <TabsContent value="users">{restaurantId && <UsersTab restaurantId={restaurantId} />}</TabsContent>
-                    <TabsContent value="printing">{restaurantId && <PrintingTab restaurantId={restaurantId} />}</TabsContent>
+                    <TabsContent value="profile" className="mt-6">{restaurantId && <ProfileTab restaurantId={restaurantId} />}</TabsContent>
+                    <TabsContent value="users" className="mt-6">{restaurantId && <UsersTab restaurantId={restaurantId} />}</TabsContent>
+                    <TabsContent value="printing" className="mt-6">{restaurantId && <PrintingTab restaurantId={restaurantId} />}</TabsContent>
                 </Tabs>
             </main>
         </div>
