@@ -2,7 +2,7 @@
 
 import { AppHeader } from '@/components/layout/app-header';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Settings2, Search, Info, Clock, MapPin, ChevronLeft } from 'lucide-react';
+import { PlusCircle, Settings2, Search, Clock, MapPin, ChevronLeft } from 'lucide-react';
 import { MenuItemCard } from '@/components/menu/menu-item-card';
 import { MenuItemForm } from '@/components/menu/menu-item-form';
 import { CategoryManager } from '@/components/menu/category-manager';
@@ -140,15 +140,27 @@ export default function MenuPage() {
       </AppHeader>
 
       <main className="flex-1 pb-24">
-        <div className="relative h-32 md:h-48 bg-primary/10 overflow-hidden flex items-center justify-center border-b">
-            <div className="text-center space-y-2 px-4">
-                <h2 className="text-xl md:text-3xl font-black uppercase tracking-tighter">{restaurant?.name}</h2>
-                <div className="flex items-center justify-center gap-3 text-[10px] md:text-xs font-bold uppercase text-muted-foreground">
-                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> 30-45 min</span>
-                    <span>•</span>
-                    <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> Local</span>
+        {/* Banner Responsivo */}
+        <div className="relative py-8 md:py-16 bg-primary/5 overflow-hidden flex items-center justify-center border-b">
+            <div className="text-center space-y-3 px-4 max-w-full">
+                <h2 className="text-2xl md:text-5xl font-black uppercase tracking-tighter break-words leading-none">
+                    {restaurant?.name}
+                </h2>
+                <div className="flex flex-wrap items-center justify-center gap-2 md:gap-4 text-[9px] md:text-xs font-black uppercase text-muted-foreground">
+                    <span className="flex items-center gap-1.5 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full border shadow-sm">
+                        <Clock className="h-3 w-3 text-primary" /> 
+                        30-45 min
+                    </span>
+                    <span className="hidden sm:inline opacity-30">•</span>
+                    <span className="flex items-center gap-1.5 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full border shadow-sm">
+                        <MapPin className="h-3 w-3 text-primary" /> 
+                        Consumo Local
+                    </span>
                 </div>
             </div>
+            {/* Elemento Decorativo */}
+            <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-primary/10 rounded-full blur-3xl" />
+            <div className="absolute -top-6 -left-6 w-32 h-32 bg-primary/10 rounded-full blur-3xl" />
         </div>
 
         <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md border-b">
