@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -100,8 +99,11 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
             const cleanPhone = order.customerPhone.replace(/\D/g, '');
             const finalPhone = cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone;
             
+            // Personaliza o texto dependendo se é entrega ou retirada/local
+            const statusActionText = order.destination === 'entrega' ? 'já está A CAMINHO' : 'já está PRONTO';
+            
             const message = encodeURIComponent(
-                `Olá ${order.customerName || 'Cliente'}! 👋\n\nBoas notícias: Seu pedido #${displayOrderNumber} no *${restaurantName}* já está PRONTO! 🚀\n\nTotal: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}\n\nAgradecemos a preferência! ✨`
+                `Olá ${order.customerName || 'Cliente'}! 👋\n\nBoas notícias: Seu pedido #${displayOrderNumber} no *${restaurantName}* ${statusActionText}! 🚀\n\nTotal: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}\n\nAgradecemos a preferência! ✨`
             );
             
             window.open(`https://wa.me/${finalPhone}?text=${message}`, '_blank');
