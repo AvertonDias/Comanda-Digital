@@ -28,9 +28,10 @@ service cloud.firestore {
     }
 
     // Regra para consultas de grupo (collectionGroup)
-    // Permite que o usuário liste seus próprios papéis ou que o Admin veja papéis do seu restaurante
+    // Permite que o usuário liste seus próprios papéis ou veja papéis do seu restaurante se for staff
     match /{path=**}/restaurantRoles/{roleId} {
-      allow read, list: if isSignedIn();
+      allow list: if isSignedIn();
+      allow read: if isSignedIn() && (request.auth.uid == resource.data.userId || isRestaurantStaff(resource.data.restaurantId));
       allow write: if isSignedIn() && (request.auth.uid == resource.data.userId || isRestaurantStaff(resource.data.restaurantId));
     }
 

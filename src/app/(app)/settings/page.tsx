@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Shield, User as UserIcon, PlusCircle, Trash2, Printer as PrinterIcon, Wifi, Usb, Bluetooth, AlertCircle, Info, Edit2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -56,9 +56,8 @@ function formatPhone(value: string) {
     const phoneNumber = value.replace(/[^\d]/g, "");
     const phoneNumberLength = phoneNumber.length;
     if (phoneNumberLength < 3) return phoneNumber;
-    if (phoneNumberLength < 4) return `(${phoneNumber.slice(0, 2)}) ${phoneNumber.slice(2)}`;
-    if (phoneNumberLength < 8) return `(${phoneNumber.slice(0, 2)}) ${phoneNumber.slice(2, 3)} ${phoneNumber.slice(3)}`;
-    if (phoneNumberLength < 12) return `(${phoneNumber.slice(0, 2)}) ${phoneNumber.slice(2, 3)} ${phoneNumber.slice(3, 7)} ${phoneNumber.slice(7, 11)}`;
+    if (phoneNumberLength < 7) return `(${phoneNumber.slice(0, 2)}) ${phoneNumber.slice(2)}`;
+    if (phoneNumberLength < 11) return `(${phoneNumber.slice(0, 2)}) ${phoneNumber.slice(2, 6)}-${phoneNumber.slice(6)}`;
     return `(${phoneNumber.slice(0, 2)}) ${phoneNumber.slice(2, 3)} ${phoneNumber.slice(3, 7)} ${phoneNumber.slice(7, 11)}`;
 }
 
@@ -68,7 +67,7 @@ function ProfileTab({ restaurantId }: { restaurantId: string }) {
     const restaurantRef = useMemoFirebase(() => doc(firestore, "restaurants", restaurantId), [firestore, restaurantId]);
     const { data: restaurantData, isLoading } = useDoc(restaurantRef);
 
-    const { register, handleSubmit, reset, setValue, watch, formState: { isSubmitting, errors } } = useForm<ProfileFormData>({
+    const { register, handleSubmit, reset, setValue, formState: { isSubmitting, errors } } = useForm<ProfileFormData>({
         resolver: zodResolver(profileSchema),
     });
 
@@ -175,7 +174,7 @@ function UserRow({ userRole }: { userRole: RestaurantUserRole }) {
     if (isLoading) {
         return (
             <TableRow>
-                <TableCell colSpan={5}><Skeleton className="h-12 w-full" /></TableCell>
+                <TableCell colSpan={4}><Skeleton className="h-12 w-full" /></TableCell>
             </TableRow>
         );
     }
