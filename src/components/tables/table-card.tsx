@@ -11,6 +11,7 @@ import { useState } from "react";
 import { useFirestore, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
+import { useRestaurant } from "@/hooks/use-restaurant";
 import {
     Dialog,
     DialogContent,
@@ -52,10 +53,13 @@ const statusConfig = {
 export function TableCard({ table }: TableCardProps) {
     const firestore = useFirestore();
     const { toast } = useToast();
+    const { role } = useRestaurant();
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [newName, setNewName] = useState(table.name);
     const config = statusConfig[table.status];
+
+    const isAdmin = role === 'admin';
 
     const handleUpdateName = () => {
         if (!newName || newName === table.name) {
@@ -114,15 +118,20 @@ export function TableCard({ table }: TableCardProps) {
                                 <DropdownMenuItem onClick={() => handleStatusUpdate('livre')}>Marcar como Livre</DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleStatusUpdate('ocupada')}>Marcar como Ocupada</DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleStatusUpdate('fechando')}>Marcar como Fechando</DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
-                                    <Edit2 className="mr-2 h-4 w-4" />
-                                    Editar Nome
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setIsDeleteDialogOpen(true)} className="text-destructive">
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    Excluir Mesa
-                                </DropdownMenuItem>
+                                
+                                {isAdmin && (
+                                    <>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
+                                            <Edit2 className="mr-2 h-4 w-4" />
+                                            Editar Nome
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => setIsDeleteDialogOpen(true)} className="text-destructive">
+                                            <Trash2 className="mr-2 h-4 w-4" />
+                                            Excluir Mesa
+                                        </DropdownMenuItem>
+                                    </>
+                                )}
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AppHeader } from "@/components/layout/app-header";
@@ -13,13 +14,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 
 export default function TablesPage() {
-    const { restaurantId, isLoading } = useRestaurant();
+    const { restaurantId, isLoading, role } = useRestaurant();
     const firestore = useFirestore();
     const { toast } = useToast();
 
+    const isAdmin = role === 'admin';
+
     const tablesQuery = useMemoFirebase(() => {
         if (!restaurantId || !firestore) return null;
-        // Blindagem: Ordem alfabética rigorosa para as mesas
         return query(
             collection(firestore, `restaurants/${restaurantId}/tables`),
             orderBy('name', 'asc')
@@ -55,9 +57,11 @@ export default function TablesPage() {
             <AppHeader>
                 <SidebarTrigger className="md:hidden" />
                 <h1 className="text-xl font-semibold">Mesas</h1>
-                <div className="ml-auto">
-                    <Button onClick={handleAddTable}><PlusCircle className="mr-2 h-4 w-4" /> Nova Mesa</Button>
-                </div>
+                {isAdmin && (
+                    <div className="ml-auto">
+                        <Button onClick={handleAddTable}><PlusCircle className="mr-2 h-4 w-4" /> Nova Mesa</Button>
+                    </div>
+                )}
             </AppHeader>
             <main className="flex-1 overflow-y-auto p-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">

@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { useRestaurant } from '@/hooks/use-restaurant';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -29,7 +30,10 @@ type MenuItemCardProps = {
 export function MenuItemCard({ item }: MenuItemCardProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const { role } = useRestaurant();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  const isAdmin = role === 'admin';
 
   const handleDelete = () => {
     const docRef = doc(firestore, `restaurants/${item.restaurantId}/menuItems`, item.id);
@@ -72,14 +76,16 @@ export function MenuItemCard({ item }: MenuItemCardProps) {
             <span className="text-lg font-bold text-primary">
               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price)}
             </span>
-            <div className="flex gap-2">
-                <Button variant="outline" size="sm">
-                    <Edit className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="sm" className="text-destructive" onClick={() => setIsDeleteDialogOpen(true)}>
-                    <Trash2 className="h-4 w-4" />
-                </Button>
-            </div>
+            {isAdmin && (
+              <div className="flex gap-2">
+                  <Button variant="outline" size="sm">
+                      <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="sm" className="text-destructive" onClick={() => setIsDeleteDialogOpen(true)}>
+                      <Trash2 className="h-4 w-4" />
+                  </Button>
+              </div>
+            )}
           </CardFooter>
         </Card>
 

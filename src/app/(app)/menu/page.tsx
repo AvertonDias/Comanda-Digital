@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AppHeader } from '@/components/layout/app-header';
@@ -18,7 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useState } from 'react';
 
 export default function MenuPage() {
-  const { restaurantId, isLoading: isRestLoading } = useRestaurant();
+  const { restaurantId, isLoading: isRestLoading, role } = useRestaurant();
   const firestore = useFirestore();
   const [isItemDialogOpen, setIsItemDialogOpen] = useState(false);
   const [isCatDialogOpen, setIsCatDialogOpen] = useState(false);
@@ -37,6 +38,7 @@ export default function MenuPage() {
   const { data: items, isLoading: isItemsLoading } = useCollection<MenuItem>(itemsQuery);
 
   const isLoading = isRestLoading || isCatsLoading || isItemsLoading;
+  const isAdmin = role === 'admin';
 
   if (isLoading) {
     return (
@@ -60,41 +62,43 @@ export default function MenuPage() {
       <AppHeader>
         <SidebarTrigger className="md:hidden" />
         <h1 className="text-xl font-semibold">Cardápio</h1>
-        <div className="ml-auto flex gap-2">
-          <Dialog open={isCatDialogOpen} onOpenChange={setIsCatDialogOpen}>
-            <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="hidden sm:flex">
-                    <Settings2 className="mr-2 h-4 w-4" />
-                    Categorias
-                </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
-                <DialogHeader>
-                    <DialogTitle>Gerenciar Categorias</DialogTitle>
-                </DialogHeader>
-                <CategoryManager restaurantId={restaurantId!} />
-            </DialogContent>
-          </Dialog>
+        {isAdmin && (
+          <div className="ml-auto flex gap-2">
+            <Dialog open={isCatDialogOpen} onOpenChange={setIsCatDialogOpen}>
+              <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="hidden sm:flex">
+                      <Settings2 className="mr-2 h-4 w-4" />
+                      Categorias
+                  </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px]">
+                  <DialogHeader>
+                      <DialogTitle>Gerenciar Categorias</DialogTitle>
+                  </DialogHeader>
+                  <CategoryManager restaurantId={restaurantId!} />
+              </DialogContent>
+            </Dialog>
 
-          <Dialog open={isItemDialogOpen} onOpenChange={setIsItemDialogOpen}>
-            <DialogTrigger asChild>
-                <Button size="sm" disabled={!categories || categories.length === 0}>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Novo Item
-                </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[625px]">
-                <DialogHeader>
-                    <DialogTitle>Adicionar novo item ao cardápio</DialogTitle>
-                </DialogHeader>
-                <MenuItemForm 
-                    restaurantId={restaurantId!} 
-                    categories={categories || []} 
-                    onSuccess={() => setIsItemDialogOpen(false)}
-                />
-            </DialogContent>
-          </Dialog>
-        </div>
+            <Dialog open={isItemDialogOpen} onOpenChange={setIsItemDialogOpen}>
+              <DialogTrigger asChild>
+                  <Button size="sm" disabled={!categories || categories.length === 0}>
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Novo Item
+                  </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[625px]">
+                  <DialogHeader>
+                      <DialogTitle>Adicionar novo item ao cardápio</DialogTitle>
+                  </DialogHeader>
+                  <MenuItemForm 
+                      restaurantId={restaurantId!} 
+                      categories={categories || []} 
+                      onSuccess={() => setIsItemDialogOpen(false)}
+                  />
+              </DialogContent>
+            </Dialog>
+          </div>
+        )}
       </AppHeader>
 
       <main className="flex-1 overflow-y-auto p-4 md:p-6">
@@ -104,14 +108,18 @@ export default function MenuPage() {
                 <Settings2 className="h-12 w-12 text-primary" />
              </div>
              <div className="space-y-2">
-                <h2 className="text-2xl font-bold">Comece pelas Categorias</h2>
+                <h2 className="text-2xl font-bold">Aguardando Cardápio</h2>
                 <p className="text-muted-foreground max-w-sm">
-                    Para adicionar itens ao seu cardápio, você precisa primeiro criar pelo menos uma categoria (ex: Pizzas, Bebidas).
+                    {isAdmin 
+                      ? "Para adicionar itens ao seu cardápio, você precisa primeiro criar pelo menos uma categoria."
+                      : "O administrador ainda não configurou as categorias do cardápio."}
                 </p>
              </div>
-             <Button onClick={() => setIsCatDialogOpen(true)}>
-                Criar Minha Primeira Categoria
-             </Button>
+             {isAdmin && (
+               <Button onClick={() => setIsCatDialogOpen(true)}>
+                  Criar Minha Primeira Categoria
+               </Button>
+             )}
           </div>
         ) : (
           <Tabs defaultValue={categories[0].id} className="w-full">
@@ -138,9 +146,11 @@ export default function MenuPage() {
                   {items?.filter((item) => item.categoryId === category.id).length === 0 && (
                     <div className="col-span-full flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-xl">
                       <p className="text-muted-foreground">Nenhum item nesta categoria.</p>
-                      <Button variant="link" onClick={() => setIsItemDialogOpen(true)}>
-                        Adicionar item agora
-                      </Button>
+                      {isAdmin && (
+                        <Button variant="link" onClick={() => setIsItemDialogOpen(true)}>
+                          Adicionar item agora
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>
