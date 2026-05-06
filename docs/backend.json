@@ -15,6 +15,10 @@
           "type": "string",
           "description": "Telefone de contato do restaurante."
         },
+        "pixKey": {
+          "type": "string",
+          "description": "Chave Pix para recebimento de pagamentos."
+        },
         "plan": {
           "type": "string",
           "description": "O plano de assinatura associado ao restaurante (e.g., 'basico', 'pro', 'premium')."

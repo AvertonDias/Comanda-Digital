@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { HelpCircle, Edit2, Trash2, PlusCircle, UserPlus, Copy, Link as LinkIcon } from "lucide-react";
+import { HelpCircle, Edit2, Trash2, PlusCircle, UserPlus, Copy, Link as LinkIcon, Info } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
@@ -24,10 +24,12 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const profileSchema = z.object({
     name: z.string().min(1, "Obrigatório"),
     phone: z.string().optional(),
+    pixKey: z.string().optional(),
 });
 type ProfileFormData = z.infer<typeof profileSchema>;
 
@@ -49,7 +51,7 @@ function ProfileTab({ restaurantId }: { restaurantId: string }) {
     const { register, handleSubmit, reset, setValue } = useForm<ProfileFormData>({ resolver: zodResolver(profileSchema) });
 
     useEffect(() => {
-        if (data) reset({ name: data.name || '', phone: data.phone || '' });
+        if (data) reset({ name: data.name || '', phone: data.phone || '', pixKey: data.pixKey || '' });
     }, [data, reset]);
 
     const onSubmit = (form: ProfileFormData) => {
@@ -63,22 +65,51 @@ function ProfileTab({ restaurantId }: { restaurantId: string }) {
         <Card>
             <form onSubmit={handleSubmit(onSubmit)}>
                 <CardHeader>
-                    <CardTitle>Perfil</CardTitle>
+                    <CardTitle>Perfil do Estabelecimento</CardTitle>
+                    <CardDescription>Gerencie as informações públicas e de recebimento.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <Label>Nome do Estabelecimento</Label>
-                        <Input {...register("name")} />
+                <CardContent className="space-y-6">
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label>Nome do Estabelecimento</Label>
+                            <Input {...register("name")} placeholder="Ex: Pizzaria do Zé" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Telefone</Label>
+                            <Input 
+                                {...register("phone")} 
+                                placeholder="(xx) x xxxx xxxx"
+                                onChange={(e) => setValue("phone", formatPhone(e.target.value))} 
+                            />
+                        </div>
                     </div>
-                    <div className="space-y-2">
-                        <Label>Telefone</Label>
-                        <Input 
-                            {...register("phone")} 
-                            placeholder="(xx) x xxxx xxxx"
-                            onChange={(e) => setValue("phone", formatPhone(e.target.value))} 
-                        />
+
+                    <div className="space-y-4 border-t pt-6">
+                        <div className="flex items-center gap-2">
+                            <Label className="text-primary font-black uppercase text-xs">Dados de Pagamento (Pix)</Label>
+                        </div>
+                        
+                        <Alert variant="default" className="bg-primary/5 border-primary/20">
+                            <Info className="h-4 w-4 text-primary" />
+                            <AlertTitle className="text-[10px] font-black uppercase">Como funciona?</AlertTitle>
+                            <AlertDescription className="text-[10px] text-muted-foreground uppercase leading-tight">
+                                Cadastre sua chave Pix abaixo para que o sistema gere automaticamente o QR Code de pagamento ao finalizar pedidos.
+                            </AlertDescription>
+                        </Alert>
+
+                        <div className="space-y-2">
+                            <Label>Sua Chave Pix</Label>
+                            <Input 
+                                {...register("pixKey")} 
+                                placeholder="E-mail, CPF, Celular ou Chave Aleatória"
+                            />
+                            <p className="text-[10px] text-muted-foreground uppercase font-bold">
+                                Certifique-se de que a chave está correta para evitar erros no pagamento.
+                            </p>
+                        </div>
                     </div>
-                    <Button type="submit">Salvar Alterações</Button>
+
+                    <Button type="submit" className="w-full sm:w-auto">Salvar Alterações</Button>
                 </CardContent>
             </form>
         </Card>

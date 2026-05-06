@@ -15,14 +15,16 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import type { Order, OrderStatus } from "@/lib/types";
+import type { Order, OrderStatus, Restaurant } from "@/lib/types";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowRight, ChefHat, Bike, ShoppingBag, Trash2, MapPin, Phone, User, MessageCircle, CreditCard, Banknote, QrCode } from "lucide-react";
-import { useState, useEffect } from "react";
+import { ArrowRight, ChefHat, Bike, ShoppingBag, Trash2, MapPin, Phone, User, MessageCircle, CreditCard, Banknote, QrCode, Copy, Check } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
 import { useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
+import { useToast } from "@/hooks/use-toast";
 
 type OrderDetailsModalProps = {
     order: Order | null;
@@ -53,21 +55,74 @@ const PAYMENT_METHODS = [
     { id: 'dinheiro', label: 'Dinheiro', icon: Banknote },
 ];
 
+/**
+ * Helper to generate a simple Pix Static Payload (BRCode)
+ * Note: This is a simplified implementation. For production, consider a full Pix library.
+ */
+function generatePixPayload(key: string, amount: number, name: string, city: string = 'SAO PAULO') {
+    const amountStr = amount.toFixed(2);
+    
+    // Static payload structure
+    const payload = [
+        '000201', // Payload Format Indicator
+        '26', // Merchant Account Information - Pix
+        `${(key.length + 22).toString().padStart(2, '0')}0014br.gov.bcb.pix01${key.length.toString().padStart(2, '0')}${key}`,
+        '52040000', // Merchant Category Code
+        '5303986', // Transaction Currency (BRL)
+        `54${amountStr.length.toString().padStart(2, '0')}${amountStr}`, // Transaction Amount
+        '5802BR', // Country Code
+        `59${name.length.toString().padStart(2, '0')}${name.slice(0, 25)}`, // Merchant Name
+        `60${city.length.toString().padStart(2, '0')}${city}`, // Merchant City
+        '62070503***', // Additional Data Field
+        '6304' // CRC16 Placeholder
+    ].join('');
+
+    // Very simple CRC16 calculation
+    let crc = 0xFFFF;
+    for (let i = 0; i < payload.length; i++) {
+        crc ^= (payload.charCodeAt(i) << 8);
+        for (let j = 0; j < 8; j++) {
+            if (crc & 0x8000) crc = (crc << 1) ^ 0x1021;
+            else crc <<= 1;
+        }
+    }
+    crc = (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+    
+    return payload + crc;
+}
+
 export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange }: OrderDetailsModalProps) {
     const [notifyWhatsApp, setNotifyWhatsApp] = useState(true);
     const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
     const firestore = useFirestore();
+    const { toast } = useToast();
 
     const restaurantRef = useMemoFirebase(() => 
         order?.restaurantId ? doc(firestore, 'restaurants', order.restaurantId) : null,
         [firestore, order?.restaurantId]
     );
-    const { data: restaurant } = useDoc(restaurantRef);
+    const { data: restaurant } = useDoc<Restaurant>(restaurantRef);
+
+    const pixPayload = useMemo(() => {
+        if (paymentMethod === 'pix' && restaurant?.pixKey && order?.total) {
+            return generatePixPayload(restaurant.pixKey, order.total, restaurant.name || 'Restaurante');
+        }
+        return null;
+    }, [paymentMethod, restaurant, order]);
+
+    const qrCodeUrl = useMemo(() => {
+        if (pixPayload) {
+            return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(pixPayload)}`;
+        }
+        return null;
+    }, [pixPayload]);
 
     useEffect(() => {
         if (isOpen) {
             setNotifyWhatsApp(true);
             setPaymentMethod(null);
+            setCopied(false);
         }
     }, [isOpen]);
 
@@ -123,6 +178,15 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         }
 
         onStatusChange(order.id, nextStatus, isFinalizing ? { paymentMethod } : {});
+    };
+
+    const handleCopyPix = () => {
+        if (pixPayload) {
+            navigator.clipboard.writeText(pixPayload);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+            toast({ title: "Pix Copia e Cola copiado!" });
+        }
     };
 
     return (
@@ -221,6 +285,39 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                         </button>
                                     ))}
                                 </div>
+
+                                {paymentMethod === 'pix' && (
+                                    <div className="bg-muted/30 p-4 rounded-xl space-y-4 animate-in zoom-in-95 duration-300">
+                                        {qrCodeUrl ? (
+                                            <div className="flex flex-col items-center gap-4 text-center">
+                                                <div className="bg-white p-4 rounded-lg shadow-sm border">
+                                                    <Image src={qrCodeUrl} alt="Pix QR Code" width={200} height={200} className="rounded" />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <p className="text-[10px] font-black uppercase text-primary">QR Code para Pagamento</p>
+                                                    <p className="text-[9px] text-muted-foreground uppercase font-bold">Mostre para o cliente ou envie o código abaixo</p>
+                                                </div>
+                                                <Button 
+                                                    variant="secondary" 
+                                                    size="sm" 
+                                                    className="w-full gap-2 font-black uppercase text-[10px] h-10"
+                                                    onClick={handleCopyPix}
+                                                >
+                                                    {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                                                    {copied ? "Copiado!" : "Copiar Pix Copia e Cola"}
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <div className="bg-primary/5 p-4 rounded-lg border-2 border-dashed border-primary/20 text-center space-y-2">
+                                                <QrCode className="h-8 w-8 mx-auto text-primary opacity-30" />
+                                                <p className="text-[10px] font-black uppercase text-primary">Chave Pix não configurada</p>
+                                                <p className="text-[9px] text-muted-foreground uppercase leading-tight font-bold">
+                                                    Cadastre sua Chave Pix nas configurações do perfil para gerar o QR Code automático.
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>

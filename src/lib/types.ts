@@ -115,6 +115,16 @@ export type Order = {
   closedAt?: any;
 };
 
+export type Restaurant = {
+    id: string;
+    name: string;
+    phone?: string;
+    pixKey?: string;
+    plan: string;
+    status: string;
+    createdAt: any;
+};
+
 export type TableStatus = 'livre' | 'ocupada' | 'fechando';
 
 export type Table = {
