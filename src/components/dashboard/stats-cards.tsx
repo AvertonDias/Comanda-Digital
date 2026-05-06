@@ -42,32 +42,32 @@ export function StatsCards() {
         return orderDate >= today;
     }) || [];
 
-    const revenueToday = todayOrders.reduce((acc, curr) => acc + (curr.status !== 'cancelado' ? curr.total : 0), 0);
+    const revenueToday = todayOrders.reduce((acc, curr) => acc + (curr.status === 'finalizado' ? curr.total : 0), 0);
     const newOrdersToday = todayOrders.length;
 
     return [
         {
-            title: "Faturamento Hoje",
+            title: "Faturamento Finalizado",
             value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(revenueToday),
-            change: revenueToday > 0 ? "Vendas em tempo real" : "Sem vendas hoje",
+            change: "Vendas concluídas hoje",
             icon: DollarSign,
         },
         {
-            title: "Clientes Cadastrados",
+            title: "Clientes",
             value: (customers?.length || 0).toString(),
-            change: "Total na base de dados",
+            change: "Base total",
             icon: Users,
         },
         {
-            title: "Novos Pedidos",
+            title: "Pedidos Hoje",
             value: newOrdersToday.toString(),
-            change: "Realizados hoje",
+            change: "Todos os status",
             icon: CreditCard,
         },
         {
-            title: "Mesas Ocupadas",
+            title: "Mesas Ativas",
             value: (activeTables?.length || 0).toString(),
-            change: "Atendimento ativo",
+            change: "Atendimento no local",
             icon: Activity,
         },
     ];

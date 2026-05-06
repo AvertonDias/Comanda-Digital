@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, User as UserIcon, PlusCircle, Trash2, Printer as PrinterIcon, Wifi, Usb, Bluetooth, Check, Settings2 } from "lucide-react";
+import { Shield, User as UserIcon, PlusCircle, Trash2, Printer as PrinterIcon, Wifi, Usb, Bluetooth, Settings2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +30,6 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -201,7 +200,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
     const [newSector, setNewSector] = useState('');
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     
-    // Estados para o formulário de impressora real
+    // Estados para o formulário de impressora manual
     const [printerName, setPrinterName] = useState('');
     const [printerType, setPrinterType] = useState<PrinterConnectionType>('network');
     const [printerAddress, setPrinterAddress] = useState('');
@@ -306,7 +305,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                 <CardHeader className="flex flex-row items-center justify-between">
                     <div>
                         <CardTitle>Impressoras</CardTitle>
-                        <CardDescription>Gerencie as impressoras térmicas vinculadas aos seus setores.</CardDescription>
+                        <CardDescription>Gerencie as impressoras térmicas reais vinculadas aos seus setores.</CardDescription>
                     </div>
                     <Button variant="outline" size="sm" onClick={() => setIsDialogOpen(true)}>
                         <PlusCircle className="mr-2 h-4 w-4" />
