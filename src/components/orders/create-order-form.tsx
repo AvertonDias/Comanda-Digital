@@ -1,4 +1,3 @@
-
 'use client';
 import { useState } from 'react';
 import type { MenuItem, OrderItem, Table, Order, MenuItemCategory } from '@/lib/types';

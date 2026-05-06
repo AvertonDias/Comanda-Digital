@@ -1,23 +1,21 @@
-
 'use client';
 
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query } from "firebase/firestore";
+import { collection, query, where } from "firebase/firestore";
 import { useMemo } from "react";
 import type { RestaurantUserRole } from "@/lib/types";
 
 /**
  * Hook blindado para obter o restaurante ativo do usuário.
- * Evita queries com undefined e sincroniza com o estado de autenticação.
+ * Garante que o restaurantId seja apenas string ou null, evitando erros de permissão.
  */
 export function useRestaurant() {
     const { user, isUserLoading: isAuthLoading } = useUser();
     const firestore = useFirestore();
 
     const rolesQuery = useMemoFirebase(() => {
-        // Se não houver usuário ou firestore, retornamos null explicitamente
         if (!user || !firestore) return null;
-        // Consulta os papéis diretamente na subcoleção do usuário para maior segurança
+        // Consulta os papéis do usuário logado
         return query(collection(firestore, `users/${user.uid}/restaurantRoles`));
     }, [user, firestore]);
 
@@ -26,7 +24,7 @@ export function useRestaurant() {
     const restaurantInfo = useMemo(() => {
         if (!roles || roles.length === 0) return null;
         
-        // Prioriza admin ativo, senão pega o primeiro papel ativo disponível
+        // Prioriza admin ativo, senão qualquer papel ativo
         const activeRole = roles.find(r => r.role === 'admin' && r.isActive) || 
                           roles.find(r => r.isActive) || 
                           roles[0];
