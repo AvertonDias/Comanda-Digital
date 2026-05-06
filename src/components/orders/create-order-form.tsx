@@ -5,11 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { Plus, Minus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, addDoc, serverTimestamp, doc, updateDoc, orderBy } from 'firebase/firestore';
@@ -21,7 +18,7 @@ type NewOrderItem = Omit<OrderItem, 'id' | 'priceAtOrder' | 'orderId'> & { price
 export function CreateOrderForm({ restaurantId, onSuccess }: { restaurantId: string, onSuccess: () => void }) {
     const firestore = useFirestore();
     const { toast } = useToast();
-    const [origin, setOrigin] = useState<Order['origin']>('mesa');
+    const [origin] = useState<Order['origin']>('mesa');
     const [tableId, setTableId] = useState<string | undefined>(undefined);
     const [orderItems, setOrderItems] = useState<NewOrderItem[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -124,11 +121,15 @@ export function CreateOrderForm({ restaurantId, onSuccess }: { restaurantId: str
                         </div>
                     </CardHeader>
                     <CardContent className="flex-1 p-4 overflow-hidden flex flex-col gap-4">
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 gap-2">
                             <Select value={tableId} onValueChange={setTableId}>
-                                <SelectTrigger><SelectValue placeholder="Mesa" /></SelectTrigger>
+                                <SelectTrigger><SelectValue placeholder="Selecione a Mesa" /></SelectTrigger>
                                 <SelectContent>
-                                    {tables?.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                                    {tables?.map(t => (
+                                        <SelectItem key={t.id} value={t.id}>
+                                            {t.name} ({t.status})
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>

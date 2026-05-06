@@ -6,7 +6,7 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Função simplificada e performática baseada na desnormalização sugerida
+    // Função ultra-rápida baseada na desnormalização (activeRestaurantId no doc do user)
     function isStaff(restaurantId) {
       return isSignedIn() && (
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.activeRestaurantId == restaurantId
@@ -28,14 +28,6 @@ service cloud.firestore {
         allow read: if request.auth.uid == userId || isStaff(restaurantId);
         allow create, update, delete: if isSignedIn() && (request.auth.uid == userId || isAdmin(restaurantId));
       }
-    }
-
-    // Coleção de grupo protegida como sugerido
-    match /{path=**}/restaurantRoles/{roleId} {
-      allow read, list: if isSignedIn() && (
-        resource.data.userId == request.auth.uid || 
-        isStaff(resource.data.restaurantId)
-      );
     }
 
     // RESTAURANTS

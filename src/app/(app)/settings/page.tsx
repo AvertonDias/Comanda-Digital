@@ -7,10 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { HelpCircle, Edit2, Trash2, PlusCircle, Printer as PrinterIcon, Wifi, Usb, Bluetooth } from "lucide-react";
+import { HelpCircle, Edit2, Trash2, PlusCircle, Printer as PrinterIcon } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { useFirestore, useCollection, useDoc, useMemoFirebase, errorEmitter, FirestorePermissionError } from "@/firebase";
+import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
 import { collection, doc, query, updateDoc, addDoc, deleteDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -90,7 +90,6 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
     const [editingUser, setEditingUser] = useState<any>(null);
     const [deletingUser, setDeletingUser] = useState<any>(null);
 
-    // Consulta real e blindada
     const usersQuery = useMemoFirebase(() => {
         if (!restaurantId) return null;
         return query(collection(firestore, `restaurants/${restaurantId}/roles`));
@@ -177,6 +176,11 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
     const [delSec, setDelSec] = useState<any>(null);
     const [delPri, setDelPri] = useState<any>(null);
     const [secName, setSecName] = useState("");
+    
+    // Form impressora
+    const [priName, setPriName] = useState("");
+    const [priAddr, setPriAddr] = useState("");
+    const [priType, setPriType] = useState<any>("network");
 
     const sectorsQ = useMemoFirebase(() => restaurantId ? query(collection(firestore, `restaurants/${restaurantId}/printSectors`)) : null, [restaurantId]);
     const printersQ = useMemoFirebase(() => restaurantId ? query(collection(firestore, `restaurants/${restaurantId}/printers`)) : null, [restaurantId]);
@@ -196,6 +200,28 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
         setEditingSec(null);
     };
 
+    const handleSavePri = async () => {
+        if (!priName || !priAddr) return;
+        const colRef = collection(firestore, `restaurants/${restaurantId}/printers`);
+        const data = {
+            name: priName,
+            address: priAddr,
+            connectionType: priType,
+            restaurantId,
+            isActive: true,
+            printSectors: []
+        };
+        if (editingPri) {
+            await updateDoc(doc(colRef, editingPri.id), data);
+        } else {
+            await addDoc(colRef, data);
+        }
+        setIsPriModal(false);
+        setPriName("");
+        setPriAddr("");
+        setEditingPri(null);
+    };
+
     return (
         <div className="space-y-6">
             <Card>
@@ -210,8 +236,8 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                                 <TableRow key={s.id}>
                                     <TableCell>{s.name}</TableCell>
                                     <TableCell className="text-right">
-                                        <Button variant="ghost" onClick={() => { setEditingSec(s); setSecName(s.name); setIsSecModal(true); }}><Edit2 className="h-4 w-4" /></Button>
-                                        <Button variant="ghost" className="text-destructive" onClick={() => setDelSec(s)}><Trash2 className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="icon" onClick={() => { setEditingSec(s); setSecName(s.name); setIsSecModal(true); }}><Edit2 className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDelSec(s)}><Trash2 className="h-4 w-4" /></Button>
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -227,11 +253,11 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                         <Popover>
                             <PopoverTrigger><HelpCircle className="h-4 w-4 text-muted-foreground" /></PopoverTrigger>
                             <PopoverContent className="text-xs">
-                                No Windows: Vá em Configurações > Dispositivos > Impressoras. O IP ou Nome de Rede aparece nas propriedades do dispositivo.
+                                No Windows: Vá em Configurações {'->'} Dispositivos {'->'} Impressoras. O IP ou Nome de Rede aparece nas propriedades do dispositivo.
                             </PopoverContent>
                         </Popover>
                     </div>
-                    <Button onClick={() => setIsPriModal(true)}><PlusCircle className="mr-2 h-4 w-4" /> Nova</Button>
+                    <Button onClick={() => { setEditingPri(null); setPriName(""); setPriAddr(""); setIsPriModal(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Nova</Button>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -246,9 +272,10 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                             {printers?.map(p => (
                                 <TableRow key={p.id}>
                                     <TableCell>{p.name}</TableCell>
-                                    <TableCell className="font-mono">{p.address}</TableCell>
+                                    <TableCell className="font-mono text-xs">{p.address}</TableCell>
                                     <TableCell className="text-right">
-                                        <Button variant="ghost" className="text-destructive" onClick={() => setDelPri(p)}><Trash2 className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="icon" onClick={() => { setEditingPri(p); setPriName(p.name); setPriAddr(p.address); setPriType(p.connectionType); setIsPriModal(true); }}><Edit2 className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDelPri(p)}><Trash2 className="h-4 w-4" /></Button>
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -260,8 +287,36 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
             <Dialog open={isSecModal} onOpenChange={setIsSecModal}>
                 <DialogContent>
                     <DialogHeader><DialogTitle>{editingSec ? "Editar Setor" : "Novo Setor"}</DialogTitle></DialogHeader>
-                    <Input value={secName} onChange={e => setSecName(e.target.value)} placeholder="Cozinha..." />
+                    <Input value={secName} onChange={e => setSecName(e.target.value)} placeholder="Ex: Cozinha" />
                     <DialogFooter><Button onClick={handleSaveSec}>Salvar</Button></DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isPriModal} onOpenChange={setIsPriModal}>
+                <DialogContent>
+                    <DialogHeader><DialogTitle>{editingPri ? "Editar Impressora" : "Nova Impressora"}</DialogTitle></DialogHeader>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label>Nome</Label>
+                            <Input value={priName} onChange={e => setPriName(e.target.value)} placeholder="Impressora Térmica" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Tipo</Label>
+                            <Select value={priType} onValueChange={setPriType}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="network">Rede (IP)</SelectItem>
+                                    <SelectItem value="usb">USB</SelectItem>
+                                    <SelectItem value="bluetooth">Bluetooth</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Endereço (IP ou Porta)</Label>
+                            <Input value={priAddr} onChange={e => setPriAddr(e.target.value)} placeholder="192.168.1.100" />
+                        </div>
+                    </div>
+                    <DialogFooter><Button onClick={handleSavePri}>Salvar</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
 
@@ -271,6 +326,16 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                     <AlertDialogFooter>
                         <AlertDialogCancel>Não</AlertDialogCancel>
                         <AlertDialogAction onClick={async () => { await deleteDoc(doc(firestore, `restaurants/${restaurantId}/printSectors`, delSec.id)); setDelSec(null); }}>Sim</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={!!delPri} onOpenChange={() => setDelPri(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader><AlertDialogTitle>Excluir Impressora?</AlertDialogTitle></AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Não</AlertDialogCancel>
+                        <AlertDialogAction onClick={async () => { await deleteDoc(doc(firestore, `restaurants/${restaurantId}/printers`, delPri.id)); setDelPri(null); }}>Sim</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
