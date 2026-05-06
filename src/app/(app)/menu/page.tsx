@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AppHeader } from '@/components/layout/app-header';
@@ -17,7 +16,7 @@ import type { MenuItem, MenuItemCategory } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useState, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 export default function MenuPage() {
   const { restaurantId, isLoading: isRestLoading, role } = useRestaurant();
