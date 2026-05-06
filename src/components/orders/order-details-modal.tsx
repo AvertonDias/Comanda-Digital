@@ -16,16 +16,18 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import type { Order, OrderStatus, Restaurant, SplitPaymentPart } from "@/lib/types";
+import { Card } from "@/components/ui/card";
+import type { Order, OrderStatus, Restaurant, SplitPaymentPart, MenuItem, MenuItemCategory } from "@/lib/types";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowRight, ChefHat, Bike, ShoppingBag, Trash2, QrCode, Copy, Check, Users, Minus, Plus, Wallet, CreditCard, Banknote, ListChecks, DollarSign, UserPlus } from "lucide-react";
+import { ArrowRight, ChefHat, Bike, ShoppingBag, Trash2, QrCode, Copy, Check, Users, Minus, Plus, Wallet, CreditCard, Banknote, ListChecks, DollarSign, UserPlus, Search } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
-import { useFirestore, useDoc, useMemoFirebase } from "@/firebase";
-import { doc } from "firebase/firestore";
+import { useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
+import { doc, updateDoc, arrayUnion, increment, query, collection, orderBy } from "firebase/firestore";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
+import { MenuItemSelectionDialog } from "./menu-item-selection-dialog";
 
 type OrderDetailsModalProps = {
     order: Order | null;
@@ -75,6 +77,11 @@ function generatePixPayload(key: string, amount: number, name: string, txid: str
 }
 
 export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange }: OrderDetailsModalProps) {
+    const firestore = useFirestore();
+    const { toast } = useToast();
+
+    // Estados de Controle Geral
+    const [lastOpenedOrderId, setLastOpenedOrderId] = useState<string | null>(null);
     const [notifyWhatsApp, setNotifyWhatsApp] = useState(true);
     const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
@@ -92,18 +99,36 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const [itemsBalance, setItemsBalance] = useState<any[]>([]);
     const [selectedItemsForPart, setSelectedItemsForPart] = useState<Record<number, number>>({});
 
-    const firestore = useFirestore();
-    const { toast } = useToast();
+    // Estados para Adicionar Mais Itens
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [selectedItemToAdd, setSelectedItemToAdd] = useState<MenuItem | null>(null);
+
     const restaurantRef = useMemoFirebase(() => order?.restaurantId ? doc(firestore, 'restaurants', order.restaurantId) : null, [firestore, order?.restaurantId]);
     const { data: restaurant } = useDoc<Restaurant>(restaurantRef);
+
+    // Queries para o Menu Extra
+    const categoriesQuery = useMemoFirebase(() => {
+        if (!order?.restaurantId || !firestore) return null;
+        return query(collection(firestore, `restaurants/${order.restaurantId}/menuItemCategories`), orderBy('order', 'asc'));
+    }, [order?.restaurantId, firestore]);
+
+    const itemsQuery = useMemoFirebase(() => {
+        if (!order?.restaurantId || !firestore) return null;
+        return query(collection(firestore, `restaurants/${order.restaurantId}/menuItems`));
+    }, [order?.restaurantId, firestore]);
+
+    const { data: categories } = useCollection<MenuItemCategory>(categoriesQuery);
+    const { data: items } = useCollection<MenuItem>(itemsQuery);
 
     const remainingBalance = useMemo(() => {
         if (!order?.total) return 0;
         return Math.max(0, order.total - accumulatedPaid);
     }, [order?.total, accumulatedPaid]);
 
+    // Resetar estados apenas quando abrir um novo pedido
     useEffect(() => {
-        if (isOpen && order) {
+        if (isOpen && order && order.id !== lastOpenedOrderId) {
+            setLastOpenedOrderId(order.id);
             setNotifyWhatsApp(true);
             setPaymentMethod(null);
             setCopied(false);
@@ -116,7 +141,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
             setSelectedItemsForPart({});
             setItemsBalance(order.items.map((item, idx) => ({ ...item, originalIndex: idx, remainingQty: item.quantity })));
         }
-    }, [isOpen, order]);
+    }, [isOpen, order, lastOpenedOrderId]);
 
     // Calcula valor automático baseado nos itens selecionados
     useEffect(() => {
@@ -171,7 +196,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                 })) : undefined
         };
 
-        // Se dividiu por itens, atualiza o que falta pagar
         if (splitMode === 'items') {
             setItemsBalance(prev => prev.map((item, idx) => ({
                 ...item,
@@ -201,275 +225,376 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         setSelectedItemsForPart(prev => ({ ...prev, [index]: val }));
     };
 
+    const handleConfirmAddExtra = async (data: { item: MenuItem; quantity: number; addons: any[]; notes: string; totalPrice: number }) => {
+        const orderRef = doc(firestore, `restaurants/${order.restaurantId}/orders`, order.id);
+        
+        const newItem = {
+            menuItemId: data.item.id,
+            name: data.item.name,
+            quantity: data.quantity,
+            priceAtOrder: data.item.price,
+            notes: data.notes || null,
+            status: 'pendente',
+            printSectorId: data.item.printSectorId,
+            addons: data.addons?.map(a => ({ name: a.name, price: a.price })) || []
+        };
+
+        const addonsTotal = data.addons?.reduce((acc, curr) => acc + curr.price, 0) || 0;
+        const itemTotal = (data.item.price + addonsTotal) * data.quantity;
+
+        try {
+            await updateDoc(orderRef, {
+                items: arrayUnion(newItem),
+                total: increment(itemTotal)
+            });
+            
+            // Atualizar o saldo de itens local se estiver dividindo
+            setItemsBalance(prev => [...prev, { ...newItem, originalIndex: prev.length, remainingQty: newItem.quantity }]);
+            
+            toast({ title: "Item adicionado com sucesso!" });
+            setSelectedItemToAdd(null);
+            setIsMenuOpen(false);
+        } catch (e) {
+            toast({ variant: "destructive", title: "Erro ao adicionar item" });
+        }
+    };
+
     return (
-        <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-full w-full h-[100dvh] sm:h-auto sm:max-w-md flex flex-col p-0 overflow-hidden border-none sm:border">
-                <DialogHeader className="p-6 pb-0">
-                    <DialogTitle className="font-black uppercase tracking-tight text-xl">Pedido #{displayOrderNumber}</DialogTitle>
-                    <DialogDescription className="font-bold uppercase text-[10px] text-primary">{order.tableName || 'Consumo Local'}</DialogDescription>
-                </DialogHeader>
-                
-                <ScrollArea className="flex-1">
-                    <div className="p-6 space-y-6">
-                        {/* INFO STATUS */}
-                        {!isSplitting && (
-                            <div className="grid grid-cols-2 gap-4 text-[10px] font-black uppercase">
-                                <div className="space-y-1">
-                                    <span className="text-muted-foreground">Status</span>
-                                    <Badge className={`${STATUS_CONFIG[order.status].color} text-white w-full justify-center h-6`}>
-                                        {STATUS_CONFIG[order.status].title}
-                                    </Badge>
-                                </div>
-                                <div className="space-y-1">
-                                    <span className="text-muted-foreground">Valor Total</span>
-                                    <div className="bg-primary/10 h-6 flex items-center justify-center rounded-full text-primary">
-                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}
+        <>
+            <Dialog open={isOpen} onOpenChange={onOpenChange}>
+                <DialogContent className="max-w-full w-full h-[100dvh] sm:h-auto sm:max-w-md flex flex-col p-0 overflow-hidden border-none sm:border">
+                    <DialogHeader className="p-6 pb-0">
+                        <DialogTitle className="font-black uppercase tracking-tight text-xl">Pedido #{displayOrderNumber}</DialogTitle>
+                        <DialogDescription className="font-bold uppercase text-[10px] text-primary">{order.tableName || 'Consumo Local'}</DialogDescription>
+                    </DialogHeader>
+                    
+                    <ScrollArea className="flex-1">
+                        <div className="p-6 space-y-6">
+                            {/* INFO STATUS */}
+                            {!isSplitting && (
+                                <div className="grid grid-cols-2 gap-4 text-[10px] font-black uppercase">
+                                    <div className="space-y-1">
+                                        <span className="text-muted-foreground">Status</span>
+                                        <Badge className={`${STATUS_CONFIG[order.status].color} text-white w-full justify-center h-6`}>
+                                            {STATUS_CONFIG[order.status].title}
+                                        </Badge>
                                     </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {isFinalizing && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                <Separator />
-                                
-                                {/* CABEÇALHO DE DIVISÃO */}
-                                <div className="flex items-center justify-between">
-                                    <p className="font-black text-[10px] uppercase text-primary flex items-center gap-2">
-                                        <Users className="h-3 w-3" /> Divisão de Conta
-                                    </p>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[9px] font-bold uppercase text-muted-foreground">Dividir?</span>
-                                        <Switch checked={isSplitting} onCheckedChange={setIsSplitting} />
-                                    </div>
-                                </div>
-
-                                {isSplitting ? (
-                                    <div className="space-y-4">
-                                        {/* SELETOR DE MODO DE DIVISÃO */}
-                                        <div className="flex bg-muted/50 p-1 rounded-lg">
-                                            <button 
-                                                onClick={() => setSplitMode('value')}
-                                                className={cn("flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-[10px] font-black uppercase transition-all", splitMode === 'value' ? "bg-background shadow-sm" : "opacity-50")}
-                                            >
-                                                <DollarSign className="h-3 w-3" /> Valor
-                                            </button>
-                                            <button 
-                                                onClick={() => setSplitMode('items')}
-                                                className={cn("flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-[10px] font-black uppercase transition-all", splitMode === 'items' ? "bg-background shadow-sm" : "opacity-50")}
-                                            >
-                                                <ListChecks className="h-3 w-3" /> Itens
-                                            </button>
+                                    <div className="space-y-1">
+                                        <span className="text-muted-foreground">Valor Total</span>
+                                        <div className="bg-primary/10 h-6 flex items-center justify-center rounded-full text-primary">
+                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}
                                         </div>
+                                    </div>
+                                </div>
+                            )}
 
-                                        {/* CONTEÚDO DINÂMICO DA DIVISÃO */}
-                                        {splitMode === 'items' ? (
-                                            <div className="space-y-3 bg-muted/20 p-4 rounded-xl border-2">
-                                                <Label className="text-[10px] font-black uppercase text-muted-foreground">Itens Pendentes</Label>
-                                                <div className="space-y-2">
-                                                    {itemsBalance.map((item, idx) => item.remainingQty > 0 && (
-                                                        <div key={idx} className="flex items-center justify-between bg-background p-3 rounded-lg border">
-                                                            <div className="flex-1 min-w-0 pr-2">
-                                                                <p className="text-[10px] font-black uppercase truncate">{item.name}</p>
-                                                                <p className="text-[9px] text-muted-foreground font-bold">{item.remainingQty} restantes</p>
-                                                            </div>
-                                                            <div className="flex flex-col items-end gap-2">
-                                                                <div className="flex items-center gap-2">
-                                                                    <Button variant="outline" size="icon" className="h-7 w-7 rounded-full" onClick={() => handleItemQtyChange(idx, -1)}>
-                                                                        <Minus className="h-3 w-3" />
-                                                                    </Button>
-                                                                    <span className="text-xs font-black min-w-[20px] text-center">
-                                                                        {selectedItemsForPart[idx] || 0}
-                                                                    </span>
-                                                                    <Button variant="outline" size="icon" className="h-7 w-7 rounded-full" onClick={() => handleItemQtyChange(idx, 1)}>
-                                                                        <Plus className="h-3 w-3" />
-                                                                    </Button>
+                            {isFinalizing && (
+                                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                    <Separator />
+                                    
+                                    {/* CABEÇALHO DE DIVISÃO */}
+                                    <div className="flex items-center justify-between">
+                                        <p className="font-black text-[10px] uppercase text-primary flex items-center gap-2">
+                                            <Users className="h-3 w-3" /> Divisão de Conta
+                                        </p>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[9px] font-bold uppercase text-muted-foreground">Dividir?</span>
+                                            <Switch checked={isSplitting} onCheckedChange={setIsSplitting} />
+                                        </div>
+                                    </div>
+
+                                    {isSplitting ? (
+                                        <div className="space-y-4">
+                                            {/* SELETOR DE MODO DE DIVISÃO */}
+                                            <div className="flex bg-muted/50 p-1 rounded-lg">
+                                                <button 
+                                                    onClick={() => setSplitMode('value')}
+                                                    className={cn("flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-[10px] font-black uppercase transition-all", splitMode === 'value' ? "bg-background shadow-sm" : "opacity-50")}
+                                                >
+                                                    <DollarSign className="h-3 w-3" /> Valor
+                                                </button>
+                                                <button 
+                                                    onClick={() => setSplitMode('items')}
+                                                    className={cn("flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-[10px] font-black uppercase transition-all", splitMode === 'items' ? "bg-background shadow-sm" : "opacity-50")}
+                                                >
+                                                    <ListChecks className="h-3 w-3" /> Itens
+                                                </button>
+                                            </div>
+
+                                            {/* CONTEÚDO DINÂMICO DA DIVISÃO */}
+                                            {splitMode === 'items' ? (
+                                                <div className="space-y-3 bg-muted/20 p-4 rounded-xl border-2">
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Itens Pendentes</Label>
+                                                        <Button variant="ghost" size="sm" className="h-7 text-[8px] font-black uppercase text-primary" onClick={() => setIsMenuOpen(true)}>
+                                                            <Plus className="h-3 w-3 mr-1" /> Add Item Extra
+                                                        </Button>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        {itemsBalance.map((item, idx) => item.remainingQty > 0 && (
+                                                            <div key={idx} className="flex items-center justify-between bg-background p-3 rounded-lg border">
+                                                                <div className="flex-1 min-w-0 pr-2">
+                                                                    <p className="text-[10px] font-black uppercase truncate">{item.name}</p>
+                                                                    <p className="text-[9px] text-muted-foreground font-bold">{item.remainingQty} restantes</p>
                                                                 </div>
-                                                                <div className="flex flex-col gap-1 items-end w-full">
-                                                                    <span className="text-[8px] font-black uppercase text-muted-foreground">Dividir por:</span>
-                                                                    <div className="flex items-center gap-1">
-                                                                        <Input 
-                                                                            type="number" 
-                                                                            min="1"
-                                                                            placeholder="Pessoas" 
-                                                                            className="h-7 w-12 text-[10px] p-1 text-center font-black bg-muted/50 border-none shadow-none"
-                                                                            onChange={(e) => {
-                                                                                const divisor = Number(e.target.value);
-                                                                                if (divisor > 0) handleSetFraction(idx, divisor);
-                                                                            }}
-                                                                        />
-                                                                        <span className="text-[8px] font-black uppercase text-muted-foreground">Pessoas</span>
+                                                                <div className="flex flex-col items-end gap-2">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Button variant="outline" size="icon" className="h-7 w-7 rounded-full" onClick={() => handleItemQtyChange(idx, -1)}>
+                                                                            <Minus className="h-3 w-3" />
+                                                                        </Button>
+                                                                        <span className="text-xs font-black min-w-[20px] text-center">
+                                                                            {selectedItemsForPart[idx] || 0}
+                                                                        </span>
+                                                                        <Button variant="outline" size="icon" className="h-7 w-7 rounded-full" onClick={() => handleItemQtyChange(idx, 1)}>
+                                                                            <Plus className="h-3 w-3" />
+                                                                        </Button>
+                                                                    </div>
+                                                                    <div className="flex flex-col gap-1 items-end w-full">
+                                                                        <span className="text-[8px] font-black uppercase text-muted-foreground">Dividir por:</span>
+                                                                        <div className="flex items-center gap-1">
+                                                                            <Input 
+                                                                                type="number" 
+                                                                                min="1"
+                                                                                placeholder="Pessoas" 
+                                                                                className="h-7 w-12 text-[10px] p-1 text-center font-black bg-muted/50 border-none shadow-none"
+                                                                                onChange={(e) => {
+                                                                                    const divisor = Number(e.target.value);
+                                                                                    if (divisor > 0) handleSetFraction(idx, divisor);
+                                                                                }}
+                                                                            />
+                                                                            <span className="text-[8px] font-black uppercase text-muted-foreground">Pessoas</span>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="bg-primary/5 p-4 rounded-xl border-2 border-primary/20 flex items-center justify-between">
-                                                <div className="flex flex-col">
-                                                    <span className="text-[9px] font-black uppercase text-muted-foreground">Pessoas</span>
-                                                    <div className="flex items-center gap-3 mt-1">
-                                                        <Button variant="outline" size="icon" className="h-7 w-7 rounded-full" onClick={() => setPeopleCount(Math.max(2, peopleCount - 1))} disabled={paidPartsCount > 0}>
-                                                            <Minus className="h-3 w-3" />
-                                                        </Button>
-                                                        <span className="font-black text-sm">{peopleCount}</span>
-                                                        <Button variant="outline" size="icon" className="h-7 w-7 rounded-full" onClick={() => setPeopleCount(peopleCount + 1)} disabled={paidPartsCount > 0}>
-                                                            <Plus className="h-3 w-3" />
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                                <div className="text-right">
-                                                    <span className="text-[9px] font-black uppercase text-muted-foreground">Status</span>
-                                                    <p className="text-sm font-black text-primary">{paidPartsCount} pagas</p>
-                                                    <p className="text-[10px] font-bold text-destructive">Falta {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(remainingBalance)}</p>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {!isFullyPaid && (
-                                            <div className="space-y-4 bg-muted/30 p-4 rounded-xl border-2 border-dashed">
-                                                <div className="space-y-2">
-                                                    <Label className="text-[10px] font-black uppercase">Valor desta Parte (R$)</Label>
-                                                    <div className="relative">
-                                                        <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                                        <Input 
-                                                            type="number" 
-                                                            step="0.01" 
-                                                            value={currentPartAmount} 
-                                                            onChange={e => setCurrentPartAmount(Number(e.target.value))}
-                                                            className="pl-9 font-black text-lg h-12"
-                                                        />
-                                                    </div>
-                                                </div>
-
-                                                <div className="space-y-3">
-                                                    <Label className="text-[10px] font-black uppercase">Forma de Pagamento</Label>
-                                                    <div className="grid grid-cols-2 gap-2">
-                                                        {PAYMENT_METHODS.map((method) => (
-                                                            <button
-                                                                key={method.id}
-                                                                onClick={() => setPaymentMethod(method.id)}
-                                                                className={cn("flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all", paymentMethod === method.id ? "border-primary bg-primary/5" : "border-muted bg-background")}
-                                                            >
-                                                                <method.icon className="h-3 w-3" />
-                                                                <span className="text-[9px] font-black uppercase">{method.label}</span>
-                                                            </button>
                                                         ))}
                                                     </div>
                                                 </div>
-
-                                                {paymentMethod === 'pix' && qrCodeUrl && (
-                                                    <div className="flex flex-col items-center gap-3 bg-white p-3 rounded-lg border">
-                                                        <Image src={qrCodeUrl} alt="Pix" width={150} height={150} />
-                                                        <Button variant="secondary" size="sm" className="w-full text-[9px] font-black h-8" onClick={() => { navigator.clipboard.writeText(pixPayload!); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>
-                                                            {copied ? "Copiado!" : "Copiar Pix"}
-                                                        </Button>
+                                            ) : (
+                                                <div className="bg-primary/5 p-4 rounded-xl border-2 border-primary/20 flex items-center justify-between">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[9px] font-black uppercase text-muted-foreground">Pessoas</span>
+                                                        <div className="flex items-center gap-3 mt-1">
+                                                            <Button variant="outline" size="icon" className="h-7 w-7 rounded-full" onClick={() => setPeopleCount(Math.max(2, peopleCount - 1))} disabled={paidPartsCount > 0}>
+                                                                <Minus className="h-3 w-3" />
+                                                            </Button>
+                                                            <span className="font-black text-sm">{peopleCount}</span>
+                                                            <Button variant="outline" size="icon" className="h-7 w-7 rounded-full" onClick={() => setPeopleCount(peopleCount + 1)} disabled={paidPartsCount > 0}>
+                                                                <Plus className="h-3 w-3" />
+                                                            </Button>
+                                                        </div>
                                                     </div>
-                                                )}
+                                                    <div className="text-right">
+                                                        <span className="text-[9px] font-black uppercase text-muted-foreground">Status</span>
+                                                        <p className="text-sm font-black text-primary">{paidPartsCount} pagas</p>
+                                                        <p className="text-[10px] font-bold text-destructive">Falta {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(remainingBalance)}</p>
+                                                    </div>
+                                                </div>
+                                            )}
 
-                                                <Button className="w-full h-10 font-black uppercase text-[10px] bg-black hover:bg-zinc-800" onClick={handleRegisterPart}>
-                                                    Confirmar Parte {paidPartsCount + 1}
+                                            {!isFullyPaid && (
+                                                <div className="space-y-4 bg-muted/30 p-4 rounded-xl border-2 border-dashed">
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] font-black uppercase">Valor desta Parte (R$)</Label>
+                                                        <div className="relative">
+                                                            <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                                            <Input 
+                                                                type="number" 
+                                                                step="0.01" 
+                                                                value={currentPartAmount} 
+                                                                onChange={e => setCurrentPartAmount(Number(e.target.value))}
+                                                                className="pl-9 font-black text-lg h-12"
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="space-y-3">
+                                                        <Label className="text-[10px] font-black uppercase">Forma de Pagamento</Label>
+                                                        <div className="grid grid-cols-2 gap-2">
+                                                            {PAYMENT_METHODS.map((method) => (
+                                                                <button
+                                                                    key={method.id}
+                                                                    onClick={() => setPaymentMethod(method.id)}
+                                                                    className={cn("flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all", paymentMethod === method.id ? "border-primary bg-primary/5" : "border-muted bg-background")}
+                                                                >
+                                                                    <method.icon className="h-3 w-3" />
+                                                                    <span className="text-[9px] font-black uppercase">{method.label}</span>
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+
+                                                    {paymentMethod === 'pix' && qrCodeUrl && (
+                                                        <div className="flex flex-col items-center gap-3 bg-white p-3 rounded-lg border">
+                                                            <Image src={qrCodeUrl} alt="Pix" width={150} height={150} />
+                                                            <Button variant="secondary" size="sm" className="w-full text-[9px] font-black h-8" onClick={() => { navigator.clipboard.writeText(pixPayload!); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>
+                                                                {copied ? "Copiado!" : "Copiar Pix"}
+                                                            </Button>
+                                                        </div>
+                                                    )}
+
+                                                    <Button className="w-full h-10 font-black uppercase text-[10px] bg-black hover:bg-zinc-800" onClick={handleRegisterPart}>
+                                                        Confirmar Parte {paidPartsCount + 1}
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            <div className="flex justify-between items-center">
+                                                <p className="font-black text-[10px] uppercase text-primary flex items-center gap-2"><CreditCard className="h-3 w-3" /> Forma de Pagamento</p>
+                                                <Button variant="ghost" size="sm" className="h-7 text-[8px] font-black uppercase text-primary" onClick={() => setIsMenuOpen(true)}>
+                                                    <Plus className="h-3 w-3 mr-1" /> Add Item Extra
                                                 </Button>
                                             </div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {PAYMENT_METHODS.map((method) => (
+                                                    <button
+                                                        key={method.id}
+                                                        onClick={() => setPaymentMethod(method.id)}
+                                                        className={cn("flex items-center gap-2 px-3 py-3 rounded-xl border-2 transition-all", paymentMethod === method.id ? "border-primary bg-primary/5 shadow-sm" : "border-muted bg-background")}
+                                                    >
+                                                        <method.icon className={cn("h-4 w-4", paymentMethod === method.id ? "text-primary" : "text-muted-foreground")} />
+                                                        <span className={cn("text-[10px] font-black uppercase", paymentMethod === method.id ? "text-primary" : "text-muted-foreground")}>{method.label}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            {paymentMethod === 'pix' && qrCodeUrl && (
+                                                <div className="bg-muted/30 p-4 rounded-xl flex flex-col items-center gap-4">
+                                                    <div className="bg-white p-4 rounded-lg shadow-sm border"><Image src={qrCodeUrl} alt="Pix" width={200} height={200} /></div>
+                                                    <Button variant="secondary" className="w-full font-black uppercase text-[10px]" onClick={() => { navigator.clipboard.writeText(pixPayload!); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>
+                                                        {copied ? "Copiado!" : "Copiar Pix Copia e Cola"}
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* LISTA DE ITENS ORIGINAL (SE NÃO ESTIVER DIVIDINDO) */}
+                            {!isSplitting && (
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-center">
+                                        <p className="font-black text-[10px] uppercase text-muted-foreground">Itens do Pedido</p>
+                                        {!isFinalizing && (
+                                            <Button variant="outline" size="sm" className="h-7 text-[8px] font-black uppercase" onClick={() => setIsMenuOpen(true)}>
+                                                <Plus className="h-3 w-3 mr-1" /> Adicionar
+                                            </Button>
                                         )}
                                     </div>
-                                ) : (
-                                    <div className="space-y-4">
-                                        <p className="font-black text-[10px] uppercase text-primary flex items-center gap-2"><CreditCard className="h-3 w-3" /> Forma de Pagamento</p>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {PAYMENT_METHODS.map((method) => (
-                                                <button
-                                                    key={method.id}
-                                                    onClick={() => setPaymentMethod(method.id)}
-                                                    className={cn("flex items-center gap-2 px-3 py-3 rounded-xl border-2 transition-all", paymentMethod === method.id ? "border-primary bg-primary/5 shadow-sm" : "border-muted bg-background")}
-                                                >
-                                                    <method.icon className={cn("h-4 w-4", paymentMethod === method.id ? "text-primary" : "text-muted-foreground")} />
-                                                    <span className={cn("text-[10px] font-black uppercase", paymentMethod === method.id ? "text-primary" : "text-muted-foreground")}>{method.label}</span>
-                                                </button>
+                                    <ul className="space-y-3">
+                                        {order.items.map((item, idx) => (
+                                            <li key={idx} className="flex justify-between items-start border-b border-dashed pb-2 last:border-0">
+                                                <div className="flex items-start gap-3">
+                                                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-white text-[10px] font-black shrink-0">{item.quantity}x</span>
+                                                    <div>
+                                                        <p className="font-black text-xs uppercase">{item.name}</p>
+                                                        {item.addons?.map((a, ai) => (<p key={ai} className="text-[9px] text-muted-foreground font-bold uppercase">+ {a.name}</p>))}
+                                                    </div>
+                                                </div>
+                                                <span className="font-black text-xs">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.priceAtOrder * item.quantity)}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    </ScrollArea>
+
+                    <div className="p-6 bg-muted/20 border-t mt-auto">
+                        <div className="flex justify-between items-center text-lg font-black uppercase mb-4">
+                            <span>Total Comanda</span>
+                            <span className="text-primary">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}</span>
+                        </div>
+
+                        <DialogFooter className="flex-row gap-2">
+                            {order.status === 'aberto' && (
+                                <Button variant="destructive" className="flex-1 font-black uppercase text-[10px] h-11" onClick={() => onStatusChange(order.id, 'cancelado')}>
+                                    <Trash2 className="mr-2 h-3 w-3"/> Cancelar
+                                </Button>
+                            )}
+                            {order.status !== 'finalizado' && (
+                                <Button 
+                                    className="flex-[2] font-black uppercase text-[10px] h-11" 
+                                    onClick={() => {
+                                        if (isFinalizing && !isFullyPaid && isSplitting) return toast({ variant: "destructive", title: "Conta incompleta" });
+                                        if (isFinalizing && !paymentMethod && !isSplitting) return toast({ variant: "destructive", title: "Selecione o pagamento" });
+                                        
+                                        const nextStatusMap: Record<OrderStatus, OrderStatus> = {
+                                            'aberto': 'preparando',
+                                            'preparando': 'pronto',
+                                            'pronto': 'finalizado',
+                                            'finalizado': 'finalizado',
+                                            'cancelado': 'cancelado'
+                                        };
+
+                                        const finalData: any = isFinalizing ? { 
+                                            paymentMethod: isSplitting ? 'multiplos' : paymentMethod,
+                                            splitPayments: isSplitting ? recordedSplitParts : null
+                                        } : {};
+
+                                        onStatusChange(order.id, nextStatusMap[order.status], finalData);
+                                    }}
+                                    disabled={isFinalizing && (isSplitting ? !isFullyPaid : !paymentMethod)}
+                                >
+                                    {order.status === 'aberto' ? <ChefHat className="mr-2 h-4 w-4" /> : order.status === 'preparando' ? <ShoppingBag className="mr-2 h-4 w-4" /> : <Bike className="mr-2 h-4 w-4" />}
+                                    {order.status === 'aberto' ? 'Marcar Preparando' : order.status === 'preparando' ? 'Marcar Pronto' : 'Finalizar Pedido'}
+                                    <ArrowRight className="ml-auto h-3 w-3"/>
+                                </Button>
+                            )}
+                        </DialogFooter>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Menu para Adicionar Item Extra */}
+            <Dialog open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+                <DialogContent className="max-w-[450px] p-0 flex flex-col h-[80vh] border-none sm:border">
+                    <DialogHeader className="p-4 border-b">
+                        <DialogTitle className="text-sm font-black uppercase">Adicionar Item Extra</DialogTitle>
+                    </DialogHeader>
+                    <ScrollArea className="flex-1 p-4">
+                        <div className="space-y-6">
+                            {categories?.map(cat => {
+                                const categoryItems = items?.filter(i => i.categoryId === cat.id && i.isAvailable);
+                                if (!categoryItems?.length) return null;
+                                return (
+                                    <div key={cat.id} className="space-y-3">
+                                        <h3 className="text-[10px] font-black uppercase text-primary tracking-widest flex items-center gap-2">
+                                            <span className="h-px w-3 bg-primary" /> {cat.name}
+                                        </h3>
+                                        <div className="grid gap-2">
+                                            {categoryItems.map(item => (
+                                                <Card key={item.id} className="p-2 flex items-center gap-3 cursor-pointer hover:border-primary border-2 transition-colors active:scale-95" onClick={() => setSelectedItemToAdd(item)}>
+                                                    <div className="h-10 w-10 rounded-md bg-muted overflow-hidden shrink-0">
+                                                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-[10px] font-black uppercase truncate leading-tight">{item.name}</p>
+                                                        <p className="text-[10px] font-bold text-primary">R$ {item.price.toFixed(2)}</p>
+                                                    </div>
+                                                    <Plus className="h-4 w-4 text-primary" />
+                                                </Card>
                                             ))}
                                         </div>
-                                        {paymentMethod === 'pix' && qrCodeUrl && (
-                                            <div className="bg-muted/30 p-4 rounded-xl flex flex-col items-center gap-4">
-                                                <div className="bg-white p-4 rounded-lg shadow-sm border"><Image src={qrCodeUrl} alt="Pix" width={200} height={200} /></div>
-                                                <Button variant="secondary" className="w-full font-black uppercase text-[10px]" onClick={() => { navigator.clipboard.writeText(pixPayload!); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>
-                                                    {copied ? "Copiado!" : "Copiar Pix Copia e Cola"}
-                                                </Button>
-                                            </div>
-                                        )}
                                     </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* LISTA DE ITENS ORIGINAL (SE NÃO ESTIVER DIVIDINDO) */}
-                        {!isSplitting && (
-                            <div className="space-y-4">
-                                <p className="font-black text-[10px] uppercase text-muted-foreground">Itens do Pedido</p>
-                                <ul className="space-y-3">
-                                    {order.items.map((item, idx) => (
-                                        <li key={idx} className="flex justify-between items-start border-b border-dashed pb-2 last:border-0">
-                                            <div className="flex items-start gap-3">
-                                                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-white text-[10px] font-black shrink-0">{item.quantity}x</span>
-                                                <div>
-                                                    <p className="font-black text-xs uppercase">{item.name}</p>
-                                                    {item.addons?.map((a, ai) => (<p key={ai} className="text-[9px] text-muted-foreground font-bold uppercase">+ {a.name}</p>))}
-                                                </div>
-                                            </div>
-                                            <span className="font-black text-xs">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.priceAtOrder * item.quantity)}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
+                                )
+                            })}
+                        </div>
+                    </ScrollArea>
+                    <div className="p-4 border-t bg-muted/10">
+                        <Button variant="ghost" className="w-full font-black uppercase text-[10px]" onClick={() => setIsMenuOpen(false)}>Cancelar</Button>
                     </div>
-                </ScrollArea>
+                </DialogContent>
+            </Dialog>
 
-                <div className="p-6 bg-muted/20 border-t mt-auto">
-                    <div className="flex justify-between items-center text-lg font-black uppercase mb-4">
-                        <span>Total Comanda</span>
-                        <span className="text-primary">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}</span>
-                    </div>
-
-                    <DialogFooter className="flex-row gap-2">
-                        {order.status === 'aberto' && (
-                            <Button variant="destructive" className="flex-1 font-black uppercase text-[10px] h-11" onClick={() => onStatusChange(order.id, 'cancelado')}>
-                                <Trash2 className="mr-2 h-3 w-3"/> Cancelar
-                            </Button>
-                        )}
-                        {order.status !== 'finalizado' && (
-                            <Button 
-                                className="flex-[2] font-black uppercase text-[10px] h-11" 
-                                onClick={() => {
-                                    if (isFinalizing && !isFullyPaid && isSplitting) return toast({ variant: "destructive", title: "Conta incompleta" });
-                                    if (isFinalizing && !paymentMethod && !isSplitting) return toast({ variant: "destructive", title: "Selecione o pagamento" });
-                                    
-                                    const nextStatusMap: Record<OrderStatus, OrderStatus> = {
-                                        'aberto': 'preparando',
-                                        'preparando': 'pronto',
-                                        'pronto': 'finalizado',
-                                        'finalizado': 'finalizado',
-                                        'cancelado': 'cancelado'
-                                    };
-
-                                    const finalData: any = isFinalizing ? { 
-                                        paymentMethod: isSplitting ? 'multiplos' : paymentMethod,
-                                        splitPayments: isSplitting ? recordedSplitParts : null
-                                    } : {};
-
-                                    onStatusChange(order.id, nextStatusMap[order.status], finalData);
-                                }}
-                                disabled={isFinalizing && (isSplitting ? !isFullyPaid : !paymentMethod)}
-                            >
-                                {order.status === 'aberto' ? <ChefHat className="mr-2 h-4 w-4" /> : order.status === 'preparando' ? <ShoppingBag className="mr-2 h-4 w-4" /> : <Bike className="mr-2 h-4 w-4" />}
-                                {order.status === 'aberto' ? 'Marcar Preparando' : order.status === 'preparando' ? 'Marcar Pronto' : 'Finalizar Pedido'}
-                                <ArrowRight className="ml-auto h-3 w-3"/>
-                            </Button>
-                        )}
-                    </DialogFooter>
-                </div>
-            </DialogContent>
-        </Dialog>
+            <MenuItemSelectionDialog 
+                item={selectedItemToAdd}
+                isOpen={!!selectedItemToAdd}
+                onClose={() => setSelectedItemToAdd(null)}
+                onConfirm={handleConfirmAddExtra}
+            />
+        </>
     );
 }
