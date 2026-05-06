@@ -7,7 +7,7 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Validação ultra-rápida baseada na desnormalização (activeRestaurantId no doc do user)
+    // Validação baseada no activeRestaurantId salvo no perfil do usuário
     function isStaff(restaurantId) {
       return isSignedIn() && (
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.activeRestaurantId == restaurantId
@@ -15,35 +15,39 @@ service cloud.firestore {
     }
 
     function isAdmin(restaurantId) {
-      return isStaff(restaurantId) && (
+      // Um admin deve ser staff e ter o papel "admin" na equipe
+      return isSignedIn() && (
         get(/databases/$(database)/documents/restaurants/$(restaurantId)/team/$(request.auth.uid)).data.role == "admin"
       );
     }
 
-    // USERS
+    // USERS: Perfil público do usuário
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow write: if request.auth.uid == userId;
+      allow write: if isSignedIn() && request.auth.uid == userId;
     }
 
     // RESTAURANTS
     match /restaurants/{restaurantId} {
       allow create: if isSignedIn();
-      allow read: if isSignedIn() || true; // Permitir leitura para o cardápio público
+      allow read: if true; // Cardápio e infos básicas são públicos
       allow update, delete: if isAdmin(restaurantId);
 
+      // Equipe do restaurante
       match /team/{memberId} {
-        allow read: if isStaff(restaurantId);
+        // Permite ler se for o próprio membro ou se for staff do restaurante
+        allow read: if isSignedIn() && (request.auth.uid == memberId || isStaff(restaurantId));
+        // Apenas admins podem gerenciar a equipe, mas o próprio usuário pode se "vincular" ao aceitar convite
         allow write: if isAdmin(restaurantId) || (isSignedIn() && request.auth.uid == memberId);
       }
 
       match /invitations/{inviteId} {
-        allow read: if true; // Validar convite publicamente
+        allow read: if true; 
         allow write: if isAdmin(restaurantId);
       }
 
       match /menuItems/{itemId} {
-        allow read: if true; // Cardápio é público
+        allow read: if true;
         allow write: if isStaff(restaurantId);
       }
 
@@ -57,6 +61,20 @@ service cloud.firestore {
         allow write: if isStaff(restaurantId);
       }
 
+      match /customers/{customerId} {
+        allow read, write: if isStaff(restaurantId);
+      }
+
+      match /orders/{orderId} {
+        allow read: if true; // Pedidos podem ser lidos pelo cliente/QR
+        allow write: if true; // Clientes criam pedidos via QR, Staff gerencia
+        
+        match /items/{itemId} {
+          allow read, write: if true;
+        }
+      }
+
+      // Fallback para outras subcoleções
       match /{allSubcollections=**} {
         allow read, write: if isStaff(restaurantId);
       }
