@@ -68,6 +68,9 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         nextStatus === 'finalizado' ? <Bike className="mr-2 h-4 w-4" /> :
         null;
 
+    const formattedDate = order.createdAt?.seconds 
+        ? format(new Date(order.createdAt.seconds * 1000), "dd/MM/yy 'às' HH:mm", { locale: ptBR })
+        : 'Recentemente';
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -88,7 +91,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                     </div>
                     <div className="flex justify-between items-center">
                         <span className="text-muted-foreground">Horário</span>
-                        <span>{format(new Date(order.createdAt), "dd/MM/yy 'às' HH:mm", { locale: ptBR })}</span>
+                        <span>{formattedDate}</span>
                     </div>
                     <div className="flex justify-between items-center">
                         <span className="text-muted-foreground">Origem / Destino</span>
@@ -99,8 +102,8 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                 <p className="font-medium text-sm">Itens do Pedido</p>
                 <ScrollArea className="max-h-48 -mx-6 px-6">
                     <ul className="space-y-3 py-2 text-sm">
-                        {order.items.map(item => (
-                            <li key={item.id} className="flex justify-between items-start">
+                        {order.items.map((item, idx) => (
+                            <li key={idx} className="flex justify-between items-start">
                                 <div className="flex items-center gap-2">
                                     <span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs font-medium">{item.quantity}</span>
                                     <div>
