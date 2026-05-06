@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
@@ -43,10 +42,13 @@ export function useRestaurant(): UseRestaurantReturn {
 
     const { data: teamMember, isLoading: isRoleLoading, error: roleError } = useDoc<RestaurantUser>(teamMemberRef);
 
+    // O carregamento só termina quando o perfil E o cargo (se o id existir) terminarem
+    const isLoading = isUserLoading || isProfileLoading || (!!restaurantId && isRoleLoading);
+
     return {
         restaurantId,
         role: teamMember?.role || null,
-        isLoading: isUserLoading || isProfileLoading || isRoleLoading,
+        isLoading,
         hasRestaurant: !!restaurantId,
         error: profileError || roleError
     };

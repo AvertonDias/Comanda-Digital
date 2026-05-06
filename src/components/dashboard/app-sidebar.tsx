@@ -1,4 +1,3 @@
-
 'use client';
 import {
     SidebarContent,
@@ -12,7 +11,6 @@ import {
 } from "@/components/ui/sidebar"
 import { usePathname, useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { DUMMY_USER } from "@/lib/placeholder-data";
 import { Logo } from "../common/logo";
 import { 
     LayoutDashboard,
@@ -28,6 +26,7 @@ import { signOut } from "firebase/auth";
 import Link from "next/link";
 import { useRestaurant } from "@/hooks/use-restaurant";
 import { useMemo } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const allMenuItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ['admin'] },
@@ -42,8 +41,8 @@ export function AppSidebar() {
     const pathname = usePathname();
     const router = useRouter();
     const auth = useAuth();
-    const { user } = useUser();
-    const { role } = useRestaurant();
+    const { user, isUserLoading } = useUser();
+    const { role, isLoading: isResLoading } = useRestaurant();
     const { isMobile, setOpenMobile } = useSidebar();
 
     const isActive = (href: string) => pathname === href;
@@ -59,14 +58,14 @@ export function AppSidebar() {
         }
     };
 
-    // Filtra o menu baseado na role do usuário
     const filteredMenuItems = useMemo(() => {
         if (!role) return [];
         return allMenuItems.filter(item => item.roles.includes(role));
     }, [role]);
     
-    const userName = user?.displayName || user?.email || DUMMY_USER.name;
-    const userAvatar = user?.photoURL || DUMMY_USER.avatarUrl;
+    const isLoading = isUserLoading || isResLoading;
+    const userName = user?.displayName || user?.email || 'Usuário';
+    const userAvatar = user?.photoURL || '';
     const userFallback = (user?.displayName || user?.email || 'U').charAt(0).toUpperCase();
 
     return (
@@ -76,20 +75,36 @@ export function AppSidebar() {
             </SidebarHeader>
             <SidebarContent className="p-2">
                 <SidebarMenu>
-                    {filteredMenuItems.map((item) => (
-                         <SidebarMenuItem key={item.href}>
-                             <SidebarMenuButton
-                                 asChild
-                                 isActive={isActive(item.href)}
-                                 tooltip={{ children: item.label, side: "right" }}
-                             >
-                                 <Link href={item.href} onClick={handleLinkClick}>
-                                    <item.icon />
-                                    <span>{item.label}</span>
-                                 </Link>
-                             </SidebarMenuButton>
-                         </SidebarMenuItem>
-                    ))}
+                    {isLoading ? (
+                        // Skeleton de carregamento para o menu
+                        Array.from({ length: 5 }).map((_, i) => (
+                            <SidebarMenuItem key={i}>
+                                <div className="flex items-center gap-2 p-2">
+                                    <Skeleton className="h-4 w-4 rounded" />
+                                    <Skeleton className="h-4 w-24" />
+                                </div>
+                            </SidebarMenuItem>
+                        ))
+                    ) : filteredMenuItems.length > 0 ? (
+                        filteredMenuItems.map((item) => (
+                             <SidebarMenuItem key={item.href}>
+                                 <SidebarMenuButton
+                                     asChild
+                                     isActive={isActive(item.href)}
+                                     tooltip={{ children: item.label, side: "right" }}
+                                 >
+                                     <Link href={item.href} onClick={handleLinkClick}>
+                                        <item.icon />
+                                        <span>{item.label}</span>
+                                     </Link>
+                                 </SidebarMenuButton>
+                             </SidebarMenuItem>
+                        ))
+                    ) : (
+                        <div className="p-4 text-xs text-muted-foreground text-center">
+                            Nenhum acesso permitido.
+                        </div>
+                    )}
                 </SidebarMenu>
             </SidebarContent>
             <SidebarFooter className="p-2">
@@ -102,12 +117,27 @@ export function AppSidebar() {
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                     <SidebarMenuItem>
-                        <SidebarMenuButton>
-                            <Avatar className="size-6">
-                                <AvatarImage src={userAvatar} alt={userName} />
-                                <AvatarFallback>{userFallback}</AvatarFallback>
-                            </Avatar>
-                            <span className="truncate">{userName}</span>
+                        <SidebarMenuButton className="h-12">
+                            {isLoading ? (
+                                <Skeleton className="size-8 rounded-full" />
+                            ) : (
+                                <Avatar className="size-8">
+                                    <AvatarImage src={userAvatar} alt={userName} />
+                                    <AvatarFallback>{userFallback}</AvatarFallback>
+                                </Avatar>
+                            )}
+                            <div className="flex flex-col items-start overflow-hidden">
+                                {isLoading ? (
+                                    <Skeleton className="h-3 w-20" />
+                                ) : (
+                                    <>
+                                        <span className="truncate font-medium text-xs">{userName}</span>
+                                        <span className="text-[10px] text-muted-foreground capitalize">
+                                            {role === 'admin' ? 'Administrador' : 'Garçom'}
+                                        </span>
+                                    </>
+                                )}
+                            </div>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
