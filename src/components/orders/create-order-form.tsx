@@ -13,7 +13,7 @@ import { Label } from '../ui/label';
 import { Input } from '../ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useFirestore, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, query, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, addDoc, serverTimestamp, doc, updateDoc, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '../ui/skeleton';
 
@@ -30,7 +30,7 @@ export function CreateOrderForm({ restaurantId, onSuccess }: { restaurantId: str
 
     const categoriesQuery = useMemoFirebase(() => query(collection(firestore, `restaurants/${restaurantId}/menuItemCategories`)), [restaurantId, firestore]);
     const itemsQuery = useMemoFirebase(() => query(collection(firestore, `restaurants/${restaurantId}/menuItems`)), [restaurantId, firestore]);
-    const tablesQuery = useMemoFirebase(() => query(collection(firestore, `restaurants/${restaurantId}/tables`)), [restaurantId, firestore]);
+    const tablesQuery = useMemoFirebase(() => query(collection(firestore, `restaurants/${restaurantId}/tables`), orderBy('name', 'asc')), [restaurantId, firestore]);
 
     const { data: categories, isLoading: isCatsLoading } = useCollection<MenuItemCategory>(categoriesQuery);
     const { data: items, isLoading: isItemsLoading } = useCollection<MenuItem>(itemsQuery);
