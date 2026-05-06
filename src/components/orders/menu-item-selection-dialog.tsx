@@ -36,11 +36,26 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
   const [notes, setNotes] = useState('');
   const [excludedIngredients, setExcludedIngredients] = useState<string[]>([]);
 
-  // Parse ingredients from item
+  // Hooks must be called at the top level
   const ingredientsList = useMemo(() => {
     if (!item?.ingredients) return [];
     return item.ingredients.split(',').map(i => i.trim()).filter(Boolean);
   }, [item?.ingredients]);
+
+  const currentTotal = useMemo(() => {
+    if (!item) return 0;
+    const addonsTotal = selectedAddons.reduce((acc, curr) => acc + curr.price, 0);
+    return (item.price + addonsTotal) * quantity;
+  }, [item, selectedAddons, quantity]);
+
+  const isMandatoryGroupsMet = useMemo(() => {
+    if (!item?.addonGroups) return true;
+    return item.addonGroups.every(group => {
+      if (!group.isMandatory) return true;
+      const count = selectedAddons.filter(a => a.groupId === group.id).length;
+      return count >= (group.minQuantity || 1);
+    });
+  }, [item, selectedAddons]);
 
   // Reset state when opening/closing
   useEffect(() => {
@@ -52,6 +67,7 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
     }
   }, [isOpen]);
 
+  // Early return after all hooks are called
   if (!item) return null;
 
   const handleAddonToggle = (group: any, option: MenuItemAddonOption) => {
@@ -80,22 +96,8 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
     );
   };
 
-  const currentTotal = useMemo(() => {
-    const addonsTotal = selectedAddons.reduce((acc, curr) => acc + curr.price, 0);
-    return (item.price + addonsTotal) * quantity;
-  }, [item, selectedAddons, quantity]);
-
-  const isMandatoryGroupsMet = useMemo(() => {
-    if (!item.addonGroups) return true;
-    return item.addonGroups.every(group => {
-      if (!group.isMandatory) return true;
-      const count = selectedAddons.filter(a => a.groupId === group.id).length;
-      return count >= (group.minQuantity || 1);
-    });
-  }, [item, selectedAddons]);
-
   const handleConfirm = () => {
-    if (!isMandatoryGroupsMet) return;
+    if (!isMandatoryGroupsMet || !item) return;
 
     // Build notes from excluded ingredients and additional notes
     let finalNotes = notes;
