@@ -145,9 +145,7 @@ export function TableCard({ table }: TableCardProps) {
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
                         <DialogTitle>Editar Nome da Mesa</DialogTitle>
-                        <DialogDescription>
-                            Altere a identificação desta mesa no sistema.
-                        </DialogDescription>
+                        <DialogDescription>Altere a identificação desta mesa no sistema.</DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
@@ -166,15 +164,11 @@ export function TableCard({ table }: TableCardProps) {
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Excluir {table.name}?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Esta ação é irreversível. A mesa será removida do banco de dados permanentemente.
-                        </AlertDialogDescription>
+                        <AlertDialogDescription>Esta ação removerá a mesa permanentemente.</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                            Confirmar Exclusão
-                        </AlertDialogAction>
+                        <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Confirmar</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

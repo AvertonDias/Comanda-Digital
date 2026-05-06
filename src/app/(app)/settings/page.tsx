@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, User as UserIcon, PlusCircle, Trash2, Printer as PrinterIcon, Wifi, Usb, Bluetooth, Search, AlertCircle, Info } from "lucide-react";
+import { Shield, User as UserIcon, PlusCircle, Trash2, Printer as PrinterIcon, Wifi, Usb, Bluetooth, AlertCircle, Info, Edit2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -34,7 +34,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const profileSchema = z.object({
     name: z.string().min(1, "O nome do restaurante é obrigatório."),
@@ -103,6 +103,8 @@ function ProfileTab({ restaurantId }: { restaurantId: string }) {
 function UserRow({ userRole }: { userRole: RestaurantUserRole }) {
     const firestore = useFirestore();
     const { toast } = useToast();
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [newRole, setNewRole] = useState(userRole.role);
     const userProfileRef = useMemoFirebase(() => doc(firestore, 'users', userRole.userId), [firestore, userRole.userId]);
     const { data: userProfile, isLoading } = useDoc<UserProfile>(userProfileRef);
 
@@ -118,41 +120,87 @@ function UserRow({ userRole }: { userRole: RestaurantUserRole }) {
         toast({ title: isActive ? "Usuário ativado." : "Usuário inativado." });
     };
 
+    const handleUpdateRole = () => {
+        const userRoleRef = doc(firestore, `users/${userRole.userId}/restaurantRoles/${userRole.restaurantId}`);
+        updateDoc(userRoleRef, { role: newRole }).then(() => {
+            toast({ title: "Função atualizada!" });
+            setIsEditDialogOpen(false);
+        }).catch(async () => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: userRoleRef.path,
+                operation: 'update',
+                requestResourceData: { role: newRole }
+            }));
+        });
+    };
+
     if (isLoading) {
         return (
             <TableRow>
-                <TableCell colSpan={4}><Skeleton className="h-12 w-full" /></TableCell>
+                <TableCell colSpan={5}><Skeleton className="h-12 w-full" /></TableCell>
             </TableRow>
         );
     }
 
     return (
-        <TableRow>
-            <TableCell>
-                <div className="flex items-center gap-3">
-                    <Avatar>
-                        <AvatarImage src={userProfile?.avatarUrl} />
-                        <AvatarFallback>{userProfile?.name?.charAt(0) || 'U'}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                        <p className="font-semibold">{userProfile?.name || 'Usuário'}</p>
-                        <p className="text-xs text-muted-foreground">{userProfile?.email}</p>
+        <>
+            <TableRow>
+                <TableCell>
+                    <div className="flex items-center gap-3">
+                        <Avatar>
+                            <AvatarImage src={userProfile?.avatarUrl} />
+                            <AvatarFallback>{userProfile?.name?.charAt(0) || 'U'}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                            <p className="font-semibold">{userProfile?.name || 'Usuário'}</p>
+                            <p className="text-xs text-muted-foreground">{userProfile?.email}</p>
+                        </div>
                     </div>
-                </div>
-            </TableCell>
-            <TableCell>
-                <div className="flex items-center gap-1">
-                    {userRole.role === 'admin' ? <Shield className="h-3 w-3 text-primary" /> : <UserIcon className="h-3 w-3" />}
-                    <Badge variant="outline" className="capitalize">{userRole.role}</Badge>
-                </div>
-            </TableCell>
-            <TableCell className="text-center">
-                <Switch checked={userRole.isActive} onCheckedChange={handleStatusChange} />
-            </TableCell>
-            <TableCell className="text-right">
-                <Button variant="ghost" size="sm" className="text-destructive" onClick={() => deleteDoc(doc(firestore, `users/${userRole.userId}/restaurantRoles/${userRole.restaurantId}`))}>Remover</Button>
-            </TableCell>
-        </TableRow>
+                </TableCell>
+                <TableCell>
+                    <div className="flex items-center gap-1">
+                        {userRole.role === 'admin' ? <Shield className="h-3 w-3 text-primary" /> : <UserIcon className="h-3 w-3" />}
+                        <Badge variant="outline" className="capitalize">{userRole.role}</Badge>
+                    </div>
+                </TableCell>
+                <TableCell className="text-center">
+                    <Switch checked={userRole.isActive} onCheckedChange={handleStatusChange} />
+                </TableCell>
+                <TableCell className="text-right space-x-2">
+                    <Button variant="ghost" size="sm" onClick={() => setIsEditDialogOpen(true)}>
+                        <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="text-destructive" onClick={() => deleteDoc(doc(firestore, `users/${userRole.userId}/restaurantRoles/${userRole.restaurantId}`))}>
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                </TableCell>
+            </TableRow>
+
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogContent className="sm:max-w-[400px]">
+                    <DialogHeader>
+                        <DialogTitle>Editar Função</DialogTitle>
+                        <DialogDescription>Altere a função de {userProfile?.name} na equipe.</DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Label>Nova Função</Label>
+                        <Select value={newRole} onValueChange={(v) => setNewRole(v as any)}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="admin">Administrador (Total)</SelectItem>
+                                <SelectItem value="waiter">Garçom (Operação)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancelar</Button>
+                        <Button onClick={handleUpdateRole}>Salvar</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }
 
@@ -280,21 +328,21 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
         <div className="space-y-6">
             <Alert variant="default" className="bg-primary/5 border-primary/20">
                 <AlertCircle className="h-4 w-4 text-primary" />
-                <AlertTitle>Dica de Configuração Profissional</AlertTitle>
+                <AlertTitle>Configuração Profissional</AlertTitle>
                 <AlertDescription>
-                    Configure suas impressoras reais aqui. Use o <strong>Endereço IP</strong> para impressoras de rede ou o <strong>Nome no Windows</strong> para impressoras USB/Locais.
+                    Configure suas impressoras reais para imprimir comandos automaticamente em cada setor.
                 </AlertDescription>
             </Alert>
 
             <Card>
                 <CardHeader>
                     <CardTitle>Setores de Impressão</CardTitle>
-                    <CardDescription>Defina os locais de produção (ex: Cozinha, Bar, Churrasqueira).</CardDescription>
+                    <CardDescription>Defina locais como Cozinha, Bar, Churrasqueira.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="flex gap-2">
                         <Input placeholder="Ex: Cozinha" value={newSector} onChange={e => setNewSector(e.target.value)} />
-                        <Button onClick={handleAddSector}><PlusCircle className="mr-2 h-4 w-4" /> Adicionar Setor</Button>
+                        <Button onClick={handleAddSector}><PlusCircle className="mr-2 h-4 w-4" /> Adicionar</Button>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         {sectors?.map(s => (
@@ -305,7 +353,6 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                                 </button>
                             </Badge>
                         ))}
-                        {sectors?.length === 0 && <p className="text-sm text-muted-foreground italic">Cadastre ao menos um setor para gerenciar suas impressoras.</p>}
                     </div>
                 </CardContent>
             </Card>
@@ -313,12 +360,12 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                     <div>
-                        <CardTitle>Minhas Impressoras</CardTitle>
-                        <CardDescription>Dispositivos configurados para impressão automática de comandos.</CardDescription>
+                        <CardTitle>Impressoras Reais</CardTitle>
+                        <CardDescription>Dispositivos físicos vinculados ao sistema.</CardDescription>
                     </div>
                     <Button variant="outline" size="sm" onClick={() => setIsDialogOpen(true)}>
                         <PlusCircle className="mr-2 h-4 w-4" />
-                        Nova Impressora
+                        Cadastrar Impressora
                     </Button>
                 </CardHeader>
                 <CardContent>
@@ -342,7 +389,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                                     <TableCell>
                                         <div className="flex items-center gap-2 text-xs capitalize">
                                             {getConnectionIcon(p.connectionType)}
-                                            {p.connectionType === 'network' ? 'Rede (IP)' : p.connectionType}
+                                            {p.connectionType}
                                         </div>
                                     </TableCell>
                                     <TableCell className="font-mono text-xs">{p.address}</TableCell>
@@ -350,7 +397,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                                         <div className="flex flex-wrap gap-1">
                                             {p.printSectors.map(sId => {
                                                 const sector = sectors?.find(s => s.id === sId);
-                                                return <Badge key={sId} variant="outline" className="text-[10px] bg-primary/5">{sector?.name || 'Setor'}</Badge>;
+                                                return <Badge key={sId} variant="outline" className="text-[10px]">{sector?.name || 'Setor'}</Badge>;
                                             })}
                                         </div>
                                     </TableCell>
@@ -362,7 +409,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                                 </TableRow>
                             ))}
                             {printers?.length === 0 && (
-                                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground italic">Nenhuma impressora real vinculada ainda.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground italic">Nenhuma impressora configurada.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>
@@ -372,25 +419,21 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="sm:max-w-[500px]">
                     <DialogHeader>
-                        <DialogTitle>Configurar Impressora Real</DialogTitle>
-                        <DialogDescription>
-                            Vincule uma impressora do seu sistema ou rede local.
-                        </DialogDescription>
+                        <DialogTitle>Configurar Impressora</DialogTitle>
+                        <DialogDescription>Vincule uma impressora do seu sistema ou rede local.</DialogDescription>
                     </DialogHeader>
                     
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
-                            <Label>Nome Identificador</Label>
-                            <Input placeholder="Ex: Impressora Térmica Cozinha" value={printerName} onChange={e => setPrinterName(e.target.value)} />
+                            <Label>Nome da Impressora</Label>
+                            <Input placeholder="Ex: Impressora Cozinha" value={printerName} onChange={e => setPrinterName(e.target.value)} />
                         </div>
                         
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label>Meio de Conexão</Label>
+                                <Label>Tipo de Conexão</Label>
                                 <Select value={printerType} onValueChange={(v) => setPrinterType(v as PrinterConnectionType)}>
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="network">Rede (IP)</SelectItem>
                                         <SelectItem value="usb">USB (Local)</SelectItem>
@@ -400,55 +443,38 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                             </div>
                             <div className="space-y-2">
                                 <div className="flex items-center gap-2">
-                                    <Label>{printerType === 'network' ? 'Endereço IP' : 'Nome no Windows'}</Label>
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                                            </TooltipTrigger>
-                                            <TooltipContent className="max-w-[200px] text-xs">
-                                                {printerType === 'network' 
-                                                    ? 'O IP pode ser encontrado na página de teste da impressora (Self-Test).' 
-                                                    : 'O nome deve ser idêntico ao que aparece no Painel de Controle > Dispositivos e Impressoras.'}
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
+                                    <Label>{printerType === 'network' ? 'IP' : 'ID/Nome'}</Label>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Info className="h-3 w-3 text-muted-foreground cursor-pointer" />
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-64 text-xs">
+                                            {printerType === 'network' 
+                                                ? 'O IP pode ser encontrado na página de teste da impressora (Self-Test).' 
+                                                : 'Para USB, use o nome exato no Painel de Controle do Windows.'}
+                                        </PopoverContent>
+                                    </Popover>
                                 </div>
-                                <Input 
-                                    placeholder={printerType === 'network' ? '192.168.1.100' : 'Ex: TM-T20'} 
-                                    value={printerAddress} 
-                                    onChange={e => setPrinterAddress(e.target.value)} 
-                                />
+                                <Input placeholder={printerType === 'network' ? '192.168.1.100' : 'TM-T20'} value={printerAddress} onChange={e => setPrinterAddress(e.target.value)} />
                             </div>
                         </div>
 
                         <div className="space-y-3">
-                            <Label className="text-sm">Vincular aos Setores de Produção</Label>
+                            <Label className="text-sm">Vincular a Setores</Label>
                             <div className="grid grid-cols-2 gap-2">
                                 {sectors?.map(s => (
-                                    <div key={s.id} className="flex items-center space-x-2 border p-2 rounded-md hover:bg-accent transition-colors">
-                                        <Checkbox 
-                                            id={`sector-config-${s.id}`} 
-                                            checked={selectedSectors.includes(s.id)} 
-                                            onCheckedChange={() => toggleSector(s.id)}
-                                        />
-                                        <label htmlFor={`sector-config-${s.id}`} className="text-sm font-medium leading-none cursor-pointer flex-1">
-                                            {s.name}
-                                        </label>
+                                    <div key={s.id} className="flex items-center space-x-2 border p-2 rounded-md">
+                                        <Checkbox id={`s-${s.id}`} checked={selectedSectors.includes(s.id)} onCheckedChange={() => toggleSector(s.id)} />
+                                        <label htmlFor={`s-${s.id}`} className="text-sm font-medium leading-none cursor-pointer flex-1">{s.name}</label>
                                     </div>
                                 ))}
-                                {sectors?.length === 0 && (
-                                    <p className="text-xs text-destructive col-span-2 italic">⚠️ Cadastre os setores primeiro na tela anterior.</p>
-                                )}
                             </div>
                         </div>
                     </div>
 
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => { setIsDialogOpen(false); resetPrinterForm(); }}>Cancelar</Button>
-                        <Button onClick={handleSavePrinter} disabled={!printerName || !printerAddress}>
-                            Salvar Configuração
-                        </Button>
+                        <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+                        <Button onClick={handleSavePrinter} disabled={!printerName || !printerAddress}>Salvar</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -461,17 +487,7 @@ export default function SettingsPage() {
 
     if (isLoading) return <div className="p-8"><Skeleton className="h-screen w-full" /></div>;
 
-    if (!hasRestaurant) {
-        return (
-            <div className="flex flex-col h-screen bg-background">
-                <AppHeader><SidebarTrigger className="md:hidden" /><h1 className="text-xl font-semibold">Configurações</h1></AppHeader>
-                <main className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-                    <p className="text-xl mb-4 text-muted-foreground">Você ainda não possui um restaurante vinculado.</p>
-                    <Button asChild><a href="/register">Criar meu Restaurante</a></Button>
-                </main>
-            </div>
-        )
-    }
+    if (!hasRestaurant) return <div className="p-8 text-center">Nenhum restaurante vinculado.</div>;
 
     return (
         <div className="flex flex-col h-screen bg-background">

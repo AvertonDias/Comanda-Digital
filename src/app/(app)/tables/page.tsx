@@ -20,7 +20,6 @@ export default function TablesPage() {
 
     const tablesQuery = useMemoFirebase(() => {
         if (!restaurantId || !firestore) return null;
-        // Adicionada ordenação alfabética por nome
         return query(
             collection(firestore, `restaurants/${restaurantId}/tables`), 
             orderBy('name', 'asc')
@@ -72,9 +71,7 @@ export default function TablesPage() {
                         <TableCard key={table.id} table={table} />
                     ))}
                     {tables?.length === 0 && (
-                        <p className="col-span-full text-center text-muted-foreground py-12">
-                            Nenhuma mesa cadastrada. Use o botão no topo para criar uma.
-                        </p>
+                        <p className="col-span-full text-center text-muted-foreground py-12">Nenhuma mesa cadastrada.</p>
                     )}
                 </div>
             </main>
