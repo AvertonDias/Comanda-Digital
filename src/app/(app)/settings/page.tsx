@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AppHeader } from "@/components/layout/app-header";
@@ -7,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, User as UserIcon, PlusCircle, Trash2, Printer as PrinterIcon } from "lucide-react";
+import { Shield, User as UserIcon, PlusCircle, Trash2, Printer as PrinterIcon, Search } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -187,7 +188,6 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
     const firestore = useFirestore();
     const { toast } = useToast();
     const [newSector, setNewSector] = useState('');
-    const [isAddingPrinter, setIsAddingPrinter] = useState(false);
     
     const sectorsQuery = useMemoFirebase(() => query(collection(firestore, `restaurants/${restaurantId}/printSectors`)), [firestore, restaurantId]);
     const printersQuery = useMemoFirebase(() => query(collection(firestore, `restaurants/${restaurantId}/printers`)), [firestore, restaurantId]);
@@ -245,8 +245,8 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                         <CardTitle>Impressoras</CardTitle>
                         <CardDescription>Gerencie as impressoras térmicas da sua rede.</CardDescription>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => toast({ title: "Função em breve", description: "Configuração manual de IP disponível em breve." })}>
-                        <PlusCircle className="mr-2 h-4 w-4" /> Nova Impressora
+                    <Button variant="outline" size="sm" onClick={() => toast({ title: "Buscando...", description: "Procurando impressoras na rede local." })}>
+                        <Search className="mr-2 h-4 w-4" /> procurar impressoras instaladas
                     </Button>
                 </CardHeader>
                 <CardContent>

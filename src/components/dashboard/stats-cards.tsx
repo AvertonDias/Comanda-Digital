@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, Users, CreditCard, Activity } from 'lucide-react';
 
@@ -5,25 +6,25 @@ const stats = [
     {
         title: "Faturamento Hoje",
         value: "R$ 0,00",
-        change: "Aguardando vendas",
+        change: "Sem vendas hoje",
         icon: DollarSign,
     },
     {
         title: "Clientes Hoje",
         value: "0",
-        change: "Nenhum cliente registrado",
+        change: "Aguardando clientes",
         icon: Users,
     },
     {
         title: "Novos Pedidos",
         value: "0",
-        change: "Nenhum pedido hoje",
+        change: "Sem novos pedidos",
         icon: CreditCard,
     },
     {
         title: "Mesas Ativas",
         value: "0",
-        change: "Nenhuma mesa ocupada",
+        change: "Todas as mesas livres",
         icon: Activity,
     },
 ]
