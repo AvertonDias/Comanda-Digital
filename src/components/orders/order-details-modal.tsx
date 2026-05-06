@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -15,7 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import type { Order, OrderStatus, Restaurant } from "@/lib/types";
+import type { Order, OrderStatus, Restaurant, SplitPaymentPart } from "@/lib/types";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ArrowRight, ChefHat, Bike, ShoppingBag, Trash2, QrCode, Copy, Check, Users, Minus, Plus, Wallet, CreditCard, Banknote, ListChecks, DollarSign, UserPlus } from "lucide-react";
@@ -85,6 +86,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const [paidPartsCount, setPaidPartsCount] = useState(0);
     const [accumulatedPaid, setAccumulatedPaid] = useState(0);
     const [currentPartAmount, setCurrentPartAmount] = useState<number>(0);
+    const [recordedSplitParts, setRecordedSplitParts] = useState<SplitPaymentPart[]>([]);
     
     // Controle de Itens Pendentes
     const [itemsBalance, setItemsBalance] = useState<any[]>([]);
@@ -110,6 +112,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
             setPeopleCount(2);
             setPaidPartsCount(0);
             setAccumulatedPaid(0);
+            setRecordedSplitParts([]);
             setSelectedItemsForPart({});
             setItemsBalance(order.items.map((item, idx) => ({ ...item, originalIndex: idx, remainingQty: item.quantity })));
         }
@@ -150,11 +153,23 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
 
     const displayOrderNumber = order.orderNumber?.toString().padStart(3, '0') || '000';
     const isFinalizing = order.status === 'pronto';
-    const isFullyPaid = accumulatedPaid >= (order?.total || 0) - 0.01;
+    const isFullyPaid = accumulatedPaid >= (order?.total || 0) - 0.05;
 
     const handleRegisterPart = () => {
         if (!paymentMethod) return toast({ variant: "destructive", title: "Selecione o pagamento" });
         if (currentPartAmount <= 0 || currentPartAmount > remainingBalance + 0.05) return toast({ variant: "destructive", title: "Valor inválido" });
+
+        const newPart: SplitPaymentPart = {
+            part: paidPartsCount + 1,
+            amount: currentPartAmount,
+            method: paymentMethod,
+            items: splitMode === 'items' ? Object.entries(selectedItemsForPart)
+                .filter(([_, qty]) => qty > 0)
+                .map(([idx, qty]) => ({
+                    name: itemsBalance[Number(idx)].name,
+                    quantity: qty
+                })) : undefined
+        };
 
         // Se dividiu por itens, atualiza o que falta pagar
         if (splitMode === 'items') {
@@ -165,6 +180,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
             setSelectedItemsForPart({});
         }
 
+        setRecordedSplitParts(prev => [...prev, newPart]);
         setAccumulatedPaid(prev => prev + currentPartAmount);
         setPaidPartsCount(prev => prev + 1);
         setPaymentMethod(null);
@@ -436,7 +452,13 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                         'finalizado': 'finalizado',
                                         'cancelado': 'cancelado'
                                     };
-                                    onStatusChange(order.id, nextStatusMap[order.status], isFinalizing ? { paymentMethod: isSplitting ? 'multiplos' : paymentMethod } : {});
+
+                                    const finalData: any = isFinalizing ? { 
+                                        paymentMethod: isSplitting ? 'multiplos' : paymentMethod,
+                                        splitPayments: isSplitting ? recordedSplitParts : null
+                                    } : {};
+
+                                    onStatusChange(order.id, nextStatusMap[order.status], finalData);
                                 }}
                                 disabled={isFinalizing && (isSplitting ? !isFullyPaid : !paymentMethod)}
                             >

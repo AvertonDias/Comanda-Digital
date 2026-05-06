@@ -95,6 +95,13 @@ export type OrderItem = {
   addons?: OrderItemAddon[];
 };
 
+export type SplitPaymentPart = {
+    part: number;
+    amount: number;
+    method: string;
+    items?: { name: string; quantity: number }[];
+};
+
 export type Order = {
   id: string;
   orderNumber?: number;
@@ -111,6 +118,7 @@ export type Order = {
   origin: 'mesa' | 'whatsapp' | 'balcao' | 'telefone';
   destination: 'local' | 'retirada' | 'entrega';
   paymentMethod?: string;
+  splitPayments?: SplitPaymentPart[];
   createdAt: any;
   closedAt?: any;
 };
@@ -135,6 +143,14 @@ export type Table = {
   qrCodeUrl: string;
   currentOrderId?: string;
 };
+
+export type TableHistory = {
+    id: string;
+    tableId: string;
+    orderId: string;
+    status: 'opened' | 'closed';
+    timestamp: any;
+}
 
 export type Customer = {
   id: string;

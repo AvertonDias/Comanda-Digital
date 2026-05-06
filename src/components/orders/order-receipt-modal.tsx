@@ -1,3 +1,4 @@
+
 'use client';
 import {
     Dialog,
@@ -7,7 +8,7 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Printer, Share2, CheckCircle2, X, MessageCircle } from "lucide-react";
+import { Printer, Share2, CheckCircle2, X, MessageCircle, Info } from "lucide-react";
 import type { Order, Restaurant } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -31,22 +32,37 @@ export function OrderReceiptModal({
     const orderNum = order.orderNumber?.toString().padStart(3, '0') || order.id.slice(-4).toUpperCase();
 
     const getReceiptText = () => {
-        return `
+        let text = `
 🧾 *${restaurant?.name || 'Recibo de Venda'}*
 📌 Pedido #${orderNum}
 📅 ${format(new Date(), "dd/MM/yy HH:mm")}
 ---
 ${order.items.map(i => `${i.quantity}x ${i.name} - R$ ${(i.priceAtOrder * i.quantity).toFixed(2)}`).join('\n')}
----
+---`;
+
+        if (order.splitPayments && order.splitPayments.length > 0) {
+            text += `\n📊 *RESUMO DA DIVISÃO:*`;
+            order.splitPayments.forEach(p => {
+                text += `\n👤 *Parte ${p.part}: R$ ${p.amount.toFixed(2)}* (${p.method.toUpperCase()})`;
+                if (p.items && p.items.length > 0) {
+                    p.items.forEach(item => {
+                        text += `\n  - ${item.quantity}x ${item.name}`;
+                    });
+                }
+            });
+            text += `\n---`;
+        }
+
+        text += `
 💰 *Total: R$ ${order.total.toFixed(2)}*
 💳 Pagamento: ${order.paymentMethod?.toUpperCase() || 'N/A'}
 
 Obrigado pela preferência!
         `.trim();
+        return text;
     };
 
     const handlePrint = () => {
-        // Pequeno atraso para garantir que o DOM está pronto para impressão
         setTimeout(() => {
             window.print();
         }, 100);
@@ -68,11 +84,9 @@ Obrigado pela preferência!
                     text: text,
                 });
             } catch (err) {
-                // Erro ou cancelamento pelo usuário
                 console.log('Compartilhamento cancelado ou falhou', err);
             }
         } else {
-            // Fallback: Copiar para área de transferência
             try {
                 await navigator.clipboard.writeText(text);
                 toast({ 
@@ -99,6 +113,11 @@ Obrigado pela preferência!
                         </div>
                         <DialogTitle className="text-2xl font-black uppercase text-center tracking-tighter">Pedido Finalizado!</DialogTitle>
                         <p className="text-sm text-muted-foreground text-center font-medium">O que deseja fazer com o recibo do pedido #{orderNum}?</p>
+                        {order.splitPayments && (
+                            <Badge variant="secondary" className="mt-2 font-black uppercase text-[10px] gap-2">
+                                <Info className="h-3 w-3" /> Conta Dividida em {order.splitPayments.length} partes
+                            </Badge>
+                        )}
                     </DialogHeader>
 
                     <div className="py-6 space-y-3">
@@ -179,6 +198,24 @@ Obrigado pela preferência!
                         ))}
                     </tbody>
                 </table>
+
+                {order.splitPayments && order.splitPayments.length > 0 && (
+                    <>
+                        <div className="border-t border-black border-dashed my-2" />
+                        <div className="text-[10px] font-bold uppercase mb-2">RESUMO DA DIVISÃO:</div>
+                        {order.splitPayments.map((p, idx) => (
+                            <div key={idx} className="mb-2 pl-2 border-l-2 border-black">
+                                <div className="flex justify-between font-bold">
+                                    <span>PARTE {p.part} ({p.method.toUpperCase()}):</span>
+                                    <span>R$ {p.amount.toFixed(2)}</span>
+                                </div>
+                                {p.items?.map((item, iidx) => (
+                                    <div key={iidx} className="text-[9px] italic">- {item.quantity}x {item.name}</div>
+                                ))}
+                            </div>
+                        ))}
+                    </>
+                )}
 
                 <div className="border-t border-black border-dashed my-2" />
 
