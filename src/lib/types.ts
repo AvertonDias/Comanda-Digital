@@ -1,4 +1,3 @@
-
 export type UserProfile = {
   name: string;
   email: string;
@@ -10,16 +9,6 @@ export type RestaurantUserRole = {
     restaurantId: string;
     role: 'admin' | 'waiter';
     isActive: boolean;
-};
-
-export type RestaurantUser = {
-  id: string; // Corresponds to Firebase Auth UID
-  restaurantId: string;
-  name: string;
-  email: string;
-  role: 'admin' | 'waiter';
-  avatarUrl?: string;
-  isActive: boolean;
 };
 
 export type MenuItemCategory = {
@@ -53,7 +42,6 @@ export type MenuItem = {
   printSectorId: string;
   imageUrl: string;
   imageHint: string;
-  // ingredients: string[]; // This can be added later if needed for filters
 };
 
 export type OrderStatus = 'aberto' | 'preparando' | 'pronto' | 'finalizado' | 'cancelado';
@@ -61,9 +49,9 @@ export type OrderStatus = 'aberto' | 'preparando' | 'pronto' | 'finalizado' | 'c
 export type OrderItem = {
   id: string;
   menuItemId: string;
-  name: string; // Stored at time of order
+  name: string;
   quantity: number;
-  priceAtOrder: number; // Stored at time of order
+  priceAtOrder: number;
   notes?: string;
 };
 
@@ -71,15 +59,15 @@ export type Order = {
   id: string;
   restaurantId: string;
   tableId?: string;
-  tableName?: string; // Denormalized for quick display
+  tableName?: string;
   customerId?: string;
   items: OrderItem[];
   total: number;
   status: OrderStatus;
   origin: 'mesa' | 'whatsapp' | 'balcao' | 'telefone';
   destination: 'local' | 'retirada' | 'entrega';
-  createdAt: any; // Firestore Timestamp
-  closedAt?: any; // Firestore Timestamp
+  createdAt: any;
+  closedAt?: any;
 };
 
 export type TableStatus = 'livre' | 'ocupada' | 'fechando';
@@ -99,5 +87,5 @@ export type Customer = {
   phone: string;
   lastOrderId?: string;
   totalOrders: number;
-  createdAt: any; // Firestore Timestamp
+  createdAt: any;
 };

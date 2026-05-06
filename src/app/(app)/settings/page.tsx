@@ -7,14 +7,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MoreVertical, Shield, User as UserIcon, PlusCircle } from "lucide-react";
+import { Shield, User as UserIcon, PlusCircle, Trash2, Printer as PrinterIcon } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useFirestore, useCollection, useDoc, useMemoFirebase, errorEmitter, FirestorePermissionError } from "@/firebase";
-import { collection, doc, query, where, updateDoc, collectionGroup, addDoc } from "firebase/firestore";
+import { collection, doc, query, where, updateDoc, collectionGroup, addDoc, deleteDoc } from "firebase/firestore";
 import type { UserProfile, RestaurantUserRole, PrintSector, Printer } from "@/lib/types";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -50,7 +49,7 @@ function ProfileTab({ restaurantId }: { restaurantId: string }) {
     }, [restaurantData, reset]);
 
     const onSubmit = (data: ProfileFormData) => {
-        updateDoc(restaurantRef, data).catch(async (error) => {
+        updateDoc(restaurantRef, data).catch(async () => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: restaurantRef.path,
                 operation: 'update',
@@ -76,7 +75,7 @@ function ProfileTab({ restaurantId }: { restaurantId: string }) {
                         {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="restaurantPhone">Telefone</Label>
+                        <Label htmlFor="restaurantPhone">Telefone de Contato</Label>
                         <Input id="restaurantPhone" {...register("phone")} />
                     </div>
                     <div className="flex justify-end pt-2">
@@ -96,16 +95,14 @@ function UserRow({ userRole }: { userRole: RestaurantUserRole }) {
 
     const handleStatusChange = (isActive: boolean) => {
         const userRoleRef = doc(firestore, `users/${userRole.userId}/restaurantRoles/${userRole.restaurantId}`);
-        const updateData = { isActive };
-        
-        updateDoc(userRoleRef, updateData).catch(async (error) => {
+        updateDoc(userRoleRef, { isActive }).catch(async () => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: userRoleRef.path,
                 operation: 'update',
-                requestResourceData: updateData
+                requestResourceData: { isActive }
             }));
         });
-        toast({ title: "Status atualizado." });
+        toast({ title: isActive ? "Usuário ativado." : "Usuário inativado." });
     };
 
     if (isLoading) {
@@ -140,15 +137,7 @@ function UserRow({ userRole }: { userRole: RestaurantUserRole }) {
                 <Switch checked={userRole.isActive} onCheckedChange={handleStatusChange} />
             </TableCell>
             <TableCell className="text-right">
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuItem>Editar Permissões</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">Remover Usuário</DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                <Button variant="ghost" size="sm" className="text-destructive">Remover</Button>
             </TableCell>
         </TableRow>
     );
@@ -198,6 +187,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
     const firestore = useFirestore();
     const { toast } = useToast();
     const [newSector, setNewSector] = useState('');
+    const [isAddingPrinter, setIsAddingPrinter] = useState(false);
     
     const sectorsQuery = useMemoFirebase(() => query(collection(firestore, `restaurants/${restaurantId}/printSectors`)), [firestore, restaurantId]);
     const printersQuery = useMemoFirebase(() => query(collection(firestore, `restaurants/${restaurantId}/printers`)), [firestore, restaurantId]);
@@ -208,11 +198,19 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
     const handleAddSector = () => {
         if (!newSector) return;
         const colRef = collection(firestore, `restaurants/${restaurantId}/printSectors`);
-        addDoc(colRef, { name: newSector, restaurantId }).catch(async (error) => {
+        addDoc(colRef, { name: newSector, restaurantId }).catch(async () => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: colRef.path, operation: 'create' }));
         });
         setNewSector('');
         toast({ title: "Setor adicionado." });
+    };
+
+    const handleDeleteSector = (id: string) => {
+        const docRef = doc(firestore, `restaurants/${restaurantId}/printSectors`, id);
+        deleteDoc(docRef).catch(async () => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'delete' }));
+        });
+        toast({ title: "Setor removido." });
     };
 
     return (
@@ -220,47 +218,68 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
             <Card>
                 <CardHeader>
                     <CardTitle>Setores de Impressão</CardTitle>
-                    <CardDescription>Crie setores para direcionar pedidos (ex: Cozinha, Bar).</CardDescription>
+                    <CardDescription>Crie setores para direcionar pedidos (ex: Cozinha, Bar, Pizzaria).</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="flex gap-2">
                         <Input placeholder="Nome do Setor" value={newSector} onChange={e => setNewSector(e.target.value)} />
                         <Button onClick={handleAddSector}><PlusCircle className="mr-2 h-4 w-4" /> Adicionar</Button>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <div className="flex flex-wrap gap-2">
                         {sectors?.map(s => (
-                            <Badge key={s.id} variant="secondary" className="px-3 py-1 flex justify-between gap-2">
+                            <Badge key={s.id} variant="secondary" className="px-3 py-1 flex items-center gap-2">
                                 {s.name}
+                                <button onClick={() => handleDeleteSector(s.id)} className="hover:text-destructive">
+                                    <Trash2 className="h-3 w-3" />
+                                </button>
                             </Badge>
                         ))}
+                        {sectors?.length === 0 && <p className="text-sm text-muted-foreground">Nenhum setor cadastrado.</p>}
                     </div>
                 </CardContent>
             </Card>
 
             <Card>
-                <CardHeader>
-                    <CardTitle>Impressoras</CardTitle>
-                    <CardDescription>Gerencie as impressoras físicas da sua rede.</CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle>Impressoras</CardTitle>
+                        <CardDescription>Gerencie as impressoras térmicas da sua rede.</CardDescription>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => toast({ title: "Função em breve", description: "Configuração manual de IP disponível em breve." })}>
+                        <PlusCircle className="mr-2 h-4 w-4" /> Nova Impressora
+                    </Button>
                 </CardHeader>
                 <CardContent>
                     <Table>
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Nome</TableHead>
-                                <TableHead>IP</TableHead>
+                                <TableHead>Endereço IP</TableHead>
+                                <TableHead>Setores</TableHead>
                                 <TableHead>Status</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {printers?.map(p => (
                                 <TableRow key={p.id}>
-                                    <TableCell className="font-medium">{p.name}</TableCell>
+                                    <TableCell className="font-medium flex items-center gap-2">
+                                        <PrinterIcon className="h-4 w-4 text-muted-foreground" />
+                                        {p.name}
+                                    </TableCell>
                                     <TableCell>{p.ipAddress}</TableCell>
+                                    <TableCell>
+                                        <div className="flex flex-wrap gap-1">
+                                            {p.printSectors.map(sId => {
+                                                const sector = sectors?.find(s => s.id === sId);
+                                                return <Badge key={sId} variant="outline" className="text-[10px]">{sector?.name || sId}</Badge>;
+                                            })}
+                                        </div>
+                                    </TableCell>
                                     <TableCell><Badge variant={p.isActive ? "default" : "outline"}>{p.isActive ? "Online" : "Offline"}</Badge></TableCell>
                                 </TableRow>
                             ))}
                             {printers?.length === 0 && (
-                                <TableRow><TableCell colSpan={3} className="text-center py-4 text-muted-foreground">Nenhuma impressora configurada.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Nenhuma impressora configurada.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>
