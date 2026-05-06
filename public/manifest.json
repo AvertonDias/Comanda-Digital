@@ -1,0 +1,23 @@
+{
+  "name": "Comanda Digital",
+  "short_name": "Comanda",
+  "description": "Sistema de cardápio digital e gestão de pedidos para restaurantes.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f1f5f9",
+  "theme_color": "#15803d",
+  "icons": [
+    {
+      "src": "https://picsum.photos/seed/comanda-icon-192/192/192",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://picsum.photos/seed/comanda-icon-512/512/512",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
