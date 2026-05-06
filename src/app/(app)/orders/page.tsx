@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AppHeader } from "@/components/layout/app-header";
@@ -13,14 +12,24 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, X } from "lucide-react";
 import { useRestaurant } from "@/hooks/use-restaurant";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSearchParams, useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
 
-export default function OrdersPage() {
+function OrdersContent() {
   const { restaurantId, isLoading } = useRestaurant();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  
+  const tableId = searchParams.get('tableId');
+  
+  const clearFilter = () => {
+    router.push('/orders');
+  };
 
   if (isLoading) {
     return (
@@ -40,7 +49,17 @@ export default function OrdersPage() {
     <div className="flex flex-col h-screen bg-background">
       <AppHeader>
         <SidebarTrigger className="md:hidden" />
-        <h1 className="text-xl font-semibold">Pedidos</h1>
+        <div className="flex items-center gap-3">
+            <h1 className="text-xl font-semibold">Pedidos</h1>
+            {tableId && (
+                <Badge variant="secondary" className="gap-2 px-3 py-1">
+                    Filtro: Mesa
+                    <Button variant="ghost" size="icon" className="h-4 w-4 p-0" onClick={clearFilter}>
+                        <X className="h-3 w-3" />
+                    </Button>
+                </Badge>
+            )}
+        </div>
         <div className="ml-auto">
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
@@ -55,6 +74,7 @@ export default function OrdersPage() {
               </DialogHeader>
               <CreateOrderForm 
                 restaurantId={restaurantId!} 
+                initialTableId={tableId || undefined}
                 onSuccess={() => setIsDialogOpen(false)} 
               />
             </DialogContent>
@@ -62,8 +82,33 @@ export default function OrdersPage() {
         </div>
       </AppHeader>
       <main className="flex-1 p-4 md:p-6 overflow-hidden">
-        {restaurantId ? <OrderKanbanBoard restaurantId={restaurantId} /> : <p>Erro ao carregar restaurante.</p>}
+        {restaurantId ? (
+            <OrderKanbanBoard 
+                restaurantId={restaurantId} 
+                tableId={tableId || undefined} 
+            />
+        ) : (
+            <p>Erro ao carregar restaurante.</p>
+        )}
       </main>
     </div>
+  );
+}
+
+export default function OrdersPage() {
+  return (
+    <Suspense fallback={
+        <div className="flex flex-col h-screen bg-background">
+            <AppHeader>
+                <SidebarTrigger className="md:hidden" />
+                <h1 className="text-xl font-semibold">Pedidos</h1>
+            </AppHeader>
+            <main className="flex-1 p-4 md:p-6">
+                <Skeleton className="h-full w-full" />
+            </main>
+        </div>
+    }>
+        <OrdersContent />
+    </Suspense>
   );
 }

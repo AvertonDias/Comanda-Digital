@@ -1,6 +1,5 @@
-
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { MenuItem, OrderItem, Table, Order, MenuItemCategory } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -27,10 +26,18 @@ type NewOrderItem = {
     addons?: SelectionAddon[];
 };
 
-export function CreateOrderForm({ restaurantId, onSuccess }: { restaurantId: string, onSuccess: () => void }) {
+export function CreateOrderForm({ 
+    restaurantId, 
+    onSuccess, 
+    initialTableId 
+}: { 
+    restaurantId: string, 
+    onSuccess: () => void,
+    initialTableId?: string
+}) {
     const firestore = useFirestore();
     const { toast } = useToast();
-    const [tableId, setTableId] = useState<string | undefined>(undefined);
+    const [tableId, setTableId] = useState<string | undefined>(initialTableId);
     const [orderItems, setOrderItems] = useState<NewOrderItem[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     
@@ -55,6 +62,13 @@ export function CreateOrderForm({ restaurantId, onSuccess }: { restaurantId: str
     const { data: categories, isLoading: isCatsLoading } = useCollection<MenuItemCategory>(categoriesQuery);
     const { data: items, isLoading: isItemsLoading } = useCollection<MenuItem>(itemsQuery);
     const { data: tables, isLoading: isTablesLoading } = useCollection<Table>(tablesQuery);
+
+    // Ensure tableId stays in sync if initialTableId changes
+    useEffect(() => {
+        if (initialTableId) {
+            setTableId(initialTableId);
+        }
+    }, [initialTableId]);
 
     const handleItemClick = (item: MenuItem) => {
         setSelectedItem(item);

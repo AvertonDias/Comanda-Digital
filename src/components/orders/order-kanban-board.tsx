@@ -1,4 +1,3 @@
-
 'use client';
 import { useState } from 'react';
 import type { Order, OrderStatus } from '@/lib/types';
@@ -11,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '../ui/scroll-area';
 import { OrderDetailsModal } from './order-details-modal';
 import { useFirestore, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, query, doc, updateDoc, orderBy } from 'firebase/firestore';
+import { collection, query, doc, updateDoc, orderBy, where } from 'firebase/firestore';
 import { Skeleton } from '../ui/skeleton';
 
 const STATUS_CONFIG: Record<OrderStatus, { title: string; color: string }> = {
@@ -33,7 +32,7 @@ const OrderCard = ({ order, onDetailsClick }: { order: Order, onDetailsClick: (o
                     <span className="text-sm font-normal text-muted-foreground">#{order.id.slice(-4)}</span>
                 </CardTitle>
                 <CardDescription>
-                    {order.createdAt ? formatDistanceToNow(new Date(order.createdAt.seconds * 1000), { addSuffix: true, locale: ptBR }) : 'Agora mesmo'}
+                    {order.createdAt?.seconds ? formatDistanceToNow(new Date(order.createdAt.seconds * 1000), { addSuffix: true, locale: ptBR }) : 'Agora mesmo'}
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -55,14 +54,21 @@ const OrderCard = ({ order, onDetailsClick }: { order: Order, onDetailsClick: (o
     )
 };
 
-export function OrderKanbanBoard({ restaurantId }: { restaurantId: string }) {
+export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: string, tableId?: string }) {
   const firestore = useFirestore();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   const ordersQuery = useMemoFirebase(() => {
     if (!restaurantId || !firestore) return null;
+    if (tableId) {
+        return query(
+            collection(firestore, `restaurants/${restaurantId}/orders`), 
+            where('tableId', '==', tableId),
+            orderBy('createdAt', 'desc')
+        );
+    }
     return query(collection(firestore, `restaurants/${restaurantId}/orders`), orderBy('createdAt', 'desc'));
-  }, [restaurantId, firestore]);
+  }, [restaurantId, firestore, tableId]);
 
   const { data: orders, isLoading } = useCollection<Order>(ordersQuery);
 

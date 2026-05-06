@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { Table } from "@/lib/types";
@@ -12,6 +11,7 @@ import { useFirestore, errorEmitter, FirestorePermissionError } from "@/firebase
 import { doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { useRestaurant } from "@/hooks/use-restaurant";
+import Link from "next/link";
 import {
     Dialog,
     DialogContent,
@@ -140,10 +140,10 @@ export function TableCard({ table }: TableCardProps) {
                     <div className="flex flex-col gap-1">
                         <p className="text-[10px] text-muted-foreground font-mono uppercase">ID: {table.id.slice(-4)}</p>
                         <Button variant="outline" size="sm" className="h-7 text-[10px] font-bold uppercase gap-1" asChild>
-                            <a href="/orders">
+                            <Link href={`/orders?tableId=${table.id}`}>
                                 <LogIn className="h-3 w-3" />
                                 Comanda
-                            </a>
+                            </Link>
                         </Button>
                     </div>
                     <QrCodeModal table={table} />
