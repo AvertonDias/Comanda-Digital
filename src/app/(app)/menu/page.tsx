@@ -1,8 +1,9 @@
+
 'use client';
 
 import { AppHeader } from '@/components/layout/app-header';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Settings2, Search, Info } from 'lucide-react';
+import { PlusCircle, Settings2, Search, Info, Clock, MapPin } from 'lucide-react';
 import { MenuItemCard } from '@/components/menu/menu-item-card';
 import { MenuItemForm } from '@/components/menu/menu-item-form';
 import { CategoryManager } from '@/components/menu/category-manager';
@@ -48,7 +49,6 @@ export default function MenuPage() {
   const isLoading = isRestLoading || isCatsLoading || isItemsLoading;
   const isAdmin = role === 'admin';
 
-  // Define initial tab when categories load
   useMemo(() => {
     if (categories && categories.length > 0 && !activeTab) {
       setActiveTab(categories[0].id);
@@ -67,14 +67,13 @@ export default function MenuPage() {
     return (
       <div className="flex flex-col h-screen bg-background">
         <AppHeader>
-          <SidebarTrigger className="md:hidden" />
+          <SidebarTrigger />
           <h1 className="text-xl font-semibold">Cardápio</h1>
         </AppHeader>
-        <main className="flex-1 p-4 md:p-6 space-y-4">
+        <main className="flex-1 p-4 space-y-4">
           <Skeleton className="h-40 w-full rounded-xl" />
-          <Skeleton className="h-10 w-full" />
           <div className="space-y-3">
-            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24 w-full" />)}
+            {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-20 w-full" />)}
           </div>
         </main>
       </div>
@@ -82,26 +81,28 @@ export default function MenuPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col min-h-screen bg-background">
       <AppHeader>
         <SidebarTrigger className="md:hidden" />
         <div className="flex flex-col">
-            <h1 className="text-lg font-bold leading-none">{restaurant?.name || 'Cardápio'}</h1>
-            <span className="text-xs text-green-600 font-medium">Aberto agora</span>
+            <h1 className="text-sm font-black uppercase tracking-tight truncate max-w-[150px]">{restaurant?.name || 'Cardápio'}</h1>
+            <div className="flex items-center gap-1">
+                <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-[10px] text-green-600 font-bold uppercase">Aberto</span>
+            </div>
         </div>
         
         {isAdmin && (
           <div className="ml-auto flex gap-2">
             <Dialog open={isCatDialogOpen} onOpenChange={setIsCatDialogOpen}>
               <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="hidden sm:flex">
-                      <Settings2 className="mr-2 h-4 w-4" />
-                      Categorias
+                  <Button variant="outline" size="icon" className="h-8 w-8">
+                      <Settings2 className="h-4 w-4" />
                   </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[500px]">
                   <DialogHeader>
-                      <DialogTitle>Gerenciar Categorias</DialogTitle>
+                      <DialogTitle>Categorias</DialogTitle>
                   </DialogHeader>
                   <CategoryManager restaurantId={restaurantId!} />
               </DialogContent>
@@ -109,14 +110,14 @@ export default function MenuPage() {
 
             <Dialog open={isItemDialogOpen} onOpenChange={setIsItemDialogOpen}>
               <DialogTrigger asChild>
-                  <Button size="sm" disabled={!categories || categories.length === 0}>
-                      <PlusCircle className="mr-2 h-4 w-4" />
-                      Novo Item
+                  <Button size="sm" className="h-8 gap-1 px-2 text-[10px] font-bold uppercase" disabled={!categories || categories.length === 0}>
+                      <PlusCircle className="h-3 w-3" />
+                      Novo
                   </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[625px]">
                   <DialogHeader>
-                      <DialogTitle>Adicionar novo item ao cardápio</DialogTitle>
+                      <DialogTitle>Novo Item</DialogTitle>
                   </DialogHeader>
                   <MenuItemForm 
                       restaurantId={restaurantId!} 
@@ -129,37 +130,27 @@ export default function MenuPage() {
         )}
       </AppHeader>
 
-      <main className="flex-1 overflow-y-auto pb-20">
-        {/* Banner Section */}
-        <div className="bg-primary/5 p-6 border-b">
-            <div className="max-w-4xl mx-auto flex flex-col md:flex-row gap-6 items-center md:items-start text-center md:text-left">
-                <div className="w-24 h-24 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-3xl font-bold shadow-lg">
-                    {restaurant?.name?.charAt(0) || 'R'}
-                </div>
-                <div className="flex-1 space-y-2">
-                    <h2 className="text-2xl font-bold">{restaurant?.name}</h2>
-                    <div className="flex flex-wrap justify-center md:justify-start gap-3 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1"><Info className="h-3 w-3" /> Ver informações</span>
-                        <span>•</span>
-                        <span>Min. R$ 20,00</span>
-                        <span>•</span>
-                        <span>30-50 min</span>
-                    </div>
-                    <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 border-none">
-                        Entrega Grátis
-                    </Badge>
+      <main className="flex-1 pb-24">
+        {/* Banner Slim */}
+        <div className="relative h-32 md:h-48 bg-primary/10 overflow-hidden flex items-center justify-center border-b">
+            <div className="text-center space-y-2 px-4">
+                <h2 className="text-xl md:text-3xl font-black uppercase tracking-tighter">{restaurant?.name}</h2>
+                <div className="flex items-center justify-center gap-3 text-[10px] md:text-xs font-bold uppercase text-muted-foreground">
+                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> 30-45 min</span>
+                    <span>•</span>
+                    <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> Local</span>
                 </div>
             </div>
         </div>
 
-        {/* Search & Categories Bar */}
+        {/* Sticky Search & Nav */}
         <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md border-b">
-            <div className="max-w-4xl mx-auto px-4 py-3 space-y-3">
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <div className="max-w-3xl mx-auto px-4 py-3 space-y-3">
+                <div className="relative group">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                     <Input 
-                        placeholder="Buscar no cardápio..." 
-                        className="pl-9 bg-muted/50 border-none"
+                        placeholder="Buscar pratos ou bebidas..." 
+                        className="pl-9 h-10 bg-muted/50 border-none rounded-full focus-visible:ring-primary text-xs"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
@@ -172,11 +163,12 @@ export default function MenuPage() {
                                 <button
                                     key={cat.id}
                                     onClick={() => setActiveTab(cat.id)}
-                                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                                    className={cn(
+                                        "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all",
                                         activeTab === cat.id 
-                                        ? 'bg-primary text-primary-foreground shadow-sm' 
+                                        ? 'bg-primary text-white shadow-md scale-105' 
                                         : 'bg-muted hover:bg-muted/80 text-muted-foreground'
-                                    }`}
+                                    )}
                                 >
                                     {cat.name}
                                 </button>
@@ -188,18 +180,19 @@ export default function MenuPage() {
             </div>
         </div>
 
-        {/* Menu Items List */}
-        <div className="max-w-4xl mx-auto p-4 space-y-8">
+        {/* List Content */}
+        <div className="max-w-3xl mx-auto p-4 space-y-8">
             {categories?.filter(c => !activeTab || c.id === activeTab || searchQuery).map(category => {
                 const categoryItems = filteredItems.filter(i => i.categoryId === category.id);
                 if (categoryItems.length === 0) return null;
 
                 return (
                     <div key={category.id} className="space-y-4">
-                        <h3 className="text-lg font-bold border-l-4 border-primary pl-3">
+                        <h3 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                            <span className="h-px w-4 bg-primary" />
                             {category.name}
                         </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-1">
                             {categoryItems.map(item => (
                                 <MenuItemCard 
                                     key={item.id} 
@@ -212,17 +205,10 @@ export default function MenuPage() {
                 );
             })}
 
-            {(!categories || categories.length === 0) && (
-                <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
-                    <Settings2 className="h-12 w-12 text-muted-foreground" />
-                    <p className="text-muted-foreground max-w-xs">
-                        Nenhuma categoria cadastrada. Comece configurando as seções do seu cardápio.
-                    </p>
-                    {isAdmin && (
-                        <Button onClick={() => setIsCatDialogOpen(true)}>
-                            Gerenciar Categorias
-                        </Button>
-                    )}
+            {filteredItems.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 opacity-50">
+                    <Search className="h-12 w-12 text-muted-foreground" />
+                    <p className="text-sm font-black uppercase tracking-tighter">Nenhum item encontrado</p>
                 </div>
             )}
         </div>

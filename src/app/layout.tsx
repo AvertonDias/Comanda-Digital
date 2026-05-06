@@ -44,7 +44,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="https://picsum.photos/seed/comanda-icon-192/192/192" />
       </head>
       <body
-        className={cn('font-body antialiased', inter.variable)}
+        className={cn('font-body antialiased selection:bg-primary selection:text-white', inter.variable)}
       >
         <FirebaseClientProvider>
           {children}

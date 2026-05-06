@@ -1,3 +1,4 @@
+
 'use client';
 
 import { cn } from '@/lib/utils';
@@ -10,8 +11,8 @@ export function AppHeader({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-      // Hide header when scrolling down, show when scrolling up.
-      // A threshold (e.g., > 80) prevents hiding on small scrolls near the top.
+      // Esconde o header ao rolar para baixo, mostra ao rolar para cima.
+      // Um limite (e.g., > 80) evita esconder em pequenas rolagens no topo.
       if (currentScrollY > lastScrollY.current && currentScrollY > 80) {
         setIsHeaderVisible(false);
       } else {
@@ -30,7 +31,7 @@ export function AppHeader({ children }: { children: React.ReactNode }) {
   return (
     <header
       className={cn(
-        "sticky top-0 z-30 flex h-16 shrink-0 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-xl transition-transform duration-300 md:px-6",
+        "sticky top-0 z-30 flex h-16 shrink-0 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur-md transition-transform duration-300 md:px-6",
         !isHeaderVisible && '-translate-y-full'
       )}
     >

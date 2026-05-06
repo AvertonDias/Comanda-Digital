@@ -1,3 +1,4 @@
+
 'use client';
 import { useState } from 'react';
 import type { Order, OrderStatus } from '@/lib/types';
@@ -15,8 +16,8 @@ import { Skeleton } from '../ui/skeleton';
 
 const STATUS_CONFIG: Record<OrderStatus, { title: string; color: string }> = {
     'aberto': { title: 'Abertos', color: 'bg-blue-500' },
-    'preparando': { title: 'Em Preparação', color: 'bg-yellow-500' },
-    'pronto': { title: 'Pronto', color: 'bg-green-500' },
+    'preparando': { title: 'Preparando', color: 'bg-yellow-500' },
+    'pronto': { title: 'Prontos', color: 'bg-green-500' },
     'finalizado': { title: 'Finalizados', color: 'bg-gray-500' },
     'cancelado': { title: 'Cancelados', color: 'bg-red-500' },
 };
@@ -25,30 +26,33 @@ const statusesToShow: OrderStatus[] = ['aberto', 'preparando', 'pronto'];
 
 const OrderCard = ({ order, onDetailsClick }: { order: Order, onDetailsClick: (order: Order) => void }) => {
     return (
-        <Card>
-            <CardHeader className='pb-4'>
-                <CardTitle className="text-base flex justify-between items-center">
-                    <span>{order.tableName || `Pedido #${order.id.slice(-4)}`}</span>
-                    <span className="text-sm font-normal text-muted-foreground">#{order.id.slice(-4)}</span>
+        <Card className="active:scale-[0.98] transition-transform">
+            <CardHeader className='p-4 pb-2'>
+                <CardTitle className="text-sm flex justify-between items-center">
+                    <span className="font-black uppercase">{order.tableName || `Balcão #${order.id.slice(-4)}`}</span>
+                    <span className="text-[10px] font-mono text-muted-foreground">#{order.id.slice(-4)}</span>
                 </CardTitle>
-                <CardDescription>
-                    {order.createdAt?.seconds ? formatDistanceToNow(new Date(order.createdAt.seconds * 1000), { addSuffix: true, locale: ptBR }) : 'Agora mesmo'}
+                <CardDescription className="text-[10px] flex items-center gap-1">
+                    {order.createdAt?.seconds ? formatDistanceToNow(new Date(order.createdAt.seconds * 1000), { addSuffix: true, locale: ptBR }) : 'Agora'}
                 </CardDescription>
             </CardHeader>
-            <CardContent>
-                <ul className="space-y-1 text-sm">
-                    {order.items.map((item, idx) => (
-                        <li key={idx} className="flex justify-between">
-                            <span>{item.quantity}x {item.name}</span>
+            <CardContent className="p-4 py-2">
+                <ul className="space-y-1 text-xs">
+                    {order.items.slice(0, 3).map((item, idx) => (
+                        <li key={idx} className="flex justify-between items-center text-muted-foreground">
+                            <span className="truncate">{item.quantity}x {item.name}</span>
                         </li>
                     ))}
+                    {order.items.length > 3 && (
+                        <li className="text-[10px] text-primary font-bold">+ {order.items.length - 3} itens</li>
+                    )}
                 </ul>
             </CardContent>
-            <CardFooter className="flex justify-between items-center">
-                 <span className="text-lg font-bold">
+            <CardFooter className="p-4 pt-0 flex justify-between items-center">
+                 <span className="text-base font-black">
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}
                  </span>
-                 <Button variant="secondary" size="sm" onClick={() => onDetailsClick(order)}>Detalhes</Button>
+                 <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold uppercase" onClick={() => onDetailsClick(order)}>Ver</Button>
             </CardFooter>
         </Card>
     )
@@ -60,27 +64,23 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
 
   const ordersQuery = useMemoFirebase(() => {
     if (!restaurantId || !firestore) return null;
+    let q = collection(firestore, `restaurants/${restaurantId}/orders`);
+    
     if (tableId) {
-        return query(
-            collection(firestore, `restaurants/${restaurantId}/orders`), 
-            where('tableId', '==', tableId),
-            orderBy('createdAt', 'desc')
-        );
+        return query(q, where('tableId', '==', tableId), orderBy('createdAt', 'desc'));
     }
-    return query(collection(firestore, `restaurants/${restaurantId}/orders`), orderBy('createdAt', 'desc'));
+    return query(q, orderBy('createdAt', 'desc'));
   }, [restaurantId, firestore, tableId]);
 
   const { data: orders, isLoading } = useCollection<Order>(ordersQuery);
 
   const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
     const orderRef = doc(firestore, `restaurants/${restaurantId}/orders/${orderId}`);
-    const updateData = { status: newStatus };
-    
-    updateDoc(orderRef, updateData).catch(async (error) => {
+    updateDoc(orderRef, { status: newStatus }).catch(async () => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: orderRef.path,
             operation: 'update',
-            requestResourceData: updateData
+            requestResourceData: { status: newStatus }
         }));
     });
     setSelectedOrder(null);
@@ -93,28 +93,29 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
   if (isLoading) return <Skeleton className="h-full w-full" />;
 
   return (
-    <>
+    <div className="flex flex-col h-full -mx-4 md:mx-0">
       <Tabs defaultValue={statusesToShow[0]} className="w-full h-full flex flex-col">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-3 bg-muted/50 rounded-none h-12 sticky top-0 z-10 px-4">
               {statusesToShow.map(status => (
-                   <TabsTrigger key={status} value={status} className="flex items-center gap-2">
-                      <span className="hidden sm:inline">{STATUS_CONFIG[status].title}</span>
-                      <span className="sm:hidden capitalize">{status}</span>
-                      <Badge className={`${STATUS_CONFIG[status].color} hover:${STATUS_CONFIG[status].color} text-white`}>
+                   <TabsTrigger key={status} value={status} className="flex items-center gap-1.5 data-[state=active]:bg-background text-[10px] uppercase font-bold tracking-tight">
+                      {STATUS_CONFIG[status].title}
+                      <Badge className={`${STATUS_CONFIG[status].color} hover:${STATUS_CONFIG[status].color} text-[8px] h-4 w-4 p-0 flex items-center justify-center text-white border-none`}>
                           {getOrdersCount(status)}
                       </Badge>
                    </TabsTrigger>
               ))}
           </TabsList>
           {statusesToShow.map(status => (
-              <TabsContent key={status} value={status} className="mt-4 flex-1 min-h-0">
-                   <ScrollArea className="h-full">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-1">
+              <TabsContent key={status} value={status} className="mt-0 flex-1 min-h-0">
+                   <ScrollArea className="h-full px-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 py-4">
                           {orders?.filter(o => o.status === status).map(order => (
                               <OrderCard key={order.id} order={order} onDetailsClick={setSelectedOrder} />
                           ))}
                           {getOrdersCount(status) === 0 && (
-                             <p className="col-span-full text-center text-muted-foreground py-12">Nenhum pedido neste status.</p>
+                             <div className="col-span-full flex flex-col items-center justify-center py-20 text-center opacity-40">
+                                <p className="text-sm font-black uppercase">Nenhum pedido {status}</p>
+                             </div>
                           )}
                       </div>
                    </ScrollArea>
@@ -127,6 +128,6 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
         onOpenChange={(isOpen) => { if (!isOpen) setSelectedOrder(null) }}
         onStatusChange={handleStatusChange}
       />
-    </>
+    </div>
   );
 }
