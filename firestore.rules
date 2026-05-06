@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -9,6 +10,7 @@ service cloud.firestore {
     }
 
     // Verifica se o usuário logado tem um papel ativo no restaurante
+    // Corrigido para ser mais robusto e evitar erros de permissão em consultas
     function isRestaurantStaff(restaurantId) {
       return isSignedIn() && (
         exists(/databases/$(database)/documents/users/$(request.auth.uid)/restaurantRoles/$(restaurantId))
@@ -22,21 +24,22 @@ service cloud.firestore {
       allow write: if isSignedIn() && request.auth.uid == userId;
 
       match /restaurantRoles/{restaurantId} {
-        allow read: if isSignedIn();
+        allow read: if isSignedIn() && (request.auth.uid == userId || isRestaurantStaff(restaurantId));
         allow write: if isSignedIn() && (request.auth.uid == userId || isRestaurantStaff(restaurantId));
       }
     }
 
     // Regra para consultas de grupo (collectionGroup)
-    // Permite que o usuário liste seus próprios papéis ou veja papéis do seu restaurante se for staff
+    // Permite que o sistema identifique o restaurante do usuário com segurança
     match /{path=**}/restaurantRoles/{roleId} {
-      allow list: if isSignedIn();
-      allow read: if isSignedIn() && (request.auth.uid == resource.data.userId || isRestaurantStaff(resource.data.restaurantId));
-      allow write: if isSignedIn() && (request.auth.uid == resource.data.userId || isRestaurantStaff(resource.data.restaurantId));
+      allow list: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid || isRestaurantStaff(resource.data.restaurantId));
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isRestaurantStaff(resource.data.restaurantId));
     }
 
     match /restaurants/{restaurantId} {
+      // Permite criar um restaurante se estiver logado
       allow create: if isSignedIn();
+      // Nivelando o acesso: staff tem acesso total operacional
       allow read, write: if isRestaurantStaff(restaurantId);
 
       match /{allSubcollections=**} {

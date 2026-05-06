@@ -1,3 +1,4 @@
+
 'use client';
 import { useState } from 'react';
 import type { MenuItem, OrderItem, Table, Order, MenuItemCategory } from '@/lib/types';
@@ -65,7 +66,7 @@ export function CreateOrderForm({ restaurantId, onSuccess }: { restaurantId: str
     const total = orderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
     const handleCreateOrder = () => {
-        if (orderItems.length === 0 || isSubmitting) return;
+        if (orderItems.length === 0 || isSubmitting || !restaurantId) return;
         setIsSubmitting(true);
         const selectedTable = tables?.find(t => t.id === tableId);
         

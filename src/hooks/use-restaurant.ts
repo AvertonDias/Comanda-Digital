@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
@@ -6,16 +7,17 @@ import { useMemo } from "react";
 import type { RestaurantUserRole } from "@/lib/types";
 
 /**
- * Hook para obter o restaurante ativo do usuário.
- * Utiliza o caminho direto da subcoleção para evitar erros de permissionamento em collectionGroup iniciais.
+ * Hook blindado para obter o restaurante ativo do usuário.
+ * Evita queries com undefined e sincroniza com o estado de autenticação.
  */
 export function useRestaurant() {
-    const { user, isUserLoading } = useUser();
+    const { user, isUserLoading: isAuthLoading } = useUser();
     const firestore = useFirestore();
 
     const rolesQuery = useMemoFirebase(() => {
+        // Se não houver usuário ou firestore, retornamos null explicitamente
         if (!user || !firestore) return null;
-        // Consulta os papéis diretamente na subcoleção do usuário
+        // Consulta os papéis diretamente na subcoleção do usuário para maior segurança
         return query(collection(firestore, `users/${user.uid}/restaurantRoles`));
     }, [user, firestore]);
 
@@ -23,8 +25,14 @@ export function useRestaurant() {
 
     const restaurantInfo = useMemo(() => {
         if (!roles || roles.length === 0) return null;
-        // Prioriza admin, senão pega o primeiro ativo
-        const activeRole = roles.find(r => r.role === 'admin' && r.isActive) || roles.find(r => r.isActive) || roles[0];
+        
+        // Prioriza admin ativo, senão pega o primeiro papel ativo disponível
+        const activeRole = roles.find(r => r.role === 'admin' && r.isActive) || 
+                          roles.find(r => r.isActive) || 
+                          roles[0];
+        
+        if (!activeRole?.restaurantId) return null;
+
         return {
             id: activeRole.restaurantId,
             role: activeRole.role,
@@ -32,9 +40,9 @@ export function useRestaurant() {
     }, [roles]);
 
     return { 
-        restaurantId: restaurantInfo?.id, 
-        role: restaurantInfo?.role,
-        isLoading: isUserLoading || areRolesLoading,
-        hasRestaurant: !!restaurantInfo
+        restaurantId: restaurantInfo?.id || null, 
+        role: restaurantInfo?.role || null,
+        isLoading: isAuthLoading || areRolesLoading,
+        hasRestaurant: !!restaurantInfo?.id
     };
 }
