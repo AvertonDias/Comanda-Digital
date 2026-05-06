@@ -1,3 +1,4 @@
+
 'use client';
 import { useState } from 'react';
 import type { Order, OrderStatus, Restaurant } from '@/lib/types';
@@ -87,37 +88,50 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
 
   const { data: orders, isLoading } = useCollection<Order>(ordersQuery);
 
-  const handleStatusChange = (orderId: string, newStatus: OrderStatus, extraData: any = {}) => {
-    const orderRef = doc(firestore, `restaurants/${restaurantId}/orders/${orderId}`);
+  const handleStatusChange = (orderIds: string | string[], newStatus: OrderStatus, extraData: any = {}) => {
+    const ids = Array.isArray(orderIds) ? orderIds : [orderIds];
     
-    // Captura o objeto atual do pedido antes da atualização para o recibo
-    const currentOrder = orders?.find(o => o.id === orderId);
-
-    const updatePayload = { 
-        status: newStatus, 
-        ...extraData 
-    };
-
+    // Captura os dados para o recibo antes da atualização
+    let mergedOrderForReceipt: any = null;
     if (newStatus === 'finalizado') {
-        updatePayload.closedAt = serverTimestamp();
+        const selectedOrders = orders?.filter(o => ids.includes(o.id)) || [];
+        if (selectedOrders.length > 0) {
+            mergedOrderForReceipt = {
+                ...selectedOrders[0],
+                id: ids.join('_'),
+                items: selectedOrders.flatMap(o => o.items),
+                total: selectedOrders.reduce((acc, o) => acc + o.total, 0),
+                status: 'finalizado',
+                paymentMethod: extraData.paymentMethod,
+                splitPayments: extraData.splitPayments,
+                closedAt: serverTimestamp()
+            };
+        }
     }
 
-    updateDoc(orderRef, updatePayload).then(() => {
-        if (newStatus === 'finalizado' && currentOrder) {
-            // Mescla os dados atuais com a atualização para garantir que o modal de recibo tenha tudo
-            setLastFinalizedOrder({ 
-                ...currentOrder, 
-                ...updatePayload,
-                paymentMethod: extraData.paymentMethod || currentOrder.paymentMethod 
-            });
+    const batchPromises = ids.map(id => {
+        const orderRef = doc(firestore, `restaurants/${restaurantId}/orders/${id}`);
+        const updatePayload = { 
+            status: newStatus, 
+            ...extraData 
+        };
+        if (newStatus === 'finalizado') {
+            updatePayload.closedAt = serverTimestamp();
         }
-    }).catch(async () => {
+        return updateDoc(orderRef, updatePayload);
+    });
+
+    Promise.all(batchPromises).then(() => {
+        if (newStatus === 'finalizado' && mergedOrderForReceipt) {
+            setLastFinalizedOrder(mergedOrderForReceipt);
+        }
+    }).catch(async (error) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: orderRef.path,
+            path: `restaurants/${restaurantId}/orders`,
             operation: 'update',
-            requestResourceData: updatePayload
         }));
     });
+    
     setSelectedOrder(null);
   };
 

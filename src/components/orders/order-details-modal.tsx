@@ -24,7 +24,7 @@ import { ptBR } from "date-fns/locale";
 import { ArrowRight, ChefHat, Bike, ShoppingBag, Trash2, QrCode, Copy, Check, Users, Minus, Plus, Wallet, CreditCard, Banknote, ListChecks, DollarSign, UserPlus, Search, ChevronLeft } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, updateDoc, arrayUnion, increment, query, collection, orderBy } from "firebase/firestore";
+import { doc, updateDoc, arrayUnion, increment, query, collection, orderBy, where } from "firebase/firestore";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
@@ -34,7 +34,7 @@ type OrderDetailsModalProps = {
     order: Order | null;
     isOpen: boolean;
     onOpenChange: (isOpen: boolean) => void;
-    onStatusChange: (orderId: string, newStatus: OrderStatus, extraData?: any) => void;
+    onStatusChange: (orderIds: string | string[], newStatus: OrderStatus, extraData?: any) => void;
 };
 
 const STATUS_CONFIG: Record<OrderStatus, { title: string; color: string }> = {
@@ -105,6 +105,35 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const [selectedMenuCategoryId, setSelectedMenuCategoryId] = useState<string | null>(null);
     const [selectedItemToAdd, setSelectedItemToAdd] = useState<MenuItem | null>(null);
 
+    // BUSCA DE PEDIDOS RELACIONADOS (AGRUPAMENTO POR MESA)
+    const relatedOrdersQuery = useMemoFirebase(() => {
+        if (!order?.tableId || !order?.restaurantId || !firestore) return null;
+        return query(
+            collection(firestore, `restaurants/${order.restaurantId}/orders`),
+            where('tableId', '==', order.tableId),
+            where('status', 'in', ['aberto', 'preparando', 'pronto'])
+        );
+    }, [order?.tableId, order?.restaurantId, firestore, isOpen]);
+
+    const { data: relatedOrders } = useCollection<Order>(relatedOrdersQuery);
+
+    const allGroupedOrders = useMemo(() => {
+        if (!order) return [];
+        if (!relatedOrders || relatedOrders.length === 0) return [order];
+        // Garante que o pedido atual está na lista e evita duplicatas
+        const list = [...relatedOrders];
+        if (!list.some(o => o.id === order.id)) list.push(order);
+        return list;
+    }, [relatedOrders, order]);
+
+    const combinedTotal = useMemo(() => {
+        return allGroupedOrders.reduce((acc, curr) => acc + curr.total, 0);
+    }, [allGroupedOrders]);
+
+    const combinedItems = useMemo(() => {
+        return allGroupedOrders.flatMap(o => o.items);
+    }, [allGroupedOrders]);
+
     const restaurantRef = useMemoFirebase(() => order?.restaurantId ? doc(firestore, 'restaurants', order.restaurantId) : null, [firestore, order?.restaurantId]);
     const { data: restaurant } = useDoc<Restaurant>(restaurantRef);
 
@@ -123,9 +152,8 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const { data: items } = useCollection<MenuItem>(itemsQuery);
 
     const remainingBalance = useMemo(() => {
-        if (!order?.total) return 0;
-        return Math.max(0, order.total - accumulatedPaid);
-    }, [order?.total, accumulatedPaid]);
+        return Math.max(0, combinedTotal - accumulatedPaid);
+    }, [combinedTotal, accumulatedPaid]);
 
     // Resetar estados apenas quando abrir um novo pedido
     useEffect(() => {
@@ -141,9 +169,15 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
             setAccumulatedPaid(0);
             setRecordedSplitParts([]);
             setSelectedItemsForPart({});
-            setItemsBalance(order.items.map((item, idx) => ({ ...item, originalIndex: idx, remainingQty: item.quantity })));
         }
     }, [isOpen, order, lastOpenedOrderId]);
+
+    // Atualiza balanço de itens quando os pedidos agrupados mudarem
+    useEffect(() => {
+        if (isOpen) {
+            setItemsBalance(combinedItems.map((item, idx) => ({ ...item, originalIndex: idx, remainingQty: item.quantity })));
+        }
+    }, [combinedItems, isOpen]);
 
     // Resetar seletor de categoria quando o menu extra abrir/fechar
     useEffect(() => {
@@ -167,27 +201,28 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     // Sugere valor por pessoa no modo Valor
     useEffect(() => {
         if (isSplitting && splitMode === 'value' && remainingBalance > 0) {
-            const suggested = paidPartsCount < peopleCount - 1 ? order!.total / peopleCount : remainingBalance;
+            const suggested = paidPartsCount < peopleCount - 1 ? combinedTotal / peopleCount : remainingBalance;
             setCurrentPartAmount(Number(suggested.toFixed(2)));
         }
-    }, [isSplitting, splitMode, remainingBalance, order, peopleCount, paidPartsCount]);
+    }, [isSplitting, splitMode, remainingBalance, combinedTotal, peopleCount, paidPartsCount]);
 
     const txidLabel = isSplitting ? `PEDIDO${order?.orderNumber}P${paidPartsCount + 1}` : `PEDIDO${order?.orderNumber}`;
     const pixPayload = useMemo(() => {
-        const amountToPay = isSplitting ? currentPartAmount : (order?.total || 0);
+        const amountToPay = isSplitting ? currentPartAmount : (combinedTotal || 0);
         if (paymentMethod === 'pix' && restaurant?.pixKey && amountToPay > 0) {
             return generatePixPayload(restaurant.pixKey, amountToPay, restaurant.name || 'Restaurante', txidLabel);
         }
         return null;
-    }, [paymentMethod, restaurant, currentPartAmount, order, isSplitting, txidLabel]);
+    }, [paymentMethod, restaurant, currentPartAmount, combinedTotal, isSplitting, txidLabel]);
 
     const qrCodeUrl = pixPayload ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(pixPayload)}` : null;
 
     if (!order) return null;
 
     const displayOrderNumber = order.orderNumber?.toString().padStart(3, '0') || '000';
-    const isFinalizing = order.status === 'pronto';
-    const isFullyPaid = accumulatedPaid >= (order?.total || 0) - 0.05;
+    const isGrouped = allGroupedOrders.length > 1;
+    const isFinalizing = order.status === 'pronto' || (isGrouped && allGroupedOrders.some(o => o.status === 'pronto'));
+    const isFullyPaid = accumulatedPaid >= (combinedTotal || 0) - 0.05;
 
     const handleRegisterPart = () => {
         if (!paymentMethod) return toast({ variant: "destructive", title: "Selecione o pagamento" });
@@ -256,10 +291,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                 items: arrayUnion(newItem),
                 total: increment(itemTotal)
             });
-            
-            // Atualizar o saldo de itens local se estiver dividindo
-            setItemsBalance(prev => [...prev, { ...newItem, originalIndex: prev.length, remainingQty: newItem.quantity }]);
-            
             toast({ title: "Item adicionado com sucesso!" });
             setSelectedItemToAdd(null);
             setIsMenuOpen(false);
@@ -276,7 +307,16 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                         <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2" onClick={() => onOpenChange(false)}>
                             <ChevronLeft className="h-5 w-5" />
                         </Button>
-                        <DialogTitle className="font-black uppercase tracking-tight text-xl">Pedido #{displayOrderNumber}</DialogTitle>
+                        <div className="flex flex-col">
+                            <DialogTitle className="font-black uppercase tracking-tight text-xl">
+                                {isGrouped ? `Comanda ${order.tableName || 'Mesa'}` : `Pedido #${displayOrderNumber}`}
+                            </DialogTitle>
+                            {isGrouped && (
+                                <span className="text-[9px] font-black text-primary uppercase">
+                                    Agrupando {allGroupedOrders.length} pedidos ativos
+                                </span>
+                            )}
+                        </div>
                     </DialogHeader>
                     
                     <ScrollArea className="flex-1">
@@ -285,15 +325,15 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                             {!isSplitting && (
                                 <div className="grid grid-cols-2 gap-4 text-[10px] font-black uppercase">
                                     <div className="space-y-1">
-                                        <span className="text-muted-foreground">Status</span>
+                                        <span className="text-muted-foreground">Status Geral</span>
                                         <Badge className={`${STATUS_CONFIG[order.status].color} text-white w-full justify-center h-6`}>
-                                            {STATUS_CONFIG[order.status].title}
+                                            {isGrouped ? 'Múltiplos' : STATUS_CONFIG[order.status].title}
                                         </Badge>
                                     </div>
                                     <div className="space-y-1">
-                                        <span className="text-muted-foreground">Valor Total</span>
+                                        <span className="text-muted-foreground">Valor Acumulado</span>
                                         <div className="bg-primary/10 h-6 flex items-center justify-center rounded-full text-primary">
-                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}
+                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(combinedTotal)}
                                         </div>
                                     </div>
                                 </div>
@@ -483,11 +523,11 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                 </div>
                             )}
 
-                            {/* LISTA DE ITENS ORIGINAL (SE NÃO ESTIVER DIVIDINDO) */}
+                            {/* LISTA DE ITENS CONSOLIDADA */}
                             {!isSplitting && (
                                 <div className="space-y-4">
                                     <div className="flex justify-between items-center">
-                                        <p className="font-black text-[10px] uppercase text-muted-foreground">Itens do Pedido</p>
+                                        <p className="font-black text-[10px] uppercase text-muted-foreground">Itens da Sessão (Total Mesa)</p>
                                         {!isFinalizing && (
                                             <Button variant="outline" size="sm" className="h-7 text-[8px] font-black uppercase" onClick={() => setIsMenuOpen(true)}>
                                                 <Plus className="h-3 w-3 mr-1" /> Adicionar
@@ -495,7 +535,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                         )}
                                     </div>
                                     <ul className="space-y-3">
-                                        {order.items.map((item, idx) => (
+                                        {combinedItems.map((item, idx) => (
                                             <li key={idx} className="flex justify-between items-start border-b border-dashed pb-2 last:border-0">
                                                 <div className="flex items-start gap-3">
                                                     <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-white text-[10px] font-black shrink-0">{item.quantity}x</span>
@@ -516,7 +556,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                     <div className="p-6 bg-muted/20 border-t mt-auto">
                         <div className="flex justify-between items-center text-lg font-black uppercase mb-4">
                             <span>Total Comanda</span>
-                            <span className="text-primary">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}</span>
+                            <span className="text-primary">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(combinedTotal)}</span>
                         </div>
 
                         <DialogFooter className="flex-row gap-2">
@@ -545,12 +585,14 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                             splitPayments: isSplitting ? recordedSplitParts : null
                                         } : {};
 
-                                        onStatusChange(order.id, nextStatusMap[order.status], finalData);
+                                        // ENVIA TODOS OS IDS DOS PEDIDOS DA MESA PARA FINALIZAR EM LOTE
+                                        const targetIds = isGrouped ? allGroupedOrders.map(o => o.id) : [order.id];
+                                        onStatusChange(targetIds, nextStatusMap[order.status], finalData);
                                     }}
                                     disabled={isFinalizing && (isSplitting ? !isFullyPaid : !paymentMethod)}
                                 >
                                     {order.status === 'aberto' ? <ChefHat className="mr-2 h-4 w-4" /> : order.status === 'preparando' ? <ShoppingBag className="mr-2 h-4 w-4" /> : <Bike className="mr-2 h-4 w-4" />}
-                                    {order.status === 'aberto' ? 'Marcar Preparando' : order.status === 'preparando' ? 'Marcar Pronto' : 'Finalizar Pedido'}
+                                    {order.status === 'aberto' ? 'Marcar Preparando' : order.status === 'preparando' ? 'Marcar Pronto' : 'Finalizar Mesa'}
                                     <ArrowRight className="ml-auto h-3 w-3"/>
                                 </Button>
                             )}
@@ -559,7 +601,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                 </DialogContent>
             </Dialog>
 
-            {/* Menu para Adicionar Item Extra - Reformulado com Dropdown de Categorias */}
+            {/* Menu para Adicionar Item Extra */}
             <Dialog open={isMenuOpen} onOpenChange={setIsMenuOpen}>
                 <DialogContent className="max-w-full w-full h-[100dvh] sm:h-[80vh] sm:max-w-[450px] p-0 flex flex-col border-none sm:border overflow-hidden">
                     <DialogHeader className="p-4 border-b flex flex-row items-center gap-2 space-y-0">
@@ -569,7 +611,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                         <DialogTitle className="text-sm font-black uppercase">Adicionar Item Extra</DialogTitle>
                     </DialogHeader>
 
-                    {/* SELETOR DE CATEGORIA (MENU SUSPENSO) */}
+                    {/* SELETOR DE CATEGORIA */}
                     <div className="p-4 bg-muted/10 border-b space-y-3">
                         <Label className="text-[10px] font-black uppercase text-muted-foreground">1. Escolha a Categoria</Label>
                         <Select value={selectedMenuCategoryId || ""} onValueChange={setSelectedMenuCategoryId}>
