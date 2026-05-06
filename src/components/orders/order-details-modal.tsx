@@ -15,10 +15,11 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import type { Order, OrderStatus, Restaurant } from "@/lib/types";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowRight, ChefHat, Bike, ShoppingBag, Trash2, MapPin, Phone, User, MessageCircle, CreditCard, Banknote, QrCode, Copy, Check, Users, Minus, Plus } from "lucide-react";
+import { ArrowRight, ChefHat, Bike, ShoppingBag, Trash2, MapPin, Phone, User, MessageCircle, CreditCard, Banknote, QrCode, Copy, Check, Users, Minus, Plus, Wallet } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
@@ -55,9 +56,6 @@ const PAYMENT_METHODS = [
     { id: 'dinheiro', label: 'Dinheiro', icon: Banknote },
 ];
 
-/**
- * Normaliza o texto para o padrão Pix (sem acentos e em maiúsculas)
- */
 function normalizeText(text: string) {
     return text
         .normalize("NFD")
@@ -66,37 +64,30 @@ function normalizeText(text: string) {
         .toUpperCase();
 }
 
-/**
- * Helper to generate a Pix Static Payload (BRCode)
- */
 function generatePixPayload(key: string, amount: number, name: string, txid: string = '***', city: string = 'SAO PAULO') {
     const amountStr = amount.toFixed(2);
     const merchantName = normalizeText(name).slice(0, 25);
     const merchantCity = normalizeText(city).slice(0, 15);
     const cleanTxid = normalizeText(txid).replace(/\s/g, '').slice(0, 25) || '***';
     
-    // Tag 26: Merchant Account Information
     const gui = '0014br.gov.bcb.pix';
     const keyTag = `01${key.length.toString().padStart(2, '0')}${key}`;
     const merchantAccountInfo = `${gui}${keyTag}`;
-
-    // Tag 62: Additional Data Field (TxID)
     const txidTag = `05${cleanTxid.length.toString().padStart(2, '0')}${cleanTxid}`;
 
     const payload = [
-        '000201', // Payload Format Indicator
+        '000201',
         `26${merchantAccountInfo.length.toString().padStart(2, '0')}${merchantAccountInfo}`,
-        '52040000', // Merchant Category Code
-        '5303986', // Transaction Currency (BRL)
-        `54${amountStr.length.toString().padStart(2, '0')}${amountStr}`, // Transaction Amount
-        '5802BR', // Country Code
-        `59${merchantName.length.toString().padStart(2, '0')}${merchantName}`, // Merchant Name
-        `60${merchantCity.length.toString().padStart(2, '0')}${merchantCity}`, // Merchant City
-        `62${txidTag.length.toString().padStart(2, '0')}${txidTag}`, // Additional Data Field (TxID)
-        '6304' // CRC16 Placeholder
+        '52040000',
+        '5303986',
+        `54${amountStr.length.toString().padStart(2, '0')}${amountStr}`,
+        '5802BR',
+        `59${merchantName.length.toString().padStart(2, '0')}${merchantName}`,
+        `60${merchantCity.length.toString().padStart(2, '0')}${merchantCity}`,
+        `62${txidTag.length.toString().padStart(2, '0')}${txidTag}`,
+        '6304'
     ].join('');
 
-    // CRC16 calculation
     let crc = 0xFFFF;
     for (let i = 0; i < payload.length; i++) {
         crc ^= (payload.charCodeAt(i) << 8);
@@ -114,9 +105,14 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const [notifyWhatsApp, setNotifyWhatsApp] = useState(true);
     const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
-    const [peopleCount, setPeopleCount] = useState(1);
-    const [pixAmountMode, setQrMode] = useState<'total' | 'split'>('total');
     
+    // Estados para Divisão de Conta
+    const [isSplitting, setIsSplitting] = useState(false);
+    const [peopleCount, setPeopleCount] = useState(2);
+    const [paidPartsCount, setPaidPartsCount] = useState(0);
+    const [accumulatedPaid, setAccumulatedPaid] = useState(0);
+    const [currentPartAmount, setCurrentPartAmount] = useState<number>(0);
+
     const firestore = useFirestore();
     const { toast } = useToast();
 
@@ -130,20 +126,30 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         ? order.orderNumber.toString().padStart(3, '0') 
         : order?.id.slice(-4).toUpperCase() || '000';
 
-    const splitAmount = useMemo(() => {
+    const remainingBalance = useMemo(() => {
         if (!order?.total) return 0;
-        return order.total / peopleCount;
-    }, [order?.total, peopleCount]);
+        return Math.max(0, order.total - accumulatedPaid);
+    }, [order?.total, accumulatedPaid]);
 
-    const activePixAmount = pixAmountMode === 'split' ? splitAmount : (order?.total || 0);
-    const txidLabel = pixAmountMode === 'split' ? `PEDIDO${displayOrderNumber}PART` : `PEDIDO${displayOrderNumber}`;
+    // Ao mudar o modo de divisão ou o saldo, sugere um valor para a próxima parte
+    useEffect(() => {
+        if (isSplitting && remainingBalance > 0) {
+            const suggested = paidPartsCount < peopleCount - 1 
+                ? order!.total / peopleCount 
+                : remainingBalance;
+            setCurrentPartAmount(Number(suggested.toFixed(2)));
+        }
+    }, [isSplitting, remainingBalance, order, peopleCount, paidPartsCount]);
+
+    const txidLabel = isSplitting ? `PEDIDO${displayOrderNumber}P${paidPartsCount + 1}` : `PEDIDO${displayOrderNumber}`;
 
     const pixPayload = useMemo(() => {
-        if (paymentMethod === 'pix' && restaurant?.pixKey && activePixAmount) {
-            return generatePixPayload(restaurant.pixKey, activePixAmount, restaurant.name || 'Restaurante', txidLabel);
+        const amountToPay = isSplitting ? currentPartAmount : (order?.total || 0);
+        if (paymentMethod === 'pix' && restaurant?.pixKey && amountToPay > 0) {
+            return generatePixPayload(restaurant.pixKey, amountToPay, restaurant.name || 'Restaurante', txidLabel);
         }
         return null;
-    }, [paymentMethod, restaurant, activePixAmount, txidLabel]);
+    }, [paymentMethod, restaurant, currentPartAmount, order?.total, isSplitting, txidLabel]);
 
     const qrCodeUrl = useMemo(() => {
         if (pixPayload) {
@@ -157,8 +163,10 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
             setNotifyWhatsApp(true);
             setPaymentMethod(null);
             setCopied(false);
-            setPeopleCount(1);
-            setQrMode('total');
+            setIsSplitting(false);
+            setPeopleCount(2);
+            setPaidPartsCount(0);
+            setAccumulatedPaid(0);
         }
     }, [isOpen]);
 
@@ -175,6 +183,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         null;
 
     const isFinalizing = nextStatus === 'finalizado';
+    const isFullyPaid = accumulatedPaid >= (order?.total || 0) - 0.01;
 
     const nextStatusText =
         nextStatus === 'preparando' ? 'Marcar como "Em Preparação"' :
@@ -195,7 +204,16 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const handleStatusUpdate = () => {
         if (!nextStatus) return;
         
-        if (isFinalizing && !paymentMethod) return;
+        if (isFinalizing) {
+            if (isSplitting && !isFullyPaid) {
+                toast({ variant: "destructive", title: "Conta incompleta", description: "Registre todos os pagamentos antes de finalizar." });
+                return;
+            }
+            if (!isSplitting && !paymentMethod) {
+                toast({ variant: "destructive", title: "Forma de pagamento", description: "Selecione como o cliente pagou." });
+                return;
+            }
+        }
 
         if (nextStatus === 'pronto' && notifyWhatsApp && order.customerPhone) {
             const cleanPhone = order.customerPhone.replace(/\D/g, '');
@@ -209,7 +227,23 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
             window.open(`https://wa.me/${finalPhone}?text=${message}`, '_blank');
         }
 
-        onStatusChange(order.id, nextStatus, isFinalizing ? { paymentMethod } : {});
+        onStatusChange(order.id, nextStatus, isFinalizing ? { paymentMethod: isSplitting ? 'multiplos' : paymentMethod } : {});
+    };
+
+    const handleRegisterPart = () => {
+        if (!paymentMethod) {
+            toast({ variant: "destructive", title: "Selecione o método de pagamento" });
+            return;
+        }
+        if (currentPartAmount <= 0 || currentPartAmount > remainingBalance + 0.01) {
+            toast({ variant: "destructive", title: "Valor inválido" });
+            return;
+        }
+
+        setAccumulatedPaid(prev => prev + currentPartAmount);
+        setPaidPartsCount(prev => prev + 1);
+        setPaymentMethod(null);
+        toast({ title: `Parte ${paidPartsCount + 1} registrada!`, description: `R$ ${currentPartAmount.toFixed(2)} recebidos via ${paymentMethod.toUpperCase()}` });
     };
 
     const handleCopyPix = () => {
@@ -246,29 +280,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                             </div>
                         </div>
 
-                        {(order.customerName || order.customerPhone || order.deliveryAddress) && (
-                            <div className="bg-primary/5 p-4 rounded-xl border-2 border-dashed border-primary/20 space-y-3">
-                                <p className="text-[10px] font-black uppercase text-primary">Dados do Cliente</p>
-                                {order.customerName && (
-                                    <div className="flex items-center gap-2 text-xs font-bold uppercase">
-                                        <User className="h-3 w-3 text-primary" /> {order.customerName}
-                                    </div>
-                                )}
-                                {order.customerPhone && (
-                                    <div className="flex items-center gap-2 text-xs font-bold uppercase">
-                                        <Phone className="h-3 w-3 text-primary" /> {order.customerPhone}
-                                    </div>
-                                )}
-                                {order.deliveryAddress && (
-                                    <div className="flex items-start gap-2 text-xs font-bold uppercase">
-                                        <MapPin className="h-3 w-3 text-primary mt-0.5 shrink-0" /> {order.deliveryAddress}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        <Separator />
-                        
                         <div className="space-y-4">
                             <p className="font-black text-[10px] uppercase text-muted-foreground">Itens do Pedido</p>
                             <ul className="space-y-3">
@@ -281,7 +292,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                 {item.addons?.map((a, ai) => (
                                                     <p key={ai} className="text-[9px] text-muted-foreground font-bold uppercase">+ {a.name}</p>
                                                 ))}
-                                                {item.notes && <p className="text-[9px] text-primary italic font-bold mt-1">OBS: {item.notes}</p>}
                                             </div>
                                         </div>
                                         <span className="font-black text-xs shrink-0">
@@ -296,126 +306,127 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                             <div className="space-y-6 pt-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
                                 <Separator />
                                 
-                                {/* DIVISÃO DE CONTA */}
-                                <div className="space-y-3">
+                                {/* CABEÇALHO DE DIVISÃO */}
+                                <div className="flex items-center justify-between">
                                     <p className="font-black text-[10px] uppercase text-primary flex items-center gap-2">
-                                        <Users className="h-3 w-3" /> Divisão da Conta
+                                        <Users className="h-3 w-3" /> Divisão de Conta
                                     </p>
-                                    <div className="bg-muted/30 p-4 rounded-xl flex items-center justify-between">
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] font-black uppercase text-muted-foreground">Pessoas</span>
-                                            <div className="flex items-center gap-3 mt-1">
-                                                <Button 
-                                                    variant="outline" 
-                                                    size="icon" 
-                                                    className="h-8 w-8 rounded-full border-2"
-                                                    onClick={() => setPeopleCount(Math.max(1, peopleCount - 1))}
-                                                >
-                                                    <Minus className="h-3 w-3" />
-                                                </Button>
-                                                <span className="font-black text-sm w-4 text-center">{peopleCount}</span>
-                                                <Button 
-                                                    variant="outline" 
-                                                    size="icon" 
-                                                    className="h-8 w-8 rounded-full border-2"
-                                                    onClick={() => setPeopleCount(peopleCount + 1)}
-                                                >
-                                                    <Plus className="h-3 w-3" />
-                                                </Button>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[9px] font-bold uppercase text-muted-foreground">Dividir?</span>
+                                        <Switch checked={isSplitting} onCheckedChange={setIsSplitting} />
+                                    </div>
+                                </div>
+
+                                {isSplitting ? (
+                                    <div className="space-y-4">
+                                        <div className="bg-primary/5 p-4 rounded-xl border-2 border-primary/20 flex items-center justify-between">
+                                            <div className="flex flex-col">
+                                                <span className="text-[9px] font-black uppercase text-muted-foreground">Pessoas</span>
+                                                <div className="flex items-center gap-3 mt-1">
+                                                    <Button variant="outline" size="icon" className="h-7 w-7 rounded-full" onClick={() => setPeopleCount(Math.max(2, peopleCount - 1))} disabled={paidPartsCount > 0}>
+                                                        <Minus className="h-3 w-3" />
+                                                    </Button>
+                                                    <span className="font-black text-sm">{peopleCount}</span>
+                                                    <Button variant="outline" size="icon" className="h-7 w-7 rounded-full" onClick={() => setPeopleCount(peopleCount + 1)} disabled={paidPartsCount > 0}>
+                                                        <Plus className="h-3 w-3" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-[9px] font-black uppercase text-muted-foreground">Status do Pagamento</span>
+                                                <p className="text-sm font-black text-primary">
+                                                    {paidPartsCount} de {peopleCount} pagos
+                                                </p>
+                                                <p className="text-[10px] font-bold text-destructive">Falta {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(remainingBalance)}</p>
                                             </div>
                                         </div>
-                                        
-                                        <div className="text-right">
-                                            <span className="text-[10px] font-black uppercase text-muted-foreground">Cada um paga</span>
-                                            <p className="text-lg font-black text-primary">
-                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(splitAmount)}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
 
-                                <Separator />
+                                        {!isFullyPaid && (
+                                            <div className="space-y-4 bg-muted/30 p-4 rounded-xl border-2 border-dashed">
+                                                <div className="space-y-2">
+                                                    <Label className="text-[10px] font-black uppercase">Valor a pagar agora (R$)</Label>
+                                                    <div className="relative">
+                                                        <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                                        <Input 
+                                                            type="number" 
+                                                            step="0.01" 
+                                                            value={currentPartAmount} 
+                                                            onChange={e => setCurrentPartAmount(Number(e.target.value))}
+                                                            className="pl-9 font-black text-lg h-12"
+                                                        />
+                                                    </div>
+                                                    <p className="text-[9px] text-muted-foreground font-bold uppercase italic">Você pode editar o valor desta parte livremente.</p>
+                                                </div>
 
-                                <div className="space-y-4">
-                                    <p className="font-black text-[10px] uppercase text-primary flex items-center gap-2">
-                                        <CreditCard className="h-3 w-3" /> Forma de Pagamento
-                                    </p>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {PAYMENT_METHODS.map((method) => (
-                                            <button
-                                                key={method.id}
-                                                onClick={() => setPaymentMethod(method.id)}
-                                                className={cn(
-                                                    "flex items-center gap-2 px-3 py-3 rounded-xl border-2 transition-all text-left",
-                                                    paymentMethod === method.id 
-                                                        ? "border-primary bg-primary/5 shadow-sm" 
-                                                        : "border-muted bg-background hover:border-muted-foreground/30"
-                                                )}
-                                            >
-                                                <method.icon className={cn("h-4 w-4", paymentMethod === method.id ? "text-primary" : "text-muted-foreground")} />
-                                                <span className={cn("text-[10px] font-black uppercase", paymentMethod === method.id ? "text-primary" : "text-muted-foreground")}>
-                                                    {method.label}
-                                                </span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
+                                                <div className="space-y-3">
+                                                    <Label className="text-[10px] font-black uppercase">Forma desta parte</Label>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        {PAYMENT_METHODS.map((method) => (
+                                                            <button
+                                                                key={method.id}
+                                                                onClick={() => setPaymentMethod(method.id)}
+                                                                className={cn(
+                                                                    "flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all text-left",
+                                                                    paymentMethod === method.id ? "border-primary bg-primary/5" : "border-muted bg-background"
+                                                                )}
+                                                            >
+                                                                <method.icon className="h-3 w-3" />
+                                                                <span className="text-[9px] font-black uppercase">{method.label}</span>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
 
-                                {paymentMethod === 'pix' && (
-                                    <div className="bg-muted/30 p-4 rounded-xl space-y-4 animate-in zoom-in-95 duration-300">
-                                        {qrCodeUrl ? (
-                                            <div className="flex flex-col items-center gap-4 text-center">
-                                                
-                                                {peopleCount > 1 && (
-                                                    <div className="flex bg-background p-1 rounded-lg border-2 w-full">
-                                                        <button 
-                                                            className={cn(
-                                                                "flex-1 py-1.5 text-[9px] font-black uppercase rounded-md transition-all",
-                                                                pixAmountMode === 'total' ? "bg-primary text-white" : "text-muted-foreground hover:bg-muted"
-                                                            )}
-                                                            onClick={() => setQrMode('total')}
-                                                        >
-                                                            Total (100%)
-                                                        </button>
-                                                        <button 
-                                                            className={cn(
-                                                                "flex-1 py-1.5 text-[9px] font-black uppercase rounded-md transition-all",
-                                                                pixAmountMode === 'split' ? "bg-primary text-white" : "text-muted-foreground hover:bg-muted"
-                                                            )}
-                                                            onClick={() => setQrMode('split')}
-                                                        >
-                                                            Individual (1/{peopleCount})
-                                                        </button>
+                                                {paymentMethod === 'pix' && qrCodeUrl && (
+                                                    <div className="flex flex-col items-center gap-3 bg-white p-3 rounded-lg border">
+                                                        <Image src={qrCodeUrl} alt="Pix" width={150} height={150} />
+                                                        <Button variant="secondary" size="sm" className="w-full text-[9px] font-black h-8" onClick={handleCopyPix}>
+                                                            {copied ? "Copiado!" : "Copiar Pix"}
+                                                        </Button>
                                                     </div>
                                                 )}
 
+                                                <Button className="w-full h-10 font-black uppercase text-[10px] bg-black hover:bg-zinc-800" onClick={handleRegisterPart}>
+                                                    Confirmar Parte {paidPartsCount + 1}
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        <p className="font-black text-[10px] uppercase text-primary flex items-center gap-2">
+                                            <CreditCard className="h-3 w-3" /> Forma de Pagamento
+                                        </p>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {PAYMENT_METHODS.map((method) => (
+                                                <button
+                                                    key={method.id}
+                                                    onClick={() => setPaymentMethod(method.id)}
+                                                    className={cn(
+                                                        "flex items-center gap-2 px-3 py-3 rounded-xl border-2 transition-all text-left",
+                                                        paymentMethod === method.id ? "border-primary bg-primary/5 shadow-sm" : "border-muted bg-background"
+                                                    )}
+                                                >
+                                                    <method.icon className={cn("h-4 w-4", paymentMethod === method.id ? "text-primary" : "text-muted-foreground")} />
+                                                    <span className={cn("text-[10px] font-black uppercase", paymentMethod === method.id ? "text-primary" : "text-muted-foreground")}>
+                                                        {method.label}
+                                                    </span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                        {paymentMethod === 'pix' && qrCodeUrl && (
+                                            <div className="bg-muted/30 p-4 rounded-xl space-y-4 flex flex-col items-center">
                                                 <div className="bg-white p-4 rounded-lg shadow-sm border">
                                                     <Image src={qrCodeUrl} alt="Pix QR Code" width={200} height={200} className="rounded" />
                                                 </div>
-                                                <div className="space-y-1">
-                                                    <p className="text-[10px] font-black uppercase text-primary">
-                                                        {pixAmountMode === 'split' ? `QR Code Individual (1/${peopleCount})` : 'QR Code Valor Total'}
-                                                    </p>
-                                                    <p className="text-sm font-black">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(activePixAmount)}</p>
-                                                    <p className="text-[9px] text-muted-foreground uppercase font-bold">Identificador: {txidLabel}</p>
+                                                <div className="text-center space-y-1">
+                                                    <p className="text-[10px] font-black uppercase text-primary">QR Code Valor Total</p>
+                                                    <p className="text-sm font-black">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}</p>
                                                 </div>
-                                                <Button 
-                                                    variant="secondary" 
-                                                    size="sm" 
-                                                    className="w-full gap-2 font-black uppercase text-[10px] h-10"
-                                                    onClick={handleCopyPix}
-                                                >
+                                                <Button variant="secondary" size="sm" className="w-full gap-2 font-black uppercase text-[10px] h-10" onClick={handleCopyPix}>
                                                     {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                                                     {copied ? "Copiado!" : "Copiar Pix Copia e Cola"}
                                                 </Button>
-                                            </div>
-                                        ) : (
-                                            <div className="bg-primary/5 p-4 rounded-lg border-2 border-dashed border-primary/20 text-center space-y-2">
-                                                <QrCode className="h-8 w-8 mx-auto text-primary opacity-30" />
-                                                <p className="text-[10px] font-black uppercase text-primary">Chave Pix não configurada</p>
-                                                <p className="text-[9px] text-muted-foreground uppercase leading-tight font-bold">
-                                                    Cadastre sua Chave Pix nas configurações do perfil para gerar o QR Code automático com o valor da comanda.
-                                                </p>
                                             </div>
                                         )}
                                     </div>
@@ -432,16 +443,12 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                     </div>
 
                     {nextStatus === 'pronto' && order.customerPhone && (
-                        <div className="flex items-center justify-between bg-background p-3 rounded-lg border-2 border-primary/20 mb-4 animate-in fade-in slide-in-from-bottom-2">
+                        <div className="flex items-center justify-between bg-background p-3 rounded-lg border-2 border-primary/20 mb-4">
                             <div className="flex items-center gap-2">
                                 <MessageCircle className="h-4 w-4 text-green-600" />
-                                <Label htmlFor="wa-notify" className="text-[10px] font-black uppercase cursor-pointer">Avisar cliente no WhatsApp</Label>
+                                <Label htmlFor="wa-notify" className="text-[10px] font-black uppercase cursor-pointer">Avisar no WhatsApp</Label>
                             </div>
-                            <Switch 
-                                id="wa-notify" 
-                                checked={notifyWhatsApp} 
-                                onCheckedChange={setNotifyWhatsApp} 
-                            />
+                            <Switch id="wa-notify" checked={notifyWhatsApp} onCheckedChange={setNotifyWhatsApp} />
                         </div>
                     )}
                     
@@ -456,7 +463,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                             <Button 
                                 className="flex-[2] font-black uppercase text-[10px] h-11" 
                                 onClick={handleStatusUpdate}
-                                disabled={isFinalizing && !paymentMethod}
+                                disabled={isFinalizing && (isSplitting ? !isFullyPaid : !paymentMethod)}
                             >
                                 {nextStatusIcon}
                                 {nextStatusText}
