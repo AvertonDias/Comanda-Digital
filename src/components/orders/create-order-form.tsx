@@ -211,6 +211,8 @@ export function CreateOrderForm({
         return acc + (item.price + addonsPrice) * item.quantity;
     }, 0);
 
+    const selectedTable = tables?.find(t => t.id === tableId);
+
     return (
         <div className="flex flex-col h-full bg-background overflow-hidden">
             {/* Indicador de Passos */}
@@ -385,7 +387,11 @@ export function CreateOrderForm({
                         <div className="bg-muted/10 p-5 rounded-2xl border-2 space-y-4">
                             <div className="flex justify-between items-center border-b pb-4">
                                 <label className="text-xs font-black uppercase text-primary tracking-widest">Resumo do Pedido</label>
-                                <Badge variant="outline" className="font-black text-[10px] border-primary text-primary">{orderType.toUpperCase()}</Badge>
+                                <Badge variant="outline" className="font-black text-[10px] border-primary text-primary">
+                                    {orderType === 'mesa' 
+                                        ? (selectedTable?.name.toUpperCase() || 'MESA') 
+                                        : orderType.toUpperCase()}
+                                </Badge>
                             </div>
                             
                             <div className="space-y-3">
