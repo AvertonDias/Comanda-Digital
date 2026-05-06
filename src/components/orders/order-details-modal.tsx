@@ -161,7 +161,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         if (splitMode === 'items') {
             setItemsBalance(prev => prev.map((item, idx) => ({
                 ...item,
-                remainingQty: item.remainingQty - (selectedItemsForPart[idx] || 0)
+                remainingQty: Number((item.remainingQty - (selectedItemsForPart[idx] || 0)).toFixed(2))
             })));
             setSelectedItemsForPart({});
         }
@@ -177,6 +177,12 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         const currentSelected = selectedItemsForPart[index] || 0;
         const next = Math.max(0, Math.min(item.remainingQty, currentSelected + delta));
         setSelectedItemsForPart(prev => ({ ...prev, [index]: next }));
+    };
+
+    const handleSetFraction = (index: number, divisor: number) => {
+        const item = itemsBalance[index];
+        const val = Number((item.remainingQty / divisor).toFixed(2));
+        setSelectedItemsForPart(prev => ({ ...prev, [index]: val }));
     };
 
     return (
@@ -246,19 +252,37 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                 <Label className="text-[10px] font-black uppercase text-muted-foreground">Itens Pendentes</Label>
                                                 <div className="space-y-2">
                                                     {itemsBalance.map((item, idx) => item.remainingQty > 0 && (
-                                                        <div key={idx} className="flex items-center justify-between bg-background p-2 rounded-lg border">
-                                                            <div className="flex-1 min-w-0">
+                                                        <div key={idx} className="flex items-center justify-between bg-background p-3 rounded-lg border">
+                                                            <div className="flex-1 min-w-0 pr-2">
                                                                 <p className="text-[10px] font-black uppercase truncate">{item.name}</p>
                                                                 <p className="text-[9px] text-muted-foreground font-bold">{item.remainingQty} restantes</p>
                                                             </div>
-                                                            <div className="flex items-center gap-2">
-                                                                <Button variant="outline" size="icon" className="h-6 w-6 rounded-full" onClick={() => handleItemQtyChange(idx, -1)}>
-                                                                    <Minus className="h-2 w-2" />
-                                                                </Button>
-                                                                <span className="text-xs font-black min-w-[12px] text-center">{selectedItemsForPart[idx] || 0}</span>
-                                                                <Button variant="outline" size="icon" className="h-6 w-6 rounded-full" onClick={() => handleItemQtyChange(idx, 1)}>
-                                                                    <Plus className="h-2 w-2" />
-                                                                </Button>
+                                                            <div className="flex flex-col items-end gap-2">
+                                                                <div className="flex items-center gap-2">
+                                                                    <Button variant="outline" size="icon" className="h-7 w-7 rounded-full" onClick={() => handleItemQtyChange(idx, -1)}>
+                                                                        <Minus className="h-3 w-3" />
+                                                                    </Button>
+                                                                    <span className="text-xs font-black min-w-[20px] text-center">
+                                                                        {selectedItemsForPart[idx] || 0}
+                                                                    </span>
+                                                                    <Button variant="outline" size="icon" className="h-7 w-7 rounded-full" onClick={() => handleItemQtyChange(idx, 1)}>
+                                                                        <Plus className="h-3 w-3" />
+                                                                    </Button>
+                                                                </div>
+                                                                <div className="flex gap-1">
+                                                                    <button 
+                                                                        onClick={() => handleSetFraction(idx, 2)}
+                                                                        className="text-[9px] font-black border-2 px-2 py-0.5 rounded-md hover:bg-primary/5 active:scale-95 transition-all uppercase"
+                                                                    >
+                                                                        Metade
+                                                                    </button>
+                                                                    <button 
+                                                                        onClick={() => handleSetFraction(idx, 3)}
+                                                                        className="text-[9px] font-black border-2 px-2 py-0.5 rounded-md hover:bg-primary/5 active:scale-95 transition-all uppercase"
+                                                                    >
+                                                                        1/3
+                                                                    </button>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     ))}
