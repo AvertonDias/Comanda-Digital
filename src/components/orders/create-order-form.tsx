@@ -6,12 +6,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Plus, Minus, MessageSquare } from 'lucide-react';
+import { Plus, Minus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { useFirestore, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, addDoc, serverTimestamp, doc, updateDoc, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -22,7 +22,6 @@ export function CreateOrderForm({ restaurantId, onSuccess }: { restaurantId: str
     const firestore = useFirestore();
     const { toast } = useToast();
     const [origin, setOrigin] = useState<Order['origin']>('mesa');
-    const [destination, setDestination] = useState<Order['destination']>('local');
     const [tableId, setTableId] = useState<string | undefined>(undefined);
     const [orderItems, setOrderItems] = useState<NewOrderItem[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,6 +38,7 @@ export function CreateOrderForm({ restaurantId, onSuccess }: { restaurantId: str
 
     const tablesQuery = useMemoFirebase(() => {
         if (!restaurantId) return null;
+        // Ordem alfabética blindada
         return query(collection(firestore, `restaurants/${restaurantId}/tables`), orderBy('name', 'asc'));
     }, [restaurantId, firestore]);
 
@@ -58,13 +58,7 @@ export function CreateOrderForm({ restaurantId, onSuccess }: { restaurantId: str
         setOrderItems(prev => prev.map((item, i) => i === idx ? { ...item, quantity: Math.max(0, item.quantity + delta) } : item).filter(item => item.quantity > 0));
     };
 
-    const handleUpdateNotes = (idx: number, notes: string) => {
-        setOrderItems(prev => prev.map((item, i) => i === idx ? { ...item, notes } : item));
-    };
-
-    const total = orderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
-
-    const handleCreateOrder = () => {
+    const handleCreateOrder = async () => {
         if (orderItems.length === 0 || isSubmitting || !restaurantId) return;
         setIsSubmitting(true);
         const selectedTable = tables?.find(t => t.id === tableId);
@@ -72,11 +66,11 @@ export function CreateOrderForm({ restaurantId, onSuccess }: { restaurantId: str
         const orderData = {
             restaurantId,
             origin,
-            destination,
+            destination: 'local',
             tableId: tableId || null,
             tableName: selectedTable?.name || null,
             status: 'aberto',
-            total,
+            total: orderItems.reduce((acc, item) => acc + item.price * item.quantity, 0),
             createdAt: serverTimestamp(),
             items: orderItems.map(item => ({
                 menuItemId: item.menuItemId,
@@ -87,25 +81,15 @@ export function CreateOrderForm({ restaurantId, onSuccess }: { restaurantId: str
             }))
         };
         
-        const colRef = collection(firestore, `restaurants/${restaurantId}/orders`);
-        addDoc(colRef, orderData).then(() => {
-            if (tableId) {
-                const tableRef = doc(firestore, `restaurants/${restaurantId}/tables`, tableId);
-                updateDoc(tableRef, { status: 'ocupada' });
-            }
-            toast({ title: "Pedido enviado!" });
-            onSuccess();
-        }).catch(async (error) => {
-            setIsSubmitting(false);
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: colRef.path,
-                operation: 'create',
-                requestResourceData: orderData
-            }));
-        });
+        await addDoc(collection(firestore, `restaurants/${restaurantId}/orders`), orderData);
+        if (tableId) {
+            await updateDoc(doc(firestore, `restaurants/${restaurantId}/tables`, tableId), { status: 'ocupada' });
+        }
+        toast({ title: "Pedido enviado!" });
+        onSuccess();
     };
 
-    if (isCatsLoading || isItemsLoading || isTablesLoading) return <Skeleton className="h-[70vh] w-full" />;
+    if (isCatsLoading || isItemsLoading || isTablesLoading) return <Skeleton className="h-[70vh]" />;
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:h-[75vh]">
@@ -121,13 +105,9 @@ export function CreateOrderForm({ restaurantId, onSuccess }: { restaurantId: str
                         {categories?.map(c => (
                             <TabsContent key={c.id} value={c.id} className="grid grid-cols-2 gap-3">
                                 {items?.filter(i => i.categoryId === c.id && i.isAvailable).map(item => (
-                                    <Card key={item.id} className="flex flex-col p-3 gap-2 cursor-pointer hover:border-primary transition-colors" onClick={() => handleAddItem(item)}>
-                                        <p className="text-sm font-semibold leading-tight">{item.name}</p>
-                                        <p className="text-xs text-muted-foreground line-clamp-1">{item.description}</p>
-                                        <div className="flex justify-between items-center mt-auto">
-                                            <span className="text-sm font-bold text-primary">R$ {item.price.toFixed(2)}</span>
-                                            <Plus className="h-3 w-3 text-primary" />
-                                        </div>
+                                    <Card key={item.id} className="p-3 cursor-pointer hover:border-primary" onClick={() => handleAddItem(item)}>
+                                        <p className="text-sm font-semibold">{item.name}</p>
+                                        <p className="text-xs text-muted-foreground line-clamp-1">R$ {item.price.toFixed(2)}</p>
                                     </Card>
                                 ))}
                             </TabsContent>
@@ -143,52 +123,29 @@ export function CreateOrderForm({ restaurantId, onSuccess }: { restaurantId: str
                             <Badge variant="outline">{orderItems.length} Itens</Badge>
                         </div>
                     </CardHeader>
-                    <CardContent className="flex-1 flex flex-col gap-4 p-4 overflow-hidden">
+                    <CardContent className="flex-1 p-4 overflow-hidden flex flex-col gap-4">
                         <div className="grid grid-cols-2 gap-2">
-                            <div>
-                                <Label className="text-xs">Origem</Label>
-                                <Select value={origin} onValueChange={v => setOrigin(v as any)}>
-                                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="mesa">Mesa</SelectItem>
-                                        <SelectItem value="balcao">Balcão</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div>
-                                <Label className="text-xs">Identificação</Label>
-                                <Select value={tableId} onValueChange={setTableId} disabled={origin !== 'mesa'}>
-                                    <SelectTrigger className="h-9"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                                    <SelectContent>
-                                        {tables?.map(t => (
-                                            <SelectItem key={t.id} value={t.id}>{t.name} ({t.status})</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                            <Select value={tableId} onValueChange={setTableId}>
+                                <SelectTrigger><SelectValue placeholder="Mesa" /></SelectTrigger>
+                                <SelectContent>
+                                    {tables?.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
                         </div>
-                        <Separator />
                         <ScrollArea className="flex-1">
                             <div className="space-y-4">
                                 {orderItems.map((item, idx) => (
-                                    <div key={idx} className="space-y-2 border-b pb-2">
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-sm font-medium">{item.name}</span>
-                                            <div className="flex items-center gap-2">
-                                                <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => handleUpdateQuantity(idx, -1)}><Minus /></Button>
-                                                <span className="text-sm">{item.quantity}</span>
-                                                <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => handleUpdateQuantity(idx, 1)}><Plus /></Button>
-                                            </div>
+                                    <div key={idx} className="flex justify-between items-center border-b pb-2">
+                                        <span className="text-sm">{item.name}</span>
+                                        <div className="flex items-center gap-2">
+                                            <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => handleUpdateQuantity(idx, -1)}><Minus /></Button>
+                                            <span className="text-sm">{item.quantity}</span>
+                                            <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => handleUpdateQuantity(idx, 1)}><Plus /></Button>
                                         </div>
-                                        <Input placeholder="Observações..." className="h-8 text-xs" value={item.notes} onChange={e => handleUpdateNotes(idx, e.target.value)} />
                                     </div>
                                 ))}
                             </div>
                         </ScrollArea>
-                        <div className="pt-4 border-t flex justify-between font-bold">
-                            <span>Total</span>
-                            <span className="text-primary">R$ {total.toFixed(2)}</span>
-                        </div>
                     </CardContent>
                 </Card>
                 <Button className="w-full" disabled={orderItems.length === 0 || isSubmitting} onClick={handleCreateOrder}>

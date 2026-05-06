@@ -1,62 +1,41 @@
 'use client';
 
-import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where } from "firebase/firestore";
+import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
+import { doc } from "firebase/firestore";
 import { useMemo } from "react";
-import type { RestaurantUserRole } from "@/lib/types";
+import type { UserProfile } from "@/lib/types";
 
 type UseRestaurantReturn = {
     restaurantId: string | null;
-    role: RestaurantUserRole['role'] | null;
     isLoading: boolean;
     hasRestaurant: boolean;
-    error: unknown;
+    error: any;
 };
 
 /**
- * Hook blindado para gestão do restaurante ativo do usuário.
- * Evita disparar queries antes da autenticação estar pronta.
+ * useRestaurant() BLINDADO
+ * 
+ * Agora utiliza a desnormalização estratégica do perfil do usuário
+ * para evitar estados inconsistentes e disparos de queries na raiz.
  */
 export function useRestaurant(): UseRestaurantReturn {
-    const { user, isUserLoading: isAuthLoading } = useUser();
+    const { user, isUserLoading } = useUser();
     const firestore = useFirestore();
 
-    // Consulta específica na subcoleção do usuário para evitar collectionGroup desnecessário e erros de permissão
-    const rolesQuery = useMemoFirebase(() => {
+    const userRef = useMemoFirebase(() => {
         if (!user?.uid || !firestore) return null;
-        return query(
-            collection(firestore, `users/${user.uid}/restaurantRoles`),
-            where('isActive', '==', true)
-        );
+        return doc(firestore, 'users', user.uid);
     }, [user?.uid, firestore]);
 
-    const {
-        data: roles,
-        isLoading: isRolesLoading,
-        error
-    } = useCollection<RestaurantUserRole>(rolesQuery);
+    const { data: userProfile, isLoading: isProfileLoading, error } = useDoc<UserProfile & { activeRestaurantId?: string }>(userRef);
 
-    const restaurantInfo = useMemo(() => {
-        if (!roles || roles.length === 0) return null;
-        // Prioriza o primeiro restaurante ativo encontrado
-        const active = roles[0];
-        if (active) {
-            return {
-                id: active.restaurantId,
-                role: active.role
-            };
-        }
-        return null;
-    }, [roles]);
-
-    const isLoading = isAuthLoading || isRolesLoading;
-    const restaurantId = restaurantInfo?.id ?? null;
-    const role = restaurantInfo?.role ?? null;
+    const restaurantId = useMemo(() => {
+        return userProfile?.activeRestaurantId ?? null;
+    }, [userProfile]);
 
     return {
         restaurantId,
-        role,
-        isLoading,
+        isLoading: isUserLoading || isProfileLoading,
         hasRestaurant: !!restaurantId,
         error
     };

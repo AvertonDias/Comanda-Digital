@@ -33,6 +33,7 @@ export function useCollection<T = any>(
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
+    // Blindagem de segurança: evita consultas vazias na raiz
     if (!memoizedTargetRefOrQuery) {
       setData(null);
       setIsLoading(false);
@@ -56,9 +57,11 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (firebaseError: FirestoreError) => {
+        // Fallback seguro de path para evitar erros de asserção interna
+        const path = (memoizedTargetRefOrQuery as any).path || 'query';
         const contextualError = new FirestorePermissionError({
           operation: 'list',
-          path: 'collection-query',
+          path: path,
         });
 
         setError(contextualError);

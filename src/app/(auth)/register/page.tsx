@@ -13,7 +13,6 @@ import { useRouter } from 'next/navigation';
 import { useState, FormEvent, useEffect } from 'react';
 import { useRestaurant } from "@/hooks/use-restaurant";
 
-// Google Icon SVG component
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg viewBox="0 0 48 48" role="img" aria-label="Google sign-in" {...props}>
       <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path>
@@ -44,28 +43,14 @@ export default function RegisterPage() {
     }
   }, [user, isUserLoading, hasRestaurant, isResLoading, router]);
 
-  useEffect(() => {
-    if (user && !userName) {
-      setUserName(user.displayName || '');
-    }
-  }, [user, userName]);
-
   const handleGoogleSignIn = async () => {
     setIsSubmitting(true);
     try {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
       await signInWithPopup(auth, provider);
-      toast({
-        title: "Autenticado com Google",
-        description: "Agora, complete os dados do seu restaurante abaixo.",
-      });
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Erro de login com Google',
-        description: 'Não foi possível autenticar com o Google.',
-      });
+      toast({ variant: 'destructive', title: 'Erro', description: 'Erro ao entrar com Google.' });
     } finally {
         setIsSubmitting(false);
     }
@@ -74,19 +59,13 @@ export default function RegisterPage() {
   const handleRegister = async (e: FormEvent) => {
     e.preventDefault();
     if (!restaurantName || !userName) {
-        toast({ variant: "destructive", title: "Erro de Validação", description: "Por favor, preencha todos os campos." });
+        toast({ variant: "destructive", title: "Erro", description: "Preencha todos os campos." });
         return;
-    }
-
-    if (!user && password !== confirmPassword) {
-      toast({ variant: "destructive", title: "Erro de Validação", description: "As senhas não coincidem." });
-      return;
     }
 
     setIsSubmitting(true);
     try {
       let targetUser = user;
-
       if (!targetUser) {
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
           targetUser = userCredential.user;
@@ -94,104 +73,77 @@ export default function RegisterPage() {
       }
       
       const batch = writeBatch(firestore);
-      
       const restaurantRef = doc(collection(firestore, "restaurants"));
-      const restaurantData = {
+      
+      batch.set(restaurantRef, {
           name: restaurantName,
           plan: 'basico',
           status: 'ativo',
           createdAt: serverTimestamp()
-      };
-      batch.set(restaurantRef, restaurantData);
+      });
 
+      // Desnormalização estratégica: salvamos o activeRestaurantId no perfil para simplificar as Rules
       const userProfileRef = doc(firestore, `users/${targetUser.uid}`);
-      const userProfileData = {
+      batch.set(userProfileRef, {
         name: userName,
         email: targetUser.email,
-        avatarUrl: targetUser.photoURL || ''
-      };
-      batch.set(userProfileRef, userProfileData, { merge: true });
+        avatarUrl: targetUser.photoURL || '',
+        activeRestaurantId: restaurantRef.id
+      }, { merge: true });
       
       const userRoleRef = doc(firestore, `users/${targetUser.uid}/restaurantRoles/${restaurantRef.id}`);
-      const userRoleData = {
+      batch.set(userRoleRef, {
           userId: targetUser.uid,
           restaurantId: restaurantRef.id,
           role: 'admin',
           isActive: true
-      };
-      batch.set(userRoleRef, userRoleData);
-      
-      await batch.commit().catch(async (error) => {
-          const permissionError = new FirestorePermissionError({
-              path: restaurantRef.path,
-              operation: 'write',
-              requestResourceData: restaurantData
-          });
-          errorEmitter.emit('permission-error', permissionError);
-          throw error;
       });
       
-      toast({ title: 'Sucesso!', description: 'Seu restaurante foi criado com sucesso.' });
+      await batch.commit();
+      toast({ title: 'Sucesso!', description: 'Restaurante criado.' });
       router.push('/dashboard');
     } catch (error: any) {
-        toast({ variant: 'destructive', title: 'Erro', description: 'Ocorreu um erro ao processar sua solicitação.' });
+        toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao registrar.' });
     } finally {
         setIsSubmitting(false);
     }
   };
 
-  const isLoading = isSubmitting || isUserLoading || isResLoading;
-
   return (
     <Card className="mx-auto max-w-sm w-full">
       <CardHeader className="space-y-1 text-center">
-        <div className="inline-flex justify-center p-2">
-            <UtensilsCrossed className="h-8 w-8 text-primary" />
-        </div>
-        <CardTitle className="text-2xl font-bold">Configurar seu Restaurante</CardTitle>
-        <CardDescription>
-          {user ? 'Complete os dados do seu novo estabelecimento.' : 'Comece a gerenciar seu negócio agora mesmo.'}
-        </CardDescription>
+        <UtensilsCrossed className="mx-auto h-8 w-8 text-primary" />
+        <CardTitle className="text-2xl font-bold">Criar Restaurante</CardTitle>
+        <CardDescription>Configure seu negócio em segundos.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleRegister}>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="restaurantName">Nome do Restaurante</Label>
-              <Input id="restaurantName" placeholder="Ex: Pizzaria do Zé" required value={restaurantName} onChange={(e) => setRestaurantName(e.target.value)} disabled={isLoading} />
+              <Label>Nome do Restaurante</Label>
+              <Input placeholder="Ex: Pizzaria do Zé" required value={restaurantName} onChange={(e) => setRestaurantName(e.target.value)} disabled={isSubmitting} />
             </div>
              <div className="space-y-2">
-              <Label htmlFor="userName">Seu Nome de Exibição</Label>
-              <Input id="userName" placeholder="Ex: José da Silva" required value={userName} onChange={(e) => setUserName(e.target.value)} disabled={isLoading} />
+              <Label>Seu Nome</Label>
+              <Input placeholder="Ex: José" required value={userName} onChange={(e) => setUserName(e.target.value)} disabled={isSubmitting} />
             </div>
             {!user && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Seu Email (Admin)</Label>
-                  <Input id="email" type="email" placeholder="admin@pizzaria.com" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={isLoading} />
+                  <Label>Email</Label>
+                  <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={isSubmitting} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">Senha</Label>
-                  <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} disabled={isLoading} />
-                </div>
-                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirmar Senha</Label>
-                  <Input id="confirmPassword" type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} disabled={isLoading} />
+                  <Label>Senha</Label>
+                  <Input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} disabled={isSubmitting} />
                 </div>
               </>
             )}
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processando...</> : 'Criar Restaurante'}
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="animate-spin" /> : 'Começar Agora'}
             </Button>
           </div>
         </form>
-        {!user && (
-          <>
-            <div className="relative my-4"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">Ou</span></div></div>
-            <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading}><GoogleIcon className="mr-2 h-4 w-4" /> Cadastrar com Google</Button>
-            <div className="mt-4 text-center text-sm">Já tem uma conta? <Link href="/login" className="underline">Login</Link></div>
-          </>
-        )}
       </CardContent>
     </Card>
   );

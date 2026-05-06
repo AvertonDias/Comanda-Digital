@@ -6,19 +6,17 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function getRole(restaurantId) {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)/restaurantRoles/$(restaurantId));
-    }
-
+    // Função simplificada e performática baseada na desnormalização sugerida
     function isStaff(restaurantId) {
-      return isSignedIn()
-        && getRole(restaurantId).exists()
-        && getRole(restaurantId).data.isActive == true;
+      return isSignedIn() && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.activeRestaurantId == restaurantId
+      );
     }
 
     function isAdmin(restaurantId) {
-      return isStaff(restaurantId)
-        && getRole(restaurantId).data.role == "admin";
+      return isStaff(restaurantId) && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)/restaurantRoles/$(restaurantId)).data.role == "admin"
+      );
     }
 
     // USERS
@@ -32,10 +30,9 @@ service cloud.firestore {
       }
     }
 
-    // Permite consultas de grupo para encontrar os papéis do usuário
+    // Coleção de grupo protegida como sugerido
     match /{path=**}/restaurantRoles/{roleId} {
       allow read, list: if isSignedIn() && (
-        resource == null || 
         resource.data.userId == request.auth.uid || 
         isStaff(resource.data.restaurantId)
       );
@@ -44,7 +41,7 @@ service cloud.firestore {
     // RESTAURANTS
     match /restaurants/{restaurantId} {
       allow create: if isSignedIn();
-      allow read: if isSignedIn(); // Permite leitura básica para validação de acesso
+      allow read: if isSignedIn(); 
       allow update, delete: if isAdmin(restaurantId);
 
       match /{allSubcollections=**} {
