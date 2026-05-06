@@ -93,3 +93,26 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Print Styles */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #print-receipt-area, #print-receipt-area * {
+    visibility: visible;
+  }
+  #print-receipt-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 20px;
+    background: white !important;
+    color: black !important;
+    font-family: 'Courier New', Courier, monospace;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

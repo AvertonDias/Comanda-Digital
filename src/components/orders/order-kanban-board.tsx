@@ -1,7 +1,7 @@
 
 'use client';
 import { useState } from 'react';
-import type { Order, OrderStatus } from '@/lib/types';
+import type { Order, OrderStatus, Restaurant } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -10,7 +10,8 @@ import { Badge } from '../ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '../ui/scroll-area';
 import { OrderDetailsModal } from './order-details-modal';
-import { useFirestore, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { OrderReceiptModal } from './order-receipt-modal';
+import { useFirestore, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError, useDoc } from '@/firebase';
 import { collection, query, doc, updateDoc, orderBy, where, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '../ui/skeleton';
 
@@ -67,6 +68,13 @@ const OrderCard = ({ order, onDetailsClick }: { order: Order, onDetailsClick: (o
 export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: string, tableId?: string }) {
   const firestore = useFirestore();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [lastFinalizedOrder, setLastFinalizedOrder] = useState<Order | null>(null);
+
+  const restaurantRef = useMemoFirebase(() => 
+    restaurantId ? doc(firestore, 'restaurants', restaurantId) : null,
+    [firestore, restaurantId]
+  );
+  const { data: restaurant } = useDoc<Restaurant>(restaurantRef);
 
   const ordersQuery = useMemoFirebase(() => {
     if (!restaurantId || !firestore) return null;
@@ -92,7 +100,14 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
         updatePayload.closedAt = serverTimestamp();
     }
 
-    updateDoc(orderRef, updatePayload).catch(async () => {
+    updateDoc(orderRef, updatePayload).then(() => {
+        if (newStatus === 'finalizado') {
+            const finishedOrder = orders?.find(o => o.id === orderId);
+            if (finishedOrder) {
+                setLastFinalizedOrder({ ...finishedOrder, ...updatePayload });
+            }
+        }
+    }).catch(async () => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: orderRef.path,
             operation: 'update',
@@ -138,11 +153,19 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
               </TabsContent>
           ))}
       </Tabs>
+      
       <OrderDetailsModal
         order={selectedOrder}
         isOpen={!!selectedOrder}
         onOpenChange={(isOpen) => { if (!isOpen) setSelectedOrder(null) }}
         onStatusChange={handleStatusChange}
+      />
+
+      <OrderReceiptModal
+        order={lastFinalizedOrder}
+        restaurant={restaurant}
+        isOpen={!!lastFinalizedOrder}
+        onClose={() => setLastFinalizedOrder(null)}
       />
     </div>
   );
