@@ -34,6 +34,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 type MenuItemCardProps = {
   item: MenuItem & { categoryName: string };
@@ -117,16 +118,18 @@ export function MenuItemCard({ item, categories }: MenuItemCardProps) {
         </Card>
 
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-            <DialogContent className="sm:max-w-[625px]">
-                <DialogHeader>
+            <DialogContent className="max-w-full w-full h-[100dvh] sm:h-auto sm:max-w-[800px] p-0 overflow-hidden flex flex-col gap-0 border-none sm:border">
+                <DialogHeader className="p-4 border-b bg-background sticky top-0 z-10 sm:static">
                     <DialogTitle>Editar Item: {item.name}</DialogTitle>
                 </DialogHeader>
-                <MenuItemForm 
-                    restaurantId={item.restaurantId}
-                    categories={categories}
-                    initialData={item}
-                    onSuccess={() => setIsEditDialogOpen(false)}
-                />
+                <ScrollArea className="flex-1 p-4 sm:p-6">
+                  <MenuItemForm 
+                      restaurantId={item.restaurantId}
+                      categories={categories}
+                      initialData={item}
+                      onSuccess={() => setIsEditDialogOpen(false)}
+                  />
+                </ScrollArea>
             </DialogContent>
         </Dialog>
 

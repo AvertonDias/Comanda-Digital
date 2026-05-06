@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -97,7 +96,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
   function onSubmit(values: z.infer<typeof formSchema>) {
     const itemData = {
       ...values,
-      description: "", // Mantendo vazio já que foi removido do form
+      description: "", 
       restaurantId,
       updatedAt: serverTimestamp(),
       imageUrl: initialData?.imageUrl || `https://picsum.photos/seed/${values.name}/600/400`, 
@@ -134,45 +133,52 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="space-y-5">
-            <h3 className="text-sm font-black uppercase tracking-widest text-primary">Informações Básicas</h3>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 pb-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+          {/* Coluna 1: Informações e Ingredientes */}
+          <div className="space-y-6">
+            <h3 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
+              <span className="h-4 w-1 bg-primary rounded-full" />
+              1. Informações Básicas
+            </h3>
             
             <FormField
               control={form.control}
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nome do Prato</FormLabel>
-                  <FormControl><Input placeholder="Ex: Hambúrguer Artesanal" {...field} /></FormControl>
+                  <FormLabel className="text-[10px] font-black uppercase">Nome do Prato</FormLabel>
+                  <FormControl><Input placeholder="Ex: Hambúrguer Artesanal" className="h-11" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <div className="space-y-3 bg-muted/20 p-4 rounded-lg border-2 border-dashed">
-              <FormLabel className="text-primary font-black">Ingredientes Base (+)</FormLabel>
+            <div className="space-y-3 bg-muted/10 p-4 rounded-xl border-2 border-dashed border-muted">
+              <FormLabel className="text-primary text-[10px] font-black uppercase">Ingredientes Base (+)</FormLabel>
               <div className="flex gap-2">
                 <Input 
                   placeholder="Ex: Pão brioche" 
                   value={newIngredient} 
+                  className="h-10 text-sm"
                   onChange={e => setNewIngredient(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddIngredient())}
                 />
-                <Button type="button" size="icon" onClick={handleAddIngredient} className="shrink-0">
+                <Button type="button" size="icon" onClick={handleAddIngredient} className="shrink-0 h-10 w-10">
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
-              <FormDescription>Adicione item por item. Eles aparecerão como opcionais para o cliente.</FormDescription>
-              <div className="flex flex-wrap gap-2 pt-2">
+              <FormDescription className="text-[9px] uppercase font-bold text-muted-foreground">
+                Adicione cada item que compõe o prato individualmente.
+              </FormDescription>
+              <div className="flex flex-wrap gap-2 pt-1">
                 {ingredientsArray.map((ing, idx) => (
-                  <Badge key={idx} variant="secondary" className="gap-1 px-3 py-1.5 font-bold uppercase text-[10px] bg-white border-2">
+                  <Badge key={idx} variant="secondary" className="gap-1 px-3 py-1.5 font-bold uppercase text-[9px] bg-background border-2 shadow-sm">
                     {ing}
                     <X className="h-3 w-3 cursor-pointer text-destructive hover:scale-125 transition-transform" onClick={() => handleRemoveIngredient(idx)} />
                   </Badge>
                 ))}
-                {ingredientsArray.length === 0 && <span className="text-[10px] text-muted-foreground uppercase italic">Nenhum ingrediente adicionado</span>}
+                {ingredientsArray.length === 0 && <span className="text-[9px] text-muted-foreground uppercase italic font-bold">Nenhum ingrediente base</span>}
               </div>
             </div>
 
@@ -182,8 +188,8 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
                 name="price"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Preço Base (R$)</FormLabel>
-                    <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                    <FormLabel className="text-[10px] font-black uppercase">Preço Base (R$)</FormLabel>
+                    <FormControl><Input type="number" step="0.01" className="h-11" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -193,10 +199,10 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
                 name="categoryId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Categoria</FormLabel>
+                    <FormLabel className="text-[10px] font-black uppercase">Categoria</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="h-11">
                           <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
                       </FormControl>
@@ -213,14 +219,18 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
             </div>
           </div>
 
-          <div className="space-y-5">
+          {/* Coluna 2: Adicionais */}
+          <div className="space-y-6">
             <div className="flex justify-between items-center">
-              <h3 className="text-sm font-black uppercase tracking-widest text-primary">Adicionais Pagos</h3>
+              <h3 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                <span className="h-4 w-1 bg-primary rounded-full" />
+                2. Adicionais Pagos
+              </h3>
               <Button 
                 type="button" 
                 variant="outline" 
                 size="sm" 
-                className="h-8 font-bold text-[10px] uppercase"
+                className="h-8 font-bold text-[10px] uppercase border-2"
                 onClick={() => appendGroup({ 
                   id: Math.random().toString(36).substr(2, 9),
                   name: "", 
@@ -234,9 +244,9 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
               </Button>
             </div>
 
-            <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="space-y-4">
               {addonGroups.map((group, groupIdx) => (
-                <Card key={group.id} className="p-4 space-y-4 relative bg-muted/10 border-2">
+                <Card key={group.id} className="p-4 space-y-4 relative bg-muted/5 border-2 shadow-none overflow-hidden">
                   <Button 
                     type="button" 
                     variant="ghost" 
@@ -253,28 +263,28 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
                       name={`addonGroups.${groupIdx}.name`}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-[10px] uppercase font-black text-muted-foreground">Título do Grupo</FormLabel>
-                          <FormControl><Input {...field} className="h-8 text-xs font-bold" placeholder="Ex: Escolha o queijo" /></FormControl>
+                          <FormLabel className="text-[9px] uppercase font-black text-muted-foreground">Título do Grupo</FormLabel>
+                          <FormControl><Input {...field} className="h-9 text-xs font-bold" placeholder="Ex: Escolha o queijo" /></FormControl>
                         </FormItem>
                       )}
                     />
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-wrap items-center gap-4">
                       <FormField
                         control={form.control}
                         name={`addonGroups.${groupIdx}.isMandatory`}
                         render={({ field }) => (
                           <FormItem className="flex items-center gap-2 space-y-0">
                             <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                            <FormLabel className="text-[10px] font-black uppercase cursor-pointer">Obrigatório</FormLabel>
+                            <FormLabel className="text-[9px] font-black uppercase cursor-pointer">Obrigatório</FormLabel>
                           </FormItem>
                         )}
                       />
                       <div className="flex items-center gap-2">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Máx:</Label>
+                        <Label className="text-[9px] font-black uppercase text-muted-foreground">Limite Máx:</Label>
                         <Input 
                           type="number" 
                           {...form.register(`addonGroups.${groupIdx}.maxQuantity`, { valueAsNumber: true })} 
-                          className="h-7 w-12 text-center p-0 text-xs" 
+                          className="h-7 w-12 text-center p-0 text-xs font-bold" 
                         />
                       </div>
                     </div>
@@ -283,62 +293,66 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
                   <Separator />
 
                   <div className="space-y-2">
-                    <div className="space-y-2">
-                      {form.watch(`addonGroups.${groupIdx}.options`)?.map((_, optIdx) => (
-                        <div key={optIdx} className="flex gap-2 items-center">
-                          <Input 
-                            placeholder="Opção (Ex: Cheddar)" 
-                            {...form.register(`addonGroups.${groupIdx}.options.${optIdx}.name`)} 
-                            className="h-8 text-xs"
-                          />
+                    {form.watch(`addonGroups.${groupIdx}.options`)?.map((_, optIdx) => (
+                      <div key={optIdx} className="flex gap-2 items-center">
+                        <Input 
+                          placeholder="Opção (Ex: Cheddar)" 
+                          {...form.register(`addonGroups.${groupIdx}.options.${optIdx}.name`)} 
+                          className="h-9 text-xs font-medium"
+                        />
+                        <div className="flex items-center gap-1 border rounded-md px-2 bg-background h-9">
+                          <span className="text-[10px] font-bold text-muted-foreground">R$</span>
                           <Input 
                             type="number" 
-                            placeholder="R$" 
+                            placeholder="0,00" 
                             {...form.register(`addonGroups.${groupIdx}.options.${optIdx}.price`, { valueAsNumber: true })} 
-                            className="h-8 w-20 text-xs"
+                            className="border-none h-full w-14 p-0 text-xs font-black shadow-none focus-visible:ring-0"
                           />
-                          <Button 
-                            type="button" 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-destructive"
-                            onClick={() => {
-                              const options = form.getValues(`addonGroups.${groupIdx}.options`);
-                              form.setValue(`addonGroups.${groupIdx}.options`, options.filter((_, i) => i !== optIdx));
-                            }}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
                         </div>
-                      ))}
-                      <Button 
-                        type="button" 
-                        variant="ghost" 
-                        size="sm" 
-                        className="w-full h-8 border-dashed border-2 text-[9px] font-black uppercase"
-                        onClick={() => {
-                          const options = form.getValues(`addonGroups.${groupIdx}.options`) || [];
-                          form.setValue(`addonGroups.${groupIdx}.options`, [...options, { name: "", price: 0 }]);
-                        }}
-                      >
-                        <Plus className="h-3 w-3 mr-1" /> Adicionar Opção
-                      </Button>
-                    </div>
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-9 w-9 text-destructive shrink-0"
+                          onClick={() => {
+                            const options = form.getValues(`addonGroups.${groupIdx}.options`);
+                            form.setValue(`addonGroups.${groupIdx}.options`, options.filter((_, i) => i !== optIdx));
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="sm" 
+                      className="w-full h-10 border-dashed border-2 text-[9px] font-black uppercase mt-2 hover:bg-primary/5 hover:border-primary/50 transition-all"
+                      onClick={() => {
+                        const options = form.getValues(`addonGroups.${groupIdx}.options`) || [];
+                        form.setValue(`addonGroups.${groupIdx}.options`, [...options, { name: "", price: 0 }]);
+                      }}
+                    >
+                      <Plus className="h-3 w-3 mr-1" /> Adicionar Opção
+                    </Button>
                   </div>
                 </Card>
               ))}
               {addonGroups.length === 0 && (
-                <div className="text-center py-10 bg-muted/10 rounded-lg border-2 border-dashed">
-                  <p className="text-[10px] font-black uppercase text-muted-foreground">Nenhum grupo de adicionais</p>
+                <div className="text-center py-10 bg-muted/5 rounded-xl border-2 border-dashed border-muted">
+                  <p className="text-[10px] font-black uppercase text-muted-foreground">Nenhum adicional configurado</p>
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        <div className="flex justify-end pt-4 border-t">
-          <Button type="submit" size="lg" className="w-full md:w-auto bg-primary font-black uppercase px-12">
+        <div className="sticky bottom-0 left-0 right-0 pt-6 pb-2 bg-background/95 backdrop-blur-sm border-t mt-auto flex flex-col gap-3">
+          <Button type="submit" size="lg" className="w-full bg-primary font-black uppercase py-6 shadow-xl active:scale-95 transition-all">
             {initialData ? "Salvar Alterações" : "Cadastrar no Cardápio"}
+          </Button>
+          <Button type="button" variant="ghost" className="w-full text-muted-foreground font-black uppercase text-[10px]" onClick={onSuccess}>
+            Cancelar
           </Button>
         </div>
       </form>

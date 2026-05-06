@@ -58,7 +58,7 @@ export default function MenuPage() {
     if (!items) return [];
     return items.filter(item => 
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchQuery.toLowerCase())
+      item.description?.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [items, searchQuery]);
 
@@ -99,11 +99,13 @@ export default function MenuPage() {
                       <Settings2 className="h-4 w-4" />
                   </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px]">
-                  <DialogHeader>
+              <DialogContent className="max-w-full w-full h-[100dvh] sm:h-auto sm:max-w-[500px] p-0 overflow-hidden flex flex-col gap-0 border-none sm:border">
+                  <DialogHeader className="p-4 border-b bg-background sticky top-0 z-10 sm:static">
                       <DialogTitle>Categorias</DialogTitle>
                   </DialogHeader>
-                  <CategoryManager restaurantId={restaurantId!} />
+                  <ScrollArea className="flex-1 p-4">
+                    <CategoryManager restaurantId={restaurantId!} />
+                  </ScrollArea>
               </DialogContent>
             </Dialog>
 
@@ -114,15 +116,17 @@ export default function MenuPage() {
                       Novo
                   </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[625px]">
-                  <DialogHeader>
+              <DialogContent className="max-w-full w-full h-[100dvh] sm:h-auto sm:max-w-[800px] p-0 overflow-hidden flex flex-col gap-0 border-none sm:border">
+                  <DialogHeader className="p-4 border-b bg-background sticky top-0 z-10 sm:static">
                       <DialogTitle>Novo Item</DialogTitle>
                   </DialogHeader>
-                  <MenuItemForm 
-                      restaurantId={restaurantId!} 
-                      categories={categories || []} 
-                      onSuccess={() => setIsItemDialogOpen(false)}
-                  />
+                  <ScrollArea className="flex-1 p-4 sm:p-6">
+                      <MenuItemForm 
+                          restaurantId={restaurantId!} 
+                          categories={categories || []} 
+                          onSuccess={() => setIsItemDialogOpen(false)}
+                      />
+                  </ScrollArea>
               </DialogContent>
             </Dialog>
           </div>
@@ -130,7 +134,6 @@ export default function MenuPage() {
       </AppHeader>
 
       <main className="flex-1 pb-24">
-        {/* Banner Slim */}
         <div className="relative h-32 md:h-48 bg-primary/10 overflow-hidden flex items-center justify-center border-b">
             <div className="text-center space-y-2 px-4">
                 <h2 className="text-xl md:text-3xl font-black uppercase tracking-tighter">{restaurant?.name}</h2>
@@ -142,7 +145,6 @@ export default function MenuPage() {
             </div>
         </div>
 
-        {/* Sticky Search & Nav */}
         <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md border-b">
             <div className="max-w-3xl mx-auto px-4 py-3 space-y-3">
                 <div className="relative group">
@@ -179,7 +181,6 @@ export default function MenuPage() {
             </div>
         </div>
 
-        {/* List Content */}
         <div className="max-w-3xl mx-auto p-4 space-y-8">
             {categories?.filter(c => !activeTab || c.id === activeTab || searchQuery).map(category => {
                 const categoryItems = filteredItems.filter(i => i.categoryId === category.id);
