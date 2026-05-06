@@ -15,7 +15,7 @@ type UseRestaurantReturn = {
 };
 
 /**
- * useRestaurant() BLINDADO
+ * useRestaurant()
  * 
  * Busca o ID do restaurante e o papel do usuário (role) de forma segura.
  */
@@ -35,26 +35,27 @@ export function useRestaurant(): UseRestaurantReturn {
         return userProfile?.activeRestaurantId || null;
     }, [userProfile]);
 
-    // 2. Busca o papel do usuário dentro desse restaurante
+    // 2. Busca o papel do usuário dentro desse restaurante na subcoleção de equipe
     const teamMemberRef = useMemoFirebase(() => {
         if (!restaurantId || !user?.uid || !firestore) return null;
         return doc(firestore, `restaurants/${restaurantId}/team`, user.uid);
     }, [restaurantId, user?.uid, firestore]);
 
-    // Nota: O erro de permissão aqui é tratado silenciosamente durante o carregamento inicial
     const { data: teamMember, isLoading: isRoleLoading } = useDoc<RestaurantUser>(teamMemberRef);
 
-    // O carregamento só termina quando o perfil E o cargo (se o id existir) terminarem
+    // O carregamento só termina quando o perfil E o cargo terminarem de carregar
     const isLoading = isUserLoading || isProfileLoading || (!!restaurantId && isRoleLoading);
 
-    // Lógica de fallback: Se o usuário tem um restaurante mas o registro na equipe ainda não existe no DB,
-    // ele é tratado como Admin (caso de criador novo).
     const detectedRole = useMemo(() => {
+        // Se houver um cargo explícito no banco, usamos ele
         if (teamMember?.role) return teamMember.role;
-        // Fallback de segurança para administradores que acabaram de criar o restaurante
-        if (restaurantId && !isRoleLoading) return 'admin';
+        
+        // Se o carregamento terminou e o usuário tem um restaurante mas não está na equipe
+        // assumimos que ele é o administrador/criador (caso de fallback)
+        if (restaurantId && !isRoleLoading && !isProfileLoading) return 'admin';
+        
         return null;
-    }, [teamMember?.role, restaurantId, isRoleLoading]);
+    }, [teamMember?.role, restaurantId, isRoleLoading, isProfileLoading]);
 
     return {
         restaurantId,

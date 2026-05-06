@@ -7,16 +7,23 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Verifica se o usuário tem o restaurante como ativo no seu perfil
+    // Verifica se o usuário é parte da equipe (via perfil ou subcoleção de equipe)
     function isStaff(restaurantId) {
+      if (!isSignedIn()) return false;
+      
       let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
-      return isSignedIn() && exists(userPath) && get(userPath).data.activeRestaurantId == restaurantId;
+      let teamPath = /databases/$(database)/documents/restaurants/$(restaurantId)/team/$(request.auth.uid);
+      
+      // Acesso permitido se o restaurante for o ativo no perfil OU se o usuário estiver na lista da equipe
+      return (exists(userPath) && get(userPath).data.activeRestaurantId == restaurantId) || 
+             exists(teamPath);
     }
 
     // Verifica se o usuário é admin na subcoleção de equipe
     function isAdmin(restaurantId) {
+      if (!isSignedIn()) return false;
       let teamPath = /databases/$(database)/documents/restaurants/$(restaurantId)/team/$(request.auth.uid);
-      return isSignedIn() && exists(teamPath) && get(teamPath).data.role == "admin";
+      return exists(teamPath) && get(teamPath).data.role == "admin";
     }
 
     // USERS: Perfil do usuário
