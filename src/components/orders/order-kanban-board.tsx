@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '../ui/scroll-area';
 import { OrderDetailsModal } from './order-details-modal';
 import { useFirestore, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, query, doc, updateDoc, orderBy, where } from 'firebase/firestore';
+import { collection, query, doc, updateDoc, orderBy, where, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '../ui/skeleton';
 
 const STATUS_CONFIG: Record<OrderStatus, { title: string; color: string }> = {
@@ -80,13 +80,23 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
 
   const { data: orders, isLoading } = useCollection<Order>(ordersQuery);
 
-  const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
+  const handleStatusChange = (orderId: string, newStatus: OrderStatus, extraData: any = {}) => {
     const orderRef = doc(firestore, `restaurants/${restaurantId}/orders/${orderId}`);
-    updateDoc(orderRef, { status: newStatus }).catch(async () => {
+    
+    const updatePayload = { 
+        status: newStatus, 
+        ...extraData 
+    };
+
+    if (newStatus === 'finalizado') {
+        updatePayload.closedAt = serverTimestamp();
+    }
+
+    updateDoc(orderRef, updatePayload).catch(async () => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: orderRef.path,
             operation: 'update',
-            requestResourceData: { status: newStatus }
+            requestResourceData: updatePayload
         }));
     });
     setSelectedOrder(null);

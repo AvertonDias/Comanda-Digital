@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -17,16 +18,17 @@ import { Label } from "@/components/ui/label";
 import type { Order, OrderStatus } from "@/lib/types";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowRight, ChefHat, Bike, ShoppingBag, Trash2, MapPin, Phone, User, MessageCircle } from "lucide-react";
+import { ArrowRight, ChefHat, Bike, ShoppingBag, Trash2, MapPin, Phone, User, MessageCircle, CreditCard, Banknote, QrCode } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
+import { cn } from "@/lib/utils";
 
 type OrderDetailsModalProps = {
     order: Order | null;
     isOpen: boolean;
     onOpenChange: (isOpen: boolean) => void;
-    onStatusChange: (orderId: string, newStatus: OrderStatus) => void;
+    onStatusChange: (orderId: string, newStatus: OrderStatus, extraData?: any) => void;
 };
 
 const STATUS_CONFIG: Record<OrderStatus, { title: string; color: string }> = {
@@ -44,11 +46,18 @@ const originText = {
     'telefone': 'Telefone',
 };
 
+const PAYMENT_METHODS = [
+    { id: 'pix', label: 'Pix', icon: QrCode },
+    { id: 'cartao_credito', label: 'Crédito', icon: CreditCard },
+    { id: 'cartao_debito', label: 'Débito', icon: CreditCard },
+    { id: 'dinheiro', label: 'Dinheiro', icon: Banknote },
+];
+
 export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange }: OrderDetailsModalProps) {
     const [notifyWhatsApp, setNotifyWhatsApp] = useState(true);
+    const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
     const firestore = useFirestore();
 
-    // Busca dados do restaurante para capturar o nome oficial
     const restaurantRef = useMemoFirebase(() => 
         order?.restaurantId ? doc(firestore, 'restaurants', order.restaurantId) : null,
         [firestore, order?.restaurantId]
@@ -56,7 +65,10 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const { data: restaurant } = useDoc(restaurantRef);
 
     useEffect(() => {
-        if (isOpen) setNotifyWhatsApp(true);
+        if (isOpen) {
+            setNotifyWhatsApp(true);
+            setPaymentMethod(null);
+        }
     }, [isOpen]);
 
     if (!order) return null;
@@ -64,11 +76,14 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const restaurantName = restaurant?.name || 'nosso estabelecimento';
     const currentStatus = order.status;
     const canCancel = currentStatus === 'aberto';
+    
     const nextStatus: OrderStatus | null =
         currentStatus === 'aberto' ? 'preparando' :
         currentStatus === 'preparando' ? 'pronto' :
         currentStatus === 'pronto' ? 'finalizado' :
         null;
+
+    const isFinalizing = nextStatus === 'finalizado';
 
     const nextStatusText =
         nextStatus === 'preparando' ? 'Marcar como "Em Preparação"' :
@@ -86,20 +101,18 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         ? format(new Date(order.createdAt.seconds * 1000), "dd/MM/yy 'às' HH:mm", { locale: ptBR })
         : 'Recentemente';
 
-    // Número do pedido formatado (ex: 001)
     const displayOrderNumber = order.orderNumber 
         ? order.orderNumber.toString().padStart(3, '0') 
         : order.id.slice(-4).toUpperCase();
 
     const handleStatusUpdate = () => {
         if (!nextStatus) return;
+        
+        if (isFinalizing && !paymentMethod) return;
 
-        // Dispara mensagem se estiver marcando como PRONTO e o cliente tiver telefone
         if (nextStatus === 'pronto' && notifyWhatsApp && order.customerPhone) {
             const cleanPhone = order.customerPhone.replace(/\D/g, '');
             const finalPhone = cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone;
-            
-            // Personaliza o texto dependendo se é entrega ou retirada/local
             const statusActionText = order.destination === 'entrega' ? 'já está A CAMINHO' : 'já está PRONTO';
             
             const message = encodeURIComponent(
@@ -109,7 +122,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
             window.open(`https://wa.me/${finalPhone}?text=${message}`, '_blank');
         }
 
-        onStatusChange(order.id, nextStatus);
+        onStatusChange(order.id, nextStatus, isFinalizing ? { paymentMethod } : {});
     };
 
     return (
@@ -182,6 +195,34 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                 ))}
                             </ul>
                         </div>
+
+                        {isFinalizing && (
+                            <div className="space-y-4 pt-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <Separator />
+                                <p className="font-black text-[10px] uppercase text-primary flex items-center gap-2">
+                                    <CreditCard className="h-3 w-3" /> Forma de Pagamento
+                                </p>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {PAYMENT_METHODS.map((method) => (
+                                        <button
+                                            key={method.id}
+                                            onClick={() => setPaymentMethod(method.id)}
+                                            className={cn(
+                                                "flex items-center gap-2 px-3 py-3 rounded-xl border-2 transition-all text-left",
+                                                paymentMethod === method.id 
+                                                    ? "border-primary bg-primary/5 shadow-sm" 
+                                                    : "border-muted bg-background hover:border-muted-foreground/30"
+                                            )}
+                                        >
+                                            <method.icon className={cn("h-4 w-4", paymentMethod === method.id ? "text-primary" : "text-muted-foreground")} />
+                                            <span className={cn("text-[10px] font-black uppercase", paymentMethod === method.id ? "text-primary" : "text-muted-foreground")}>
+                                                {method.label}
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </ScrollArea>
 
@@ -213,7 +254,11 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                             </Button>
                         )}
                         {nextStatus && (
-                            <Button className="flex-[2] font-black uppercase text-[10px] h-11" onClick={handleStatusUpdate}>
+                            <Button 
+                                className="flex-[2] font-black uppercase text-[10px] h-11" 
+                                onClick={handleStatusUpdate}
+                                disabled={isFinalizing && !paymentMethod}
+                            >
                                 {nextStatusIcon}
                                 {nextStatusText}
                                 <ArrowRight className="ml-auto h-3 w-3"/>

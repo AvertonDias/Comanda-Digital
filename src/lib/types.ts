@@ -110,6 +110,7 @@ export type Order = {
   status: OrderStatus;
   origin: 'mesa' | 'whatsapp' | 'balcao' | 'telefone';
   destination: 'local' | 'retirada' | 'entrega';
+  paymentMethod?: string;
   createdAt: any;
   closedAt?: any;
 };
