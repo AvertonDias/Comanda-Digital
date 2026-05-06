@@ -7,6 +7,8 @@ import { X, ChevronLeft, Plus, Minus, Share2, Maximize2, ShoppingBag, Info, Chec
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -142,10 +144,10 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
 
           <div className="p-6 space-y-6">
             <div className="space-y-2">
-              <h2 className="text-xl font-black uppercase leading-tight">{item.name}</h2>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                {item.description}
-              </p>
+              <DialogTitle className="text-xl font-black uppercase leading-tight">{item.name}</DialogTitle>
+              <DialogDescription className="text-muted-foreground text-sm leading-relaxed">
+                Personalize seu pedido selecionando os ingredientes e adicionais desejados.
+              </DialogDescription>
             </div>
 
             {/* Seção de Ingredientes Base (Opcionais de Retirada) */}
