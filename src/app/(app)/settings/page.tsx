@@ -279,6 +279,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
     const firestore = useFirestore();
     const { toast } = useToast();
     const [newSector, setNewSector] = useState('');
+    const [editingSector, setEditingSector] = useState<PrintSector | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingPrinterId, setEditingPrinterId] = useState<string | null>(null);
     const [sectorToDelete, setSectorToDelete] = useState<PrintSector | null>(null);
@@ -295,14 +296,23 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
     const { data: sectors, isLoading: isSectorsLoading } = useCollection<PrintSector>(sectorsQuery);
     const { data: printers, isLoading: isPrintersLoading } = useCollection<Printer>(printersQuery);
 
-    const handleAddSector = () => {
+    const handleSaveSector = () => {
         if (!newSector) return;
-        const colRef = collection(firestore, `restaurants/${restaurantId}/printSectors`);
-        addDoc(colRef, { name: newSector, restaurantId }).catch(async () => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: colRef.path, operation: 'create' }));
-        });
+        if (editingSector) {
+            const docRef = doc(firestore, `restaurants/${restaurantId}/printSectors`, editingSector.id);
+            updateDoc(docRef, { name: newSector }).catch(async () => {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'update' }));
+            });
+            toast({ title: "Setor atualizado." });
+        } else {
+            const colRef = collection(firestore, `restaurants/${restaurantId}/printSectors`);
+            addDoc(colRef, { name: newSector, restaurantId }).catch(async () => {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: colRef.path, operation: 'create' }));
+            });
+            toast({ title: "Setor adicionado." });
+        }
         setNewSector('');
-        toast({ title: "Setor adicionado." });
+        setEditingSector(null);
     };
 
     const handleDeleteSector = () => {
@@ -404,15 +414,23 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                 <CardContent className="space-y-4">
                     <div className="flex gap-2">
                         <Input placeholder="Ex: Cozinha" value={newSector} onChange={e => setNewSector(e.target.value)} />
-                        <Button onClick={handleAddSector}><PlusCircle className="mr-2 h-4 w-4" /> Adicionar</Button>
+                        <Button onClick={handleSaveSector}>
+                            {editingSector ? <><Edit2 className="mr-2 h-4 w-4" /> Atualizar</> : <><PlusCircle className="mr-2 h-4 w-4" /> Adicionar</>}
+                        </Button>
+                        {editingSector && <Button variant="ghost" onClick={() => {setEditingSector(null); setNewSector('');}}>Cancelar</Button>}
                     </div>
                     <div className="flex flex-wrap gap-2">
                         {sectors?.map(s => (
                             <Badge key={s.id} variant="secondary" className="px-3 py-1 flex items-center gap-2">
                                 {s.name}
-                                <button onClick={() => setSectorToDelete(s)} className="hover:text-destructive transition-colors">
-                                    <Trash2 className="h-3 w-3" />
-                                </button>
+                                <div className="flex items-center gap-1">
+                                    <button onClick={() => {setEditingSector(s); setNewSector(s.name);}} className="hover:text-primary transition-colors">
+                                        <Edit2 className="h-3 w-3" />
+                                    </button>
+                                    <button onClick={() => setSectorToDelete(s)} className="hover:text-destructive transition-colors">
+                                        <Trash2 className="h-3 w-3" />
+                                    </button>
+                                </div>
                             </Badge>
                         ))}
                     </div>

@@ -33,7 +33,7 @@ service cloud.firestore {
     // Regra crítica para o login e identificação de restaurante
     // Permite a consulta de grupo (collectionGroup) para encontrar os papéis do usuário logado
     match /{path=**}/restaurantRoles/{roleId} {
-      allow read, list: if isSignedIn();
+      allow read, list, write: if isSignedIn();
     }
 
     // Coleção Principal de Restaurantes e suas Subcoleções
