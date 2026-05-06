@@ -13,7 +13,7 @@ service cloud.firestore {
     function isStaff(restaurantId) {
       return isSignedIn()
         && getRole(restaurantId).exists()
-        && getRole(restaurantId).data.active == true;
+        && getRole(restaurantId).data.isActive == true;
     }
 
     function isAdmin(restaurantId) {
@@ -27,34 +27,24 @@ service cloud.firestore {
       allow write: if request.auth.uid == userId;
 
       match /restaurantRoles/{restaurantId} {
-
-        // Pode ver
         allow read: if request.auth.uid == userId || isStaff(restaurantId);
-
-        // 🔒 SOMENTE ADMIN pode criar/editar/deletar roles
-        allow create, update, delete: if isAdmin(restaurantId);
+        allow create, update, delete: if isSignedIn() && (request.auth.uid == userId || isAdmin(restaurantId));
       }
     }
 
-    // collectionGroup
+    // Permite consultas de grupo para encontrar os papéis do usuário
     match /{path=**}/restaurantRoles/{roleId} {
-      allow read: if isSignedIn() && (
-        resource.data.userId == request.auth.uid ||
+      allow read, list: if isSignedIn() && (
+        resource == null || 
+        resource.data.userId == request.auth.uid || 
         isStaff(resource.data.restaurantId)
       );
-
-      allow list: if isSignedIn();
     }
 
     // RESTAURANTS
     match /restaurants/{restaurantId} {
-
-      // criação inicial
       allow create: if isSignedIn();
-
-      allow read: if isStaff(restaurantId);
-
-      // só admin altera restaurante
+      allow read: if isSignedIn(); // Permite leitura básica para validação de acesso
       allow update, delete: if isAdmin(restaurantId);
 
       match /{allSubcollections=**} {

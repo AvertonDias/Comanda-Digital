@@ -1,7 +1,7 @@
 'use client';
 
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query } from "firebase/firestore";
+import { collection, query, where } from "firebase/firestore";
 import { useMemo } from "react";
 import type { RestaurantUserRole } from "@/lib/types";
 
@@ -13,13 +13,21 @@ type UseRestaurantReturn = {
     error: unknown;
 };
 
+/**
+ * Hook blindado para gestão do restaurante ativo do usuário.
+ * Evita disparar queries antes da autenticação estar pronta.
+ */
 export function useRestaurant(): UseRestaurantReturn {
     const { user, isUserLoading: isAuthLoading } = useUser();
     const firestore = useFirestore();
 
+    // Consulta específica na subcoleção do usuário para evitar collectionGroup desnecessário e erros de permissão
     const rolesQuery = useMemoFirebase(() => {
         if (!user?.uid || !firestore) return null;
-        return query(collection(firestore, `users/${user.uid}/restaurantRoles`));
+        return query(
+            collection(firestore, `users/${user.uid}/restaurantRoles`),
+            where('isActive', '==', true)
+        );
     }, [user?.uid, firestore]);
 
     const {
@@ -30,7 +38,8 @@ export function useRestaurant(): UseRestaurantReturn {
 
     const restaurantInfo = useMemo(() => {
         if (!roles || roles.length === 0) return null;
-        const active = roles.find(r => r.isActive && r.restaurantId);
+        // Prioriza o primeiro restaurante ativo encontrado
+        const active = roles[0];
         if (active) {
             return {
                 id: active.restaurantId,

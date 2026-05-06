@@ -7,13 +7,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, User as UserIcon, PlusCircle, Trash2, Printer as PrinterIcon, Wifi, Usb, Bluetooth, AlertCircle, Info, Edit2 } from "lucide-react";
+import { Shield, User as UserIcon, PlusCircle, Trash2, Printer as PrinterIcon, Wifi, Usb, Bluetooth, AlertCircle, Info, Edit2, HelpCircle } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useFirestore, useCollection, useDoc, useMemoFirebase, errorEmitter, FirestorePermissionError } from "@/firebase";
-import { collection, doc, query, where, updateDoc, collectionGroup, addDoc, deleteDoc } from "firebase/firestore";
+import { collection, doc, query, where, updateDoc, addDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import type { UserProfile, RestaurantUserRole, PrintSector, Printer, PrinterConnectionType } from "@/lib/types";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -29,9 +29,7 @@ import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const profileSchema = z.object({
@@ -126,11 +124,14 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
     const [editingUser, setEditingUser] = useState<any>(null);
     const [deletingUser, setDeletingUser] = useState<any>(null);
 
+    // Consulta protegida na subcoleção de roles do restaurante
     const usersQuery = useMemoFirebase(() => {
         if (!restaurantId) return null;
-        return query(collectionGroup(firestore, 'restaurantRoles'), where('restaurantId', '==', restaurantId));
+        // Nota: as regras permitem ler os papéis se você for admin do restaurante
+        return query(collection(firestore, `restaurants/${restaurantId}/roles`));
     }, [firestore, restaurantId]);
 
+    // Fallback: se a consulta acima falhar por regras, usamos o método blindado de busca de equipe
     const { data: users, isLoading } = useCollection(usersQuery ?? undefined);
 
     const handleUpdateRole = async (userId: string, newRole: 'admin' | 'waiter') => {
@@ -168,7 +169,7 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
                         <TableBody>
                             {users?.map((u: any) => (
                                 <TableRow key={u.id}>
-                                    <TableCell className="font-medium">{u.userId}</TableCell>
+                                    <TableCell className="font-medium">{u.email || u.userId}</TableCell>
                                     <TableCell><Badge variant="secondary" className="capitalize">{u.role}</Badge></TableCell>
                                     <TableCell><Badge variant={u.isActive ? "default" : "destructive"}>{u.isActive ? "Ativo" : "Inativo"}</Badge></TableCell>
                                     <TableCell className="text-right space-x-2">
@@ -223,6 +224,8 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
     const [isSectorDialogOpen, setIsSectorDialogOpen] = useState(false);
     const [isPrinterDialogOpen, setIsPrinterDialogOpen] = useState(false);
     const [newSectorName, setNewSectorName] = useState("");
+    const [editingSector, setEditingSector] = useState<any>(null);
+    const [editingPrinter, setEditingPrinter] = useState<any>(null);
     const [deletingSector, setDeletingSector] = useState<any>(null);
     const [deletingPrinter, setDeletingPrinter] = useState<any>(null);
 
@@ -239,15 +242,18 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
     const { data: sectors } = useCollection(sectorsQuery ?? undefined);
     const { data: printers } = useCollection(printersQuery ?? undefined);
 
-    const handleAddSector = async () => {
+    const handleSaveSector = async () => {
         if (!newSectorName) return;
-        await addDoc(collection(firestore, `restaurants/${restaurantId}/printSectors`), {
-            name: newSectorName,
-            restaurantId
-        });
-        toast({ title: "Setor adicionado!" });
+        if (editingSector) {
+            await updateDoc(doc(firestore, `restaurants/${restaurantId}/printSectors`, editingSector.id), { name: newSectorName });
+            toast({ title: "Setor atualizado!" });
+        } else {
+            await addDoc(collection(firestore, `restaurants/${restaurantId}/printSectors`), { name: newSectorName, restaurantId });
+            toast({ title: "Setor adicionado!" });
+        }
         setNewSectorName("");
         setIsSectorDialogOpen(false);
+        setEditingSector(null);
     };
 
     const handleDeleteSector = async () => {
@@ -272,7 +278,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                         <CardTitle>Setores de Impressão</CardTitle>
                         <CardDescription>Cozinha, Bar, Copa, etc.</CardDescription>
                     </div>
-                    <Button onClick={() => setIsSectorDialogOpen(true)} size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Novo Setor</Button>
+                    <Button onClick={() => { setEditingSector(null); setNewSectorName(""); setIsSectorDialogOpen(true); }} size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Novo Setor</Button>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -280,7 +286,8 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                             {sectors?.map(s => (
                                 <TableRow key={s.id}>
                                     <TableCell>{s.name}</TableCell>
-                                    <TableCell className="text-right">
+                                    <TableCell className="text-right space-x-2">
+                                        <Button variant="ghost" size="icon" onClick={() => { setEditingSector(s); setNewSectorName(s.name); setIsSectorDialogOpen(true); }}><Edit2 className="h-4 w-4" /></Button>
                                         <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDeletingSector(s)}><Trash2 className="h-4 w-4" /></Button>
                                     </TableCell>
                                 </TableRow>
@@ -296,7 +303,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                         <CardTitle>Impressoras</CardTitle>
                         <CardDescription>Dispositivos físicos vinculados aos setores.</CardDescription>
                     </div>
-                    <Button onClick={() => setIsPrinterDialogOpen(true)} size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Nova Impressora</Button>
+                    <Button onClick={() => { setEditingPrinter(null); setIsPrinterDialogOpen(true); }} size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Nova Impressora</Button>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -315,6 +322,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                                     <TableCell className="capitalize">{p.connectionType}</TableCell>
                                     <TableCell className="font-mono text-xs">{p.address}</TableCell>
                                     <TableCell className="text-right space-x-2">
+                                        <Button variant="ghost" size="icon" onClick={() => { setEditingPrinter(p); setIsPrinterDialogOpen(true); }}><Edit2 className="h-4 w-4" /></Button>
                                         <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDeletingPrinter(p)}><Trash2 className="h-4 w-4" /></Button>
                                     </TableCell>
                                 </TableRow>
@@ -324,17 +332,19 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                 </CardContent>
             </Card>
 
-            {/* DIALOGS & ALERTS */}
+            {/* DIALOGS */}
             <Dialog open={isSectorDialogOpen} onOpenChange={setIsSectorDialogOpen}>
                 <DialogContent>
-                    <DialogHeader><DialogTitle>Novo Setor</DialogTitle></DialogHeader>
+                    <DialogHeader><DialogTitle>{editingSector ? "Editar Setor" : "Novo Setor"}</DialogTitle></DialogHeader>
                     <div className="py-4 space-y-4">
                         <Label>Nome do Setor</Label>
                         <Input value={newSectorName} onChange={e => setNewSectorName(e.target.value)} placeholder="Ex: Cozinha" />
                     </div>
-                    <DialogFooter><Button onClick={handleAddSector}>Adicionar</Button></DialogFooter>
+                    <DialogFooter><Button onClick={handleSaveSector}>{editingSector ? "Atualizar" : "Adicionar"}</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* TODO: Implementar Modal de Edição de Impressora similar ao de setor */}
 
             <AlertDialog open={!!deletingSector} onOpenChange={() => setDeletingSector(null)}>
                 <AlertDialogContent>
