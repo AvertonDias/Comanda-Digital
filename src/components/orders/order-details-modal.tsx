@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import type { Order, OrderStatus, Restaurant } from "@/lib/types";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowRight, ChefHat, Bike, ShoppingBag, Trash2, MapPin, Phone, User, MessageCircle, CreditCard, Banknote, QrCode, Copy, Check } from "lucide-react";
+import { ArrowRight, ChefHat, Bike, ShoppingBag, Trash2, MapPin, Phone, User, MessageCircle, CreditCard, Banknote, QrCode, Copy, Check, Users, Minus, Plus } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
@@ -114,6 +114,9 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const [notifyWhatsApp, setNotifyWhatsApp] = useState(true);
     const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
+    const [peopleCount, setPeopleCount] = useState(1);
+    const [pixAmountMode, setQrMode] = useState<'total' | 'split'>('total');
+    
     const firestore = useFirestore();
     const { toast } = useToast();
 
@@ -127,14 +130,20 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         ? order.orderNumber.toString().padStart(3, '0') 
         : order?.id.slice(-4).toUpperCase() || '000';
 
-    const txidLabel = `PEDIDO${displayOrderNumber}`;
+    const splitAmount = useMemo(() => {
+        if (!order?.total) return 0;
+        return order.total / peopleCount;
+    }, [order?.total, peopleCount]);
+
+    const activePixAmount = pixAmountMode === 'split' ? splitAmount : (order?.total || 0);
+    const txidLabel = pixAmountMode === 'split' ? `PEDIDO${displayOrderNumber}PART` : `PEDIDO${displayOrderNumber}`;
 
     const pixPayload = useMemo(() => {
-        if (paymentMethod === 'pix' && restaurant?.pixKey && order?.total) {
-            return generatePixPayload(restaurant.pixKey, order.total, restaurant.name || 'Restaurante', txidLabel);
+        if (paymentMethod === 'pix' && restaurant?.pixKey && activePixAmount) {
+            return generatePixPayload(restaurant.pixKey, activePixAmount, restaurant.name || 'Restaurante', txidLabel);
         }
         return null;
-    }, [paymentMethod, restaurant, order, txidLabel]);
+    }, [paymentMethod, restaurant, activePixAmount, txidLabel]);
 
     const qrCodeUrl = useMemo(() => {
         if (pixPayload) {
@@ -148,6 +157,8 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
             setNotifyWhatsApp(true);
             setPaymentMethod(null);
             setCopied(false);
+            setPeopleCount(1);
+            setQrMode('total');
         }
     }, [isOpen]);
 
@@ -282,43 +293,111 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                         </div>
 
                         {isFinalizing && (
-                            <div className="space-y-4 pt-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <div className="space-y-6 pt-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
                                 <Separator />
-                                <p className="font-black text-[10px] uppercase text-primary flex items-center gap-2">
-                                    <CreditCard className="h-3 w-3" /> Forma de Pagamento
-                                </p>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {PAYMENT_METHODS.map((method) => (
-                                        <button
-                                            key={method.id}
-                                            onClick={() => setPaymentMethod(method.id)}
-                                            className={cn(
-                                                "flex items-center gap-2 px-3 py-3 rounded-xl border-2 transition-all text-left",
-                                                paymentMethod === method.id 
-                                                    ? "border-primary bg-primary/5 shadow-sm" 
-                                                    : "border-muted bg-background hover:border-muted-foreground/30"
-                                            )}
-                                        >
-                                            <method.icon className={cn("h-4 w-4", paymentMethod === method.id ? "text-primary" : "text-muted-foreground")} />
-                                            <span className={cn("text-[10px] font-black uppercase", paymentMethod === method.id ? "text-primary" : "text-muted-foreground")}>
-                                                {method.label}
-                                            </span>
-                                        </button>
-                                    ))}
+                                
+                                {/* DIVISÃO DE CONTA */}
+                                <div className="space-y-3">
+                                    <p className="font-black text-[10px] uppercase text-primary flex items-center gap-2">
+                                        <Users className="h-3 w-3" /> Divisão da Conta
+                                    </p>
+                                    <div className="bg-muted/30 p-4 rounded-xl flex items-center justify-between">
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-black uppercase text-muted-foreground">Pessoas</span>
+                                            <div className="flex items-center gap-3 mt-1">
+                                                <Button 
+                                                    variant="outline" 
+                                                    size="icon" 
+                                                    className="h-8 w-8 rounded-full border-2"
+                                                    onClick={() => setPeopleCount(Math.max(1, peopleCount - 1))}
+                                                >
+                                                    <Minus className="h-3 w-3" />
+                                                </Button>
+                                                <span className="font-black text-sm w-4 text-center">{peopleCount}</span>
+                                                <Button 
+                                                    variant="outline" 
+                                                    size="icon" 
+                                                    className="h-8 w-8 rounded-full border-2"
+                                                    onClick={() => setPeopleCount(peopleCount + 1)}
+                                                >
+                                                    <Plus className="h-3 w-3" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="text-right">
+                                            <span className="text-[10px] font-black uppercase text-muted-foreground">Cada um paga</span>
+                                            <p className="text-lg font-black text-primary">
+                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(splitAmount)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <Separator />
+
+                                <div className="space-y-4">
+                                    <p className="font-black text-[10px] uppercase text-primary flex items-center gap-2">
+                                        <CreditCard className="h-3 w-3" /> Forma de Pagamento
+                                    </p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {PAYMENT_METHODS.map((method) => (
+                                            <button
+                                                key={method.id}
+                                                onClick={() => setPaymentMethod(method.id)}
+                                                className={cn(
+                                                    "flex items-center gap-2 px-3 py-3 rounded-xl border-2 transition-all text-left",
+                                                    paymentMethod === method.id 
+                                                        ? "border-primary bg-primary/5 shadow-sm" 
+                                                        : "border-muted bg-background hover:border-muted-foreground/30"
+                                                )}
+                                            >
+                                                <method.icon className={cn("h-4 w-4", paymentMethod === method.id ? "text-primary" : "text-muted-foreground")} />
+                                                <span className={cn("text-[10px] font-black uppercase", paymentMethod === method.id ? "text-primary" : "text-muted-foreground")}>
+                                                    {method.label}
+                                                </span>
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
 
                                 {paymentMethod === 'pix' && (
                                     <div className="bg-muted/30 p-4 rounded-xl space-y-4 animate-in zoom-in-95 duration-300">
                                         {qrCodeUrl ? (
                                             <div className="flex flex-col items-center gap-4 text-center">
+                                                
+                                                {peopleCount > 1 && (
+                                                    <div className="flex bg-background p-1 rounded-lg border-2 w-full">
+                                                        <button 
+                                                            className={cn(
+                                                                "flex-1 py-1.5 text-[9px] font-black uppercase rounded-md transition-all",
+                                                                pixAmountMode === 'total' ? "bg-primary text-white" : "text-muted-foreground hover:bg-muted"
+                                                            )}
+                                                            onClick={() => setQrMode('total')}
+                                                        >
+                                                            Total (100%)
+                                                        </button>
+                                                        <button 
+                                                            className={cn(
+                                                                "flex-1 py-1.5 text-[9px] font-black uppercase rounded-md transition-all",
+                                                                pixAmountMode === 'split' ? "bg-primary text-white" : "text-muted-foreground hover:bg-muted"
+                                                            )}
+                                                            onClick={() => setQrMode('split')}
+                                                        >
+                                                            Individual (1/{peopleCount})
+                                                        </button>
+                                                    </div>
+                                                )}
+
                                                 <div className="bg-white p-4 rounded-lg shadow-sm border">
                                                     <Image src={qrCodeUrl} alt="Pix QR Code" width={200} height={200} className="rounded" />
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <p className="text-[10px] font-black uppercase text-primary">QR Code com Valor Incluso</p>
-                                                    <p className="text-sm font-black">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}</p>
+                                                    <p className="text-[10px] font-black uppercase text-primary">
+                                                        {pixAmountMode === 'split' ? `QR Code Individual (1/${peopleCount})` : 'QR Code Valor Total'}
+                                                    </p>
+                                                    <p className="text-sm font-black">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(activePixAmount)}</p>
                                                     <p className="text-[9px] text-muted-foreground uppercase font-bold">Identificador: {txidLabel}</p>
-                                                    <p className="text-[9px] text-muted-foreground uppercase font-bold leading-tight">O cliente não precisa digitar o valor</p>
                                                 </div>
                                                 <Button 
                                                     variant="secondary" 
@@ -348,7 +427,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
 
                 <div className="p-6 bg-muted/20 border-t mt-auto">
                     <div className="flex justify-between items-center text-lg font-black uppercase mb-4">
-                        <span>Total</span>
+                        <span>Total Comanda</span>
                         <span className="text-primary">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}</span>
                     </div>
 
