@@ -19,7 +19,7 @@ export default function TablesPage() {
 
     const tablesQuery = useMemoFirebase(() => {
         if (!restaurantId || !firestore) return null;
-        // Blindagem: Ordem alfabética rigorosa
+        // Blindagem: Ordem alfabética rigorosa para as mesas
         return query(
             collection(firestore, `restaurants/${restaurantId}/tables`),
             orderBy('name', 'asc')

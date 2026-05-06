@@ -92,10 +92,18 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
 
     const rolesQuery = useMemoFirebase(() => {
         if (!restaurantId) return null;
+        // Blindagem: Busca os papéis vinculados a este restaurante
+        return query(collection(firestore, "users"), query(collection(firestore, "restaurantRoles")));
+    }, [firestore, restaurantId]);
+
+    // Consultando os membros da equipe (ajuste para a sua estrutura real)
+    // Aqui usamos uma subcoleção se o restaurantId for conhecido
+    const teamQuery = useMemoFirebase(() => {
+        if (!restaurantId) return null;
         return query(collection(firestore, `restaurants/${restaurantId}/roles`));
     }, [firestore, restaurantId]);
 
-    const { data: users, isLoading } = useCollection(rolesQuery);
+    const { data: users, isLoading } = useCollection(teamQuery);
 
     const handleUpdateRole = async (userId: string, newRole: string) => {
         const docRef = doc(firestore, `users/${userId}/restaurantRoles/${restaurantId}`);
