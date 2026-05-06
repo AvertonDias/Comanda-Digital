@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -19,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import type { Order, OrderStatus, Restaurant } from "@/lib/types";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowRight, ChefHat, Bike, ShoppingBag, Trash2, QrCode, Copy, Check, Users, Minus, Plus, Wallet, CreditCard, Banknote, ListChecks, DollarSign } from "lucide-react";
+import { ArrowRight, ChefHat, Bike, ShoppingBag, Trash2, QrCode, Copy, Check, Users, Minus, Plus, Wallet, CreditCard, Banknote, ListChecks, DollarSign, UserPlus } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
@@ -180,6 +179,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     };
 
     const handleSetFraction = (index: number, divisor: number) => {
+        if (divisor <= 0) return;
         const item = itemsBalance[index];
         const val = Number((item.remainingQty / divisor).toFixed(2));
         setSelectedItemsForPart(prev => ({ ...prev, [index]: val }));
@@ -269,23 +269,20 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                                         <Plus className="h-3 w-3" />
                                                                     </Button>
                                                                 </div>
-                                                                <div className="flex flex-col gap-1 items-end">
-                                                                    <span className="text-[8px] font-black uppercase text-muted-foreground">Dividir em pessoas:</span>
-                                                                    <div className="flex gap-1">
-                                                                        {[2, 3, 4, 5].map(n => (
-                                                                            <button 
-                                                                                key={n}
-                                                                                onClick={() => handleSetFraction(idx, n)}
-                                                                                className={cn(
-                                                                                    "text-[9px] font-black border-2 w-7 h-7 flex items-center justify-center rounded-md transition-all uppercase",
-                                                                                    selectedItemsForPart[idx] === Number((itemsBalance[idx].remainingQty / n).toFixed(2)) 
-                                                                                    ? "bg-black text-white border-black" 
-                                                                                    : "border-muted hover:bg-primary/5"
-                                                                                )}
-                                                                            >
-                                                                                {n}
-                                                                            </button>
-                                                                        ))}
+                                                                <div className="flex flex-col gap-1 items-end w-full">
+                                                                    <span className="text-[8px] font-black uppercase text-muted-foreground">Dividir por:</span>
+                                                                    <div className="flex items-center gap-1">
+                                                                        <Input 
+                                                                            type="number" 
+                                                                            min="1"
+                                                                            placeholder="Pessoas" 
+                                                                            className="h-7 w-12 text-[10px] p-1 text-center font-black bg-muted/50 border-none shadow-none"
+                                                                            onChange={(e) => {
+                                                                                const divisor = Number(e.target.value);
+                                                                                if (divisor > 0) handleSetFraction(idx, divisor);
+                                                                            }}
+                                                                        />
+                                                                        <span className="text-[8px] font-black uppercase text-muted-foreground">Pessoas</span>
                                                                     </div>
                                                                 </div>
                                                             </div>
