@@ -11,6 +11,16 @@ export type RestaurantUserRole = {
     restaurantId: string;
     role: 'admin' | 'waiter';
     isActive: boolean;
+    email?: string;
+};
+
+export type Invitation = {
+  id: string;
+  restaurantId: string;
+  role: 'admin' | 'waiter';
+  status: 'pending' | 'accepted' | 'expired';
+  createdAt: any;
+  expiresAt?: any;
 };
 
 export type MenuItemCategory = {

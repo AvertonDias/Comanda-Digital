@@ -27,7 +27,10 @@ service cloud.firestore {
 
       match /restaurantRoles/{restaurantId} {
         allow read: if request.auth.uid == userId || isStaff(restaurantId);
-        allow create, update, delete: if isSignedIn() && (request.auth.uid == userId || isAdmin(restaurantId));
+        // Permitir criar se o próprio usuário estiver criando para si mesmo (durante o registro/convite)
+        // Ou se um admin estiver criando
+        allow create: if isSignedIn() && (request.auth.uid == userId || isAdmin(restaurantId));
+        allow update, delete: if isSignedIn() && (request.auth.uid == userId || isAdmin(restaurantId));
       }
     }
 
@@ -36,6 +39,12 @@ service cloud.firestore {
       allow create: if isSignedIn();
       allow read: if isSignedIn(); 
       allow update, delete: if isAdmin(restaurantId);
+
+      match /invitations/{inviteId} {
+        // Permitir leitura pública para validar o convite pelo ID no registro
+        allow read: if isSignedIn(); 
+        allow write: if isAdmin(restaurantId);
+      }
 
       match /{allSubcollections=**} {
         allow read, write: if isStaff(restaurantId);

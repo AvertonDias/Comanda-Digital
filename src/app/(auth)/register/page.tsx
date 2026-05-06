@@ -7,11 +7,11 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, useUser, useFirestore } from '@/firebase';
 import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { collection, doc, serverTimestamp, writeBatch } from 'firebase/firestore';
-import { UtensilsCrossed, Loader2 } from 'lucide-react';
+import { collection, doc, serverTimestamp, writeBatch, getDoc } from 'firebase/firestore';
+import { UtensilsCrossed, Loader2, UserPlus } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useState, FormEvent, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, FormEvent, useEffect, Suspense } from 'react';
 import { useRestaurant } from "@/hooks/use-restaurant";
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -23,7 +23,7 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
   );
 
-export default function RegisterPage() {
+function RegisterContent() {
   const [restaurantName, setRestaurantName] = useState('');
   const [userName, setUserName] = useState('');
   const [email, setEmail] = useState('');
@@ -33,9 +33,13 @@ export default function RegisterPage() {
   const { user, isUserLoading } = useUser();
   const { hasRestaurant, isLoading: isResLoading } = useRestaurant();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const inviteId = searchParams.get('invite');
+  const invitedRestId = searchParams.get('rest');
 
   useEffect(() => {
     if (!isUserLoading && !isResLoading && user && hasRestaurant) {
@@ -49,7 +53,7 @@ export default function RegisterPage() {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
       await signInWithPopup(auth, provider);
-      toast({ title: 'Autenticado!', description: 'Agora finalize o cadastro do restaurante.' });
+      toast({ title: 'Autenticado!', description: 'Agora finalize seu cadastro.' });
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Erro', description: 'Erro ao entrar com Google.' });
     } finally {
@@ -59,8 +63,8 @@ export default function RegisterPage() {
 
   const handleRegister = async (e: FormEvent) => {
     e.preventDefault();
-    if (!restaurantName || (!user && !userName)) {
-        toast({ variant: "destructive", title: "Erro", description: "Preencha todos os campos obrigatórios." });
+    if (!inviteId && !restaurantName) {
+        toast({ variant: "destructive", title: "Erro", description: "Preencha o nome do restaurante." });
         return;
     }
 
@@ -74,36 +78,60 @@ export default function RegisterPage() {
       }
       
       const batch = writeBatch(firestore);
-      const restaurantRef = doc(collection(firestore, "restaurants"));
-      
-      batch.set(restaurantRef, {
-          name: restaurantName,
-          plan: 'basico',
-          status: 'ativo',
-          createdAt: serverTimestamp()
-      });
+      let targetRestaurantId = invitedRestId;
+      let targetRole = 'waiter';
 
-      // Blindagem: Desnormalização estratégica para performance
+      if (inviteId && invitedRestId) {
+          // Validar convite
+          const inviteRef = doc(firestore, `restaurants/${invitedRestId}/invitations/${inviteId}`);
+          const inviteSnap = await getDoc(inviteRef);
+          
+          if (!inviteSnap.exists()) {
+              toast({ variant: 'destructive', title: 'Erro', description: 'Convite inválido ou expirado.' });
+              setIsSubmitting(false);
+              return;
+          }
+          
+          targetRole = inviteSnap.data().role || 'waiter';
+          batch.update(inviteRef, { status: 'accepted' });
+      } else {
+          // Criar novo restaurante
+          const restaurantRef = doc(collection(firestore, "restaurants"));
+          targetRestaurantId = restaurantRef.id;
+          targetRole = 'admin';
+          
+          batch.set(restaurantRef, {
+              name: restaurantName,
+              plan: 'basico',
+              status: 'ativo',
+              createdAt: serverTimestamp()
+          });
+      }
+
+      // Perfil do Usuário
       const userProfileRef = doc(firestore, `users/${targetUser.uid}`);
       batch.set(userProfileRef, {
         name: targetUser.displayName || userName || targetUser.email,
         email: targetUser.email,
         avatarUrl: targetUser.photoURL || '',
-        activeRestaurantId: restaurantRef.id
+        activeRestaurantId: targetRestaurantId
       }, { merge: true });
       
-      const userRoleRef = doc(firestore, `users/${targetUser.uid}/restaurantRoles/${restaurantRef.id}`);
+      // Papel no Restaurante
+      const userRoleRef = doc(firestore, `users/${targetUser.uid}/restaurantRoles/${targetRestaurantId}`);
       batch.set(userRoleRef, {
           userId: targetUser.uid,
-          restaurantId: restaurantRef.id,
-          role: 'admin',
-          isActive: true
+          restaurantId: targetRestaurantId,
+          role: targetRole,
+          isActive: true,
+          email: targetUser.email
       });
       
       await batch.commit();
-      toast({ title: 'Sucesso!', description: 'Seu restaurante foi configurado.' });
+      toast({ title: 'Sucesso!', description: inviteId ? 'Você entrou para a equipe!' : 'Seu restaurante foi configurado.' });
       router.push('/dashboard');
     } catch (error: any) {
+        console.error(error);
         toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao finalizar o registro.' });
     } finally {
         setIsSubmitting(false);
@@ -114,15 +142,21 @@ export default function RegisterPage() {
     <Card className="mx-auto max-w-sm w-full">
       <CardHeader className="space-y-1 text-center">
         <UtensilsCrossed className="mx-auto h-8 w-8 text-primary" />
-        <CardTitle className="text-2xl font-bold">Criar Restaurante</CardTitle>
-        <CardDescription>Configure seu negócio em segundos.</CardDescription>
+        <CardTitle className="text-2xl font-bold">
+            {inviteId ? 'Participar da Equipe' : 'Criar Restaurante'}
+        </CardTitle>
+        <CardDescription>
+            {inviteId ? 'Finalize seu perfil para começar a trabalhar.' : 'Configure seu negócio em segundos.'}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleRegister} className="space-y-4">
-          <div className="space-y-2">
-            <Label>Nome do Restaurante</Label>
-            <Input placeholder="Ex: Pizzaria do Zé" required value={restaurantName} onChange={(e) => setRestaurantName(e.target.value)} disabled={isSubmitting} />
-          </div>
+          {!inviteId && (
+            <div className="space-y-2">
+                <Label>Nome do Restaurante</Label>
+                <Input placeholder="Ex: Pizzaria do Zé" required value={restaurantName} onChange={(e) => setRestaurantName(e.target.value)} disabled={isSubmitting} />
+            </div>
+          )}
           
           {!user ? (
             <>
@@ -146,7 +180,7 @@ export default function RegisterPage() {
           )}
 
           <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? <Loader2 className="animate-spin" /> : 'Finalizar Cadastro'}
+            {isSubmitting ? <Loader2 className="animate-spin" /> : inviteId ? 'Entrar para a Equipe' : 'Finalizar Cadastro'}
           </Button>
 
           {!user && (
@@ -174,4 +208,12 @@ export default function RegisterPage() {
       </CardContent>
     </Card>
   );
+}
+
+export default function RegisterPage() {
+    return (
+        <Suspense fallback={<div className="flex items-center justify-center p-12"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>}>
+            <RegisterContent />
+        </Suspense>
+    );
 }

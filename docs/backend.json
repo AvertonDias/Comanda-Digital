@@ -50,6 +50,10 @@
           "type": "string",
           "description": "URL da foto de perfil do usuário.",
           "format": "uri"
+        },
+        "activeRestaurantId": {
+          "type": "string",
+          "description": "ID do restaurante atualmente selecionado pelo usuário."
         }
       },
       "required": ["name", "email"]
@@ -79,6 +83,20 @@
         }
       },
       "required": ["userId", "restaurantId", "role", "isActive"]
+    },
+    "Invitation": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Invitation",
+      "type": "object",
+      "description": "Convite para um usuário ingressar em uma equipe de restaurante.",
+      "properties": {
+        "restaurantId": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "waiter"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "expired"] }
+      },
+      "required": ["restaurantId", "role", "status", "createdAt"]
     },
     "MenuItemCategory": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -380,6 +398,16 @@
             "$ref": "#/entities/RestaurantUser"
           },
           "description": "Armazena o papel de um usuário em um restaurante específico."
+        }
+      },
+      {
+        "path": "/restaurants/{restaurantId}/invitations/{invitationId}",
+        "definition": {
+          "entityName": "Invitation",
+          "schema": {
+            "$ref": "#/entities/Invitation"
+          },
+          "description": "Convites ativos para novos membros."
         }
       },
       {

@@ -8,11 +8,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { HelpCircle, Edit2, Trash2, PlusCircle, UserPlus } from "lucide-react";
+import { HelpCircle, Edit2, Trash2, PlusCircle, UserPlus, Copy, Link as LinkIcon } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
-import { collection, doc, query, updateDoc, addDoc, deleteDoc, collectionGroup, where } from "firebase/firestore";
+import { collection, doc, query, updateDoc, addDoc, deleteDoc, collectionGroup, where, serverTimestamp } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -94,13 +94,12 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
     const { toast } = useToast();
     const [editingUser, setEditingUser] = useState<any>(null);
     const [deletingUser, setDeletingUser] = useState<any>(null);
-    const [isAddModal, setIsAddModal] = useState(false);
-    const [newEmail, setNewEmail] = useState("");
-    const [newRole, setNewRole] = useState("waiter");
+    const [isInviteModal, setIsInviteModal] = useState(false);
+    const [inviteLink, setInviteLink] = useState("");
+    const [inviteRole, setInviteRole] = useState("waiter");
 
     const teamQuery = useMemoFirebase(() => {
         if (!restaurantId || !firestore) return null;
-        // Blindagem: Usar collectionGroup para listar quem tem acesso a este restaurante
         return query(
             collectionGroup(firestore, 'restaurantRoles'),
             where('restaurantId', '==', restaurantId)
@@ -116,13 +115,23 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
         setEditingUser(null);
     };
 
-    const handleAddMember = async () => {
-        if (!newEmail) return;
-        // Nota: Em um app real, aqui buscaríamos o UID pelo email via Cloud Function.
-        // Como MVP, simularemos ou o usuário deve informar o UID/E-mail de um usuário existente.
-        toast({ title: "Convite enviado!", description: "O usuário receberá acesso ao restaurante." });
-        setIsAddModal(false);
-        setNewEmail("");
+    const handleGenerateInvite = async () => {
+        const colRef = collection(firestore, `restaurants/${restaurantId}/invitations`);
+        const inviteDoc = await addDoc(colRef, {
+            restaurantId,
+            role: inviteRole,
+            status: 'pending',
+            createdAt: serverTimestamp()
+        });
+        
+        const origin = window.location.origin;
+        const link = `${origin}/register?invite=${inviteDoc.id}&rest=${restaurantId}`;
+        setInviteLink(link);
+    };
+
+    const copyToClipboard = () => {
+        navigator.clipboard.writeText(inviteLink);
+        toast({ title: "Link copiado!" });
     };
 
     const handleDelete = async () => {
@@ -136,9 +145,9 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
         <Card>
             <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Equipe</CardTitle>
-                <Button onClick={() => setIsAddModal(true)} size="sm">
+                <Button onClick={() => { setInviteLink(""); setIsInviteModal(true); }} size="sm">
                     <UserPlus className="mr-2 h-4 w-4" />
-                    Adicionar Membro
+                    Gerar Link de Convite
                 </Button>
             </CardHeader>
             <CardContent>
@@ -174,28 +183,38 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
                 )}
             </CardContent>
 
-            <Dialog open={isAddModal} onOpenChange={setIsAddModal}>
+            <Dialog open={isInviteModal} onOpenChange={setIsInviteModal}>
                 <DialogContent>
-                    <DialogHeader><DialogTitle>Convidar Membro</DialogTitle></DialogHeader>
+                    <DialogHeader><DialogTitle>Convidar para Equipe</DialogTitle></DialogHeader>
                     <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <Label>E-mail do Usuário</Label>
-                            <Input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="email@exemplo.com" />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Função</Label>
-                            <Select value={newRole} onValueChange={setNewRole}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="admin">Administrador</SelectItem>
-                                    <SelectItem value="waiter">Garçom</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
+                        {!inviteLink ? (
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label>Função do novo membro</Label>
+                                    <Select value={inviteRole} onValueChange={setInviteRole}>
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="admin">Administrador</SelectItem>
+                                            <SelectItem value="waiter">Garçom</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <Button className="w-full" onClick={handleGenerateInvite}>
+                                    <LinkIcon className="mr-2 h-4 w-4" />
+                                    Gerar Link Único
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <Label>Link Gerado (Envie para o colaborador)</Label>
+                                <div className="flex gap-2">
+                                    <Input value={inviteLink} readOnly />
+                                    <Button size="icon" onClick={copyToClipboard}><Copy className="h-4 w-4" /></Button>
+                                </div>
+                                <p className="text-xs text-muted-foreground">Este link permite que qualquer pessoa com acesso a ele se registre como {inviteRole === 'admin' ? 'Administrador' : 'Garçom'}.</p>
+                            </div>
+                        )}
                     </div>
-                    <DialogFooter>
-                        <Button onClick={handleAddMember}>Enviar Convite</Button>
-                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 
