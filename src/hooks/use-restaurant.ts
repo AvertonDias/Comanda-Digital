@@ -4,40 +4,50 @@
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
 import { useMemo } from "react";
-import type { UserProfile } from "@/lib/types";
+import type { UserProfile, RestaurantUser } from "@/lib/types";
 
 type UseRestaurantReturn = {
     restaurantId: string | null;
+    role: 'admin' | 'waiter' | null;
     isLoading: boolean;
     hasRestaurant: boolean;
     error: any;
 };
 
 /**
- * useRestaurant() BLINDADO v4
+ * useRestaurant() BLINDADO
  * 
- * Busca o ID do restaurante diretamente do perfil desnormalizado do usuário.
- * Isso resolve os erros de permissão ao tentar acessar caminhos globais.
+ * Busca o ID do restaurante e o papel do usuário (role) de forma segura.
  */
 export function useRestaurant(): UseRestaurantReturn {
     const { user, isUserLoading } = useUser();
     const firestore = useFirestore();
 
+    // 1. Busca o perfil para saber qual o restaurante ativo
     const userRef = useMemoFirebase(() => {
         if (!user?.uid || !firestore) return null;
         return doc(firestore, 'users', user.uid);
     }, [user?.uid, firestore]);
 
-    const { data: userProfile, isLoading: isProfileLoading, error } = useDoc<UserProfile>(userRef);
+    const { data: userProfile, isLoading: isProfileLoading, error: profileError } = useDoc<UserProfile>(userRef);
 
     const restaurantId = useMemo(() => {
         return userProfile?.activeRestaurantId || null;
     }, [userProfile]);
 
+    // 2. Busca o papel do usuário dentro desse restaurante
+    const teamMemberRef = useMemoFirebase(() => {
+        if (!restaurantId || !user?.uid || !firestore) return null;
+        return doc(firestore, `restaurants/${restaurantId}/team`, user.uid);
+    }, [restaurantId, user?.uid, firestore]);
+
+    const { data: teamMember, isLoading: isRoleLoading, error: roleError } = useDoc<RestaurantUser>(teamMemberRef);
+
     return {
         restaurantId,
-        isLoading: isUserLoading || isProfileLoading,
+        role: teamMember?.role || null,
+        isLoading: isUserLoading || isProfileLoading || isRoleLoading,
         hasRestaurant: !!restaurantId,
-        error
+        error: profileError || roleError
     };
 }

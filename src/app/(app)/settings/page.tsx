@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AppHeader } from "@/components/layout/app-header";
@@ -116,7 +117,7 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
             createdAt: serverTimestamp()
         });
         
-        const origin = window.location.origin;
+        const origin = typeof window !== 'undefined' ? window.location.origin : '';
         const link = `${origin}/register?invite=${inviteDoc.id}&rest=${restaurantId}`;
         setInviteLink(link);
     };
@@ -346,7 +347,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                     <div className="flex items-center gap-2">
                         <CardTitle>Impressoras</CardTitle>
                         <Popover>
-                            <PopoverTrigger><HelpCircle className="h-4 w-4 text-muted-foreground" /></PopoverTrigger>
+                            <PopoverTrigger asChild><Button variant="ghost" size="icon"><HelpCircle className="h-4 w-4 text-muted-foreground" /></Button></PopoverTrigger>
                             <PopoverContent className="text-xs">
                                 No Windows: Vá em Configurações {'->'} Dispositivos {'->'} Impressoras. O IP ou Nome de Rede aparece nas propriedades do dispositivo.
                             </PopoverContent>
@@ -450,8 +451,18 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
 }
 
 export default function SettingsPage() {
-    const { restaurantId, isLoading } = useRestaurant();
+    const { restaurantId, isLoading, role } = useRestaurant();
     if (isLoading) return <Skeleton className="h-screen w-full" />;
+    
+    // Garçons não têm acesso às configurações
+    if (role === 'waiter') {
+        return (
+            <div className="flex flex-col h-screen bg-background items-center justify-center">
+                <p className="text-muted-foreground">Você não tem permissão para acessar esta página.</p>
+            </div>
+        );
+    }
+
     return (
         <div className="flex flex-col h-screen bg-background">
             <AppHeader><SidebarTrigger /><h1 className="text-xl font-semibold">Configurações</h1></AppHeader>
