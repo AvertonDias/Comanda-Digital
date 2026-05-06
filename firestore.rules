@@ -9,12 +9,8 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
     // Verifica se o usuário logado tem um papel ativo no restaurante
-    // Corrigido para ser mais resiliente e permitir consultas de grupo
+    // A equipe tem permissão total ("fazer tudo") dentro do seu respectivo restaurante
     function isRestaurantStaff(restaurantId) {
       return isSignedIn() && (
         exists(/databases/$(database)/documents/users/$(request.auth.uid)/restaurantRoles/$(restaurantId))
@@ -26,24 +22,30 @@ service cloud.firestore {
     // Perfis de Usuário e Papéis
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow write: if isOwner(userId);
+      allow write: if isSignedIn() && request.auth.uid == userId;
 
       match /restaurantRoles/{restaurantId} {
         allow read: if isSignedIn();
-        allow write: if isOwner(userId) || isRestaurantStaff(restaurantId);
+        // Membros da equipe podem gerenciar papéis para o mesmo restaurante (ex: adicionar garçom)
+        allow write: if isSignedIn() && (request.auth.uid == userId || isRestaurantStaff(restaurantId));
       }
     }
 
     // Regra Crítica para Collection Group (Identificação do Restaurante)
+    // Permite que o usuário consulte seus próprios papéis em qualquer lugar do banco
     match /{path=**}/restaurantRoles/{restaurantId} {
-      allow read, list: if isSignedIn() && (request.auth.uid == resource.data.userId || isRestaurantStaff(restaurantId));
+      allow read, list: if isSignedIn() && (
+        request.auth.uid == resource.data.userId || 
+        isRestaurantStaff(restaurantId)
+      );
     }
 
     // Coleção Principal de Restaurantes e suas Subcoleções
     match /restaurants/{restaurantId} {
+      // Qualquer usuário logado pode criar um restaurante (se tornando admin)
       allow create: if isSignedIn();
       
-      // Permite acesso total se for membro da equipe
+      // Permite acesso total se for membro da equipe do restaurante específico
       allow read, write: if isRestaurantStaff(restaurantId);
 
       // Regras recursivas para todas as subcoleções (menu, pedidos, mesas, etc.)

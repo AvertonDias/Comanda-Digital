@@ -1,3 +1,4 @@
+
 export type UserProfile = {
   name: string;
   email: string;
@@ -23,11 +24,14 @@ export type PrintSector = {
   restaurantId: string;
 }
 
+export type PrinterConnectionType = 'network' | 'usb' | 'bluetooth';
+
 export type Printer = {
   id: string;
   restaurantId: string;
   name: string;
-  ipAddress: string;
+  connectionType: PrinterConnectionType;
+  address: string;
   printSectors: string[];
   isActive: boolean;
 };

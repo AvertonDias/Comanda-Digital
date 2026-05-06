@@ -8,14 +8,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, User as UserIcon, PlusCircle, Trash2, Printer as PrinterIcon, Search } from "lucide-react";
+import { Shield, User as UserIcon, PlusCircle, Trash2, Printer as PrinterIcon, Search, Wifi, Usb, Bluetooth } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useFirestore, useCollection, useDoc, useMemoFirebase, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { collection, doc, query, where, updateDoc, collectionGroup, addDoc, deleteDoc } from "firebase/firestore";
-import type { UserProfile, RestaurantUserRole, PrintSector, Printer } from "@/lib/types";
+import type { UserProfile, RestaurantUserRole, PrintSector, Printer, PrinterConnectionType } from "@/lib/types";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -213,6 +213,24 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
         toast({ title: "Setor removido." });
     };
 
+    const getConnectionIcon = (type: PrinterConnectionType) => {
+        switch (type) {
+            case 'network': return <Wifi className="h-4 w-4" />;
+            case 'usb': return <Usb className="h-4 w-4" />;
+            case 'bluetooth': return <Bluetooth className="h-4 w-4" />;
+            default: return <PrinterIcon className="h-4 w-4" />;
+        }
+    };
+
+    const getConnectionLabel = (type: PrinterConnectionType) => {
+        switch (type) {
+            case 'network': return 'Rede/IP';
+            case 'usb': return 'USB';
+            case 'bluetooth': return 'Bluetooth';
+            default: return type;
+        }
+    };
+
     return (
         <div className="space-y-6">
             <Card>
@@ -243,9 +261,9 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                 <CardHeader className="flex flex-row items-center justify-between">
                     <div>
                         <CardTitle>Impressoras</CardTitle>
-                        <CardDescription>Gerencie as impressoras térmicas da sua rede.</CardDescription>
+                        <CardDescription>Gerencie as impressoras térmicas (IP, USB ou Bluetooth).</CardDescription>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => toast({ title: "Buscando...", description: "Procurando impressoras na rede local." })}>
+                    <Button variant="outline" size="sm" onClick={() => toast({ title: "Buscando...", description: "Procurando dispositivos de impressão (Rede, USB, Bluetooth)." })}>
                         <Search className="mr-2 h-4 w-4" /> procurar impressoras instaladas
                     </Button>
                 </CardHeader>
@@ -254,7 +272,8 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Nome</TableHead>
-                                <TableHead>Endereço IP</TableHead>
+                                <TableHead>Conexão</TableHead>
+                                <TableHead>Endereço / ID</TableHead>
                                 <TableHead>Setores</TableHead>
                                 <TableHead>Status</TableHead>
                             </TableRow>
@@ -266,7 +285,13 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                                         <PrinterIcon className="h-4 w-4 text-muted-foreground" />
                                         {p.name}
                                     </TableCell>
-                                    <TableCell>{p.ipAddress}</TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-2 text-xs">
+                                            {getConnectionIcon(p.connectionType)}
+                                            {getConnectionLabel(p.connectionType)}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="font-mono text-xs">{p.address}</TableCell>
                                     <TableCell>
                                         <div className="flex flex-wrap gap-1">
                                             {p.printSectors.map(sId => {
@@ -279,7 +304,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                                 </TableRow>
                             ))}
                             {printers?.length === 0 && (
-                                <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Nenhuma impressora configurada.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Nenhuma impressora configurada.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>

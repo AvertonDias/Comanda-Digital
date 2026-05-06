@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Restaurant": {
@@ -173,9 +174,14 @@
           "type": "string",
           "description": "Nome da impressora (e.g., 'Impressora Cozinha')."
         },
-        "ipAddress": {
+        "connectionType": {
           "type": "string",
-          "description": "Endereço IP da impressora na rede."
+          "enum": ["network", "usb", "bluetooth"],
+          "description": "Tipo de conexão da impressora."
+        },
+        "address": {
+          "type": "string",
+          "description": "Endereço IP, porta USB ou ID Bluetooth."
         },
         "printSectors": {
           "type": "array",
@@ -189,7 +195,7 @@
           "description": "Indica se a impressora está ativa."
         }
       },
-      "required": ["restaurantId", "name", "ipAddress", "printSectors", "isActive"]
+      "required": ["restaurantId", "name", "connectionType", "address", "printSectors", "isActive"]
     },
     "Table": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -373,7 +379,7 @@
           "schema": {
             "$ref": "#/entities/RestaurantUser"
           },
-          "description": "Armazena o papel de um usuário em um restaurante específico, crucial para controle de acesso."
+          "description": "Armazena o papel de um usuário em um restaurante específico."
         }
       },
       {
@@ -457,6 +463,6 @@
         }
       }
     ],
-    "reasoning": "A nova estrutura do Firestore espelha o blueprint fornecido, com uma clara separação de dados por restaurante para multi-tenancy. Acesso é controlado via papéis de usuário (RestaurantUser) armazenados em uma coleção separada para permitir que um usuário tenha diferentes papéis em diferentes restaurantes, uma abordagem escalável para RBAC. Todas as coleções específicas de um restaurante são aninhadas sob '/restaurants/{restaurantId}', garantindo isolamento de dados e simplificando as regras de segurança."
+    "reasoning": "Estrutura multi-tenancy robusta com isolamento total de dados por restaurante."
   }
 }
