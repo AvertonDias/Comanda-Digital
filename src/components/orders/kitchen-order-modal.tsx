@@ -4,13 +4,13 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
-    DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Printer, ChefHat, X, MapPin, Phone, MessageSquare } from "lucide-react";
-import type { Order, Restaurant } from "@/lib/types";
+import { Printer, ChefHat, MapPin } from "lucide-react";
+import type { Restaurant, MenuItem, MenuItemCategory } from "@/lib/types";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { collection, query } from "firebase/firestore";
 
 export function KitchenOrderModal({ 
     order, 
@@ -23,7 +23,29 @@ export function KitchenOrderModal({
     isOpen: boolean; 
     onClose: () => void 
 }) {
+    const firestore = useFirestore();
+
+    const categoriesQuery = useMemoFirebase(() => {
+        if (!order?.restaurantId || !firestore) return null;
+        return query(collection(firestore, `restaurants/${order.restaurantId}/menuItemCategories`));
+    }, [order?.restaurantId, firestore]);
+
+    const itemsQuery = useMemoFirebase(() => {
+        if (!order?.restaurantId || !firestore) return null;
+        return query(collection(firestore, `restaurants/${order.restaurantId}/menuItems`));
+    }, [order?.restaurantId, firestore]);
+
+    const { data: categories } = useCollection<MenuItemCategory>(categoriesQuery);
+    const { data: menuItems } = useCollection<MenuItem>(itemsQuery);
+
     if (!order) return null;
+
+    const getCategoryName = (menuItemId: string) => {
+        const menuItem = menuItems?.find(i => i.id === menuItemId);
+        if (!menuItem) return '';
+        const category = categories?.find(c => c.id === menuItem.categoryId);
+        return category?.name || '';
+    };
 
     const orderNum = order.orderNumber?.toString().padStart(3, '0') || '---';
     const isDelivery = order.destination === 'entrega';
@@ -104,30 +126,35 @@ export function KitchenOrderModal({
 
                 <div className="space-y-4 pt-2">
                     <p className="text-xs font-black border-b border-black uppercase">Itens do Pedido:</p>
-                    {order.items?.map((item: any, idx: number) => (
-                        <div key={idx} className="border-b border-gray-200 pb-2">
-                            <div className="flex items-start gap-2">
-                                <span className="text-2xl font-black shrink-0">{item.quantity}x</span>
-                                <div className="flex-1">
-                                    <p className="text-lg font-black uppercase leading-none">{item.name}</p>
-                                    {item.addons?.length > 0 && (
-                                        <div className="mt-1 space-y-0.5">
-                                            {item.addons.map((a: any, ai: number) => (
-                                                <p key={ai} className="text-sm font-bold uppercase">+ {a.name}</p>
-                                            ))}
-                                        </div>
-                                    )}
-                                    {item.notes && (
-                                        <div className="mt-2 p-1 bg-gray-100 border-l-4 border-black">
-                                            <p className="text-sm font-black uppercase leading-tight italic">
-                                                OBS: {item.notes}
-                                            </p>
-                                        </div>
-                                    )}
+                    {order.items?.map((item: any, idx: number) => {
+                        const categoryName = getCategoryName(item.menuItemId);
+                        return (
+                            <div key={idx} className="border-b border-gray-200 pb-2">
+                                <div className="flex items-start gap-2">
+                                    <span className="text-2xl font-black shrink-0">{item.quantity}x</span>
+                                    <div className="flex-1">
+                                        <p className="text-lg font-black uppercase leading-none">
+                                            {categoryName && `[${categoryName.toUpperCase()}] `}{item.name}
+                                        </p>
+                                        {item.addons?.length > 0 && (
+                                            <div className="mt-1 space-y-0.5">
+                                                {item.addons.map((a: any, ai: number) => (
+                                                    <p key={ai} className="text-sm font-bold uppercase">+ {a.name}</p>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {item.notes && (
+                                            <div className="mt-2 p-1 bg-gray-100 border-l-4 border-black">
+                                                <p className="text-sm font-black uppercase leading-tight italic">
+                                                    OBS: {item.notes}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
 
                 <div className="mt-6 border-t-2 border-black pt-2 text-center">
