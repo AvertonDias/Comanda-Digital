@@ -234,6 +234,13 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const isFinalizing = order.status === 'pronto' || (isGrouped && allGroupedOrders.some(o => o.status === 'pronto'));
     const isFullyPaid = accumulatedPaid >= (combinedTotal || 0) - 0.05;
 
+    const getCategoryName = (menuItemId: string) => {
+        const menuItem = items?.find(i => i.id === menuItemId);
+        if (!menuItem) return '';
+        const category = categories?.find(c => c.id === menuItem.categoryId);
+        return category?.name || '';
+    };
+
     const handleRegisterPart = () => {
         if (!paymentMethod) return toast({ variant: "destructive", title: "Selecione o pagamento" });
         if (currentPartAmount <= 0 || currentPartAmount > remainingBalance + 0.05) return toast({ variant: "destructive", title: "Valor inválido" });
@@ -392,7 +399,10 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                         {itemsBalance.map((item, idx) => item.remainingQty > 0 && (
                                                             <div key={idx} className="flex items-center justify-between bg-background p-3 rounded-lg border">
                                                                 <div className="flex-1 min-w-0 pr-2">
-                                                                    <p className="text-[10px] font-black uppercase truncate">{item.name}</p>
+                                                                    <p className="text-[10px] font-black uppercase truncate">
+                                                                        <span className="text-primary/70 mr-1">[{getCategoryName(item.menuItemId)}]</span>
+                                                                        {item.name}
+                                                                    </p>
                                                                     <p className="text-[9px] text-muted-foreground font-bold">{item.remainingQty} restantes</p>
                                                                 </div>
                                                                 <div className="flex flex-col items-end gap-2">
@@ -545,7 +555,10 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                 <div className="flex items-start gap-3">
                                                     <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-white text-[10px] font-black shrink-0">{item.quantity}x</span>
                                                     <div>
-                                                        <p className="font-black text-xs uppercase">{item.name}</p>
+                                                        <p className="font-black text-xs uppercase">
+                                                            <span className="text-primary/70 mr-1">[{getCategoryName(item.menuItemId)}]</span>
+                                                            {item.name}
+                                                        </p>
                                                         {item.addons?.map((a, ai) => (<p key={ai} className="text-[9px] text-muted-foreground font-bold uppercase">+ {a.name}</p>))}
                                                     </div>
                                                 </div>

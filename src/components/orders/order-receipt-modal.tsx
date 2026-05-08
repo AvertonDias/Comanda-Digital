@@ -1,3 +1,4 @@
+
 'use client';
 import {
     Dialog,
@@ -8,11 +9,13 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Printer, Share2, CheckCircle2, X, MessageCircle, Info } from "lucide-react";
-import type { Order, Restaurant } from "@/lib/types";
+import type { Order, Restaurant, MenuItem, MenuItemCategory } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Badge } from "../ui/badge";
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { collection, query } from "firebase/firestore";
 
 /**
  * Agrupa itens idênticos para o recibo.
@@ -43,8 +46,30 @@ export function OrderReceiptModal({
     isOpen: boolean; 
     onClose: () => void 
 }) {
+    const firestore = useFirestore();
     const { toast } = useToast();
+
+    const categoriesQuery = useMemoFirebase(() => {
+        if (!order?.restaurantId || !firestore) return null;
+        return query(collection(firestore, `restaurants/${order.restaurantId}/menuItemCategories`));
+    }, [order?.restaurantId, firestore]);
+
+    const itemsQuery = useMemoFirebase(() => {
+        if (!order?.restaurantId || !firestore) return null;
+        return query(collection(firestore, `restaurants/${order.restaurantId}/menuItems`));
+    }, [order?.restaurantId, firestore]);
+
+    const { data: categories } = useCollection<MenuItemCategory>(categoriesQuery);
+    const { data: menuItems } = useCollection<MenuItem>(itemsQuery);
+
     if (!order) return null;
+
+    const getCategoryName = (menuItemId: string) => {
+        const menuItem = menuItems?.find(i => i.id === menuItemId);
+        if (!menuItem) return '';
+        const category = categories?.find(c => c.id === menuItem.categoryId);
+        return category?.name || '';
+    };
 
     const orderNum = order.orderNumber?.toString().padStart(3, '0') || order.id?.slice(-4).toUpperCase() || '---';
     const groupedItems = consolidateItems(order.items);
@@ -56,7 +81,10 @@ export function OrderReceiptModal({
 📌 Pedido #${orderNum}
 📅 ${format(new Date(), "dd/MM/yy HH:mm")}
 ---
-${groupedItems.map(i => `${i.quantity}x ${i.name} - R$ ${(i.priceAtOrder * i.quantity).toFixed(2)}`).join('\n')}
+${groupedItems.map(i => {
+    const cat = getCategoryName(i.menuItemId);
+    return `${i.quantity}x [${cat.toUpperCase()}] ${i.name} - R$ ${(i.priceAtOrder * i.quantity).toFixed(2)}`;
+}).join('\n')}
 ---`;
 
         if (order.splitPayments && order.splitPayments.length > 0) {
@@ -171,7 +199,6 @@ Obrigado pela preferência!
 
                     <DialogFooter>
                         <Button variant="ghost" className="w-full font-black uppercase text-[10px] text-muted-foreground" onClick={onClose}>
-                            <X className="mr-2 h-3 w-3" />
                             Fechar
                         </Button>
                     </DialogFooter>
@@ -207,7 +234,8 @@ Obrigado pela preferência!
                         {groupedItems.map((item, idx) => (
                             <tr key={idx} className="border-b border-gray-100 last:border-0">
                                 <td className="py-2">
-                                    <span className="font-bold">{item.quantity}x</span> {item.name.toUpperCase()}
+                                    <span className="font-bold">{item.quantity}x</span> 
+                                    [{getCategoryName(item.menuItemId).toUpperCase()}] {item.name.toUpperCase()}
                                     {item.addons?.map((a: any, ai: number) => (
                                         <div key={ai} className="text-[10px] font-bold ml-2">+ {a.name.toUpperCase()}</div>
                                     ))}
