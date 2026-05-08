@@ -55,6 +55,7 @@ export function KitchenOrderModal({
     const handlePrint = () => {
         setTimeout(() => {
             window.print();
+            onClose(); // Fecha automaticamente após imprimir
         }, 150);
     };
 

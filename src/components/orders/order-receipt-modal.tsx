@@ -1,4 +1,3 @@
-
 'use client';
 import {
     Dialog,
@@ -112,6 +111,7 @@ Obrigado pela preferência!
     const handlePrint = () => {
         setTimeout(() => {
             window.print();
+            onClose(); // Fecha automaticamente após imprimir
         }, 150);
     };
 
