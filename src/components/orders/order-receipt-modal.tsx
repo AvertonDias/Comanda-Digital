@@ -1,4 +1,3 @@
-
 'use client';
 import {
     Dialog,
@@ -83,7 +82,6 @@ Obrigado pela preferência!
     };
 
     const handlePrint = () => {
-        // Pequeno delay para garantir que o DOM de impressão esteja pronto
         setTimeout(() => {
             window.print();
         }, 150);
@@ -183,14 +181,14 @@ Obrigado pela preferência!
             {/* ÁREA DE IMPRESSÃO (OTIMIZADA PARA CONTRASTE MÁXIMO EM TÉRMICA 80MM) */}
             <div id="print-receipt-area" className="hidden print:block bg-white text-black p-4">
                 <div className="text-center space-y-1 mb-4">
-                    <h1 className="text-xl font-bold uppercase">{restaurant?.name || 'RECIBO DE VENDA'}</h1>
-                    {restaurant?.phone && <p className="text-sm font-bold">TEL: {restaurant.phone}</p>}
-                    <p className="text-[10px] font-bold">{format(new Date(), "dd/MM/yyyy HH:mm:ss")}</p>
+                    <h1 className="text-xl font-bold uppercase text-black">{restaurant?.name || 'RECIBO DE VENDA'}</h1>
+                    {restaurant?.phone && <p className="text-sm font-bold text-black">TEL: {restaurant.phone}</p>}
+                    <p className="text-[10px] font-bold text-black">{format(new Date(), "dd/MM/yyyy HH:mm:ss")}</p>
                 </div>
 
                 <div className="border-t border-black border-dashed my-2" />
                 
-                <div className="text-xs space-y-1 mb-4 font-bold">
+                <div className="text-xs space-y-1 mb-4 font-bold text-black">
                     <p>PEDIDO: #{orderNum}</p>
                     {order.tableName && <p>LOCAL: {order.tableName}</p>}
                     {order.customerName && <p>CLIENTE: {order.customerName}</p>}
@@ -199,7 +197,7 @@ Obrigado pela preferência!
 
                 <div className="border-t border-black border-dashed my-2" />
 
-                <table className="w-full text-[11px] mb-4">
+                <table className="w-full text-[12px] mb-4 font-bold text-black">
                     <thead>
                         <tr className="border-b border-black border-dashed">
                             <th className="text-left py-1 font-bold">DESCRIÇÃO</th>
@@ -208,14 +206,14 @@ Obrigado pela preferência!
                     </thead>
                     <tbody>
                         {groupedItems.map((item, idx) => (
-                            <tr key={idx}>
-                                <td className="py-1">
-                                    <span className="font-bold">{item.quantity}x</span> {item.name}
+                            <tr key={idx} className="border-b border-gray-100 last:border-0">
+                                <td className="py-2">
+                                    <span className="font-bold">{item.quantity}x</span> {item.name.toUpperCase()}
                                     {item.addons?.map((a: any, ai: number) => (
-                                        <div key={ai} className="text-[9px] font-bold ml-2">+ {a.name}</div>
+                                        <div key={ai} className="text-[10px] font-bold ml-2">+ {a.name.toUpperCase()}</div>
                                     ))}
                                 </td>
-                                <td className="text-right py-1 font-bold">
+                                <td className="text-right py-2 font-bold">
                                     {(item.priceAtOrder * item.quantity).toFixed(2)}
                                 </td>
                             </tr>
@@ -226,15 +224,15 @@ Obrigado pela preferência!
                 {order.splitPayments && order.splitPayments.length > 0 && (
                     <>
                         <div className="border-t border-black border-dashed my-2" />
-                        <div className="text-[10px] font-bold uppercase mb-2">RESUMO DA DIVISÃO:</div>
+                        <div className="text-[10px] font-bold uppercase mb-2 text-black">RESUMO DA DIVISÃO:</div>
                         {order.splitPayments.map((p, idx) => (
-                            <div key={idx} className="mb-2 pl-2 border-l-2 border-black">
+                            <div key={idx} className="mb-2 pl-2 border-l-2 border-black text-black">
                                 <div className="flex justify-between font-bold">
                                     <span>PARTE {p.part} ({p.method.toUpperCase()}):</span>
                                     <span>R$ {p.amount.toFixed(2)}</span>
                                 </div>
                                 {p.items?.map((item: any, iidx: number) => (
-                                    <div key={iidx} className="text-[9px] font-bold">- {item.quantity}x {item.name}</div>
+                                    <div key={iidx} className="text-[10px] font-bold">- {item.quantity}x {item.name.toUpperCase()}</div>
                                 ))}
                             </div>
                         ))}
@@ -243,12 +241,12 @@ Obrigado pela preferência!
 
                 <div className="border-t border-black border-dashed my-2" />
 
-                <div className="space-y-1 text-right">
-                    <p className="text-sm font-bold">VALOR TOTAL: R$ {order.total.toFixed(2)}</p>
-                    <p className="text-[11px] uppercase font-bold">STATUS: {isFinished ? 'PAGO' : 'PAGAMENTO PENDENTE'}</p>
+                <div className="space-y-1 text-right text-black">
+                    <p className="text-lg font-bold">VALOR TOTAL: R$ {order.total.toFixed(2)}</p>
+                    <p className="text-[12px] uppercase font-bold">PAGAMENTO: {order.paymentMethod?.toUpperCase() || (isFinished ? 'PAGO' : 'PENDENTE')}</p>
                 </div>
 
-                <div className="mt-8 text-center text-[10px] uppercase font-bold space-y-1">
+                <div className="mt-8 text-center text-[11px] uppercase font-bold space-y-1 text-black">
                     <p>Obrigado pela preferência!</p>
                     <p>Volte sempre</p>
                 </div>

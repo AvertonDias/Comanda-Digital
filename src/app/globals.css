@@ -103,6 +103,7 @@
     margin: 0;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    background: white !important;
   }
   body * {
     visibility: hidden;
@@ -115,21 +116,25 @@
     left: 0;
     top: 0;
     width: 80mm;
-    padding: 3mm;
+    padding: 2mm;
     background: white !important;
     color: black !important;
-    font-family: 'Courier New', Courier, monospace;
+    /* Fonte mais robusta para térmica */
+    font-family: 'Inter', system-ui, sans-serif;
     font-size: 11pt;
     line-height: 1.1;
   }
-  /* Força cores pretas em tudo para evitar tons de cinza apagados */
+  /* Força cores pretas e negrito em tudo para evitar tons de cinza apagados */
   #print-receipt-area span, 
   #print-receipt-area p, 
   #print-receipt-area div, 
   #print-receipt-area td, 
-  #print-receipt-area th {
+  #print-receipt-area th,
+  #print-receipt-area h1,
+  #print-receipt-area h2 {
     color: black !important;
     opacity: 1 !important;
+    font-weight: 700 !important; /* Força negrito em tudo para queimar mais a fita térmica */
   }
   .no-print {
     display: none !important;
