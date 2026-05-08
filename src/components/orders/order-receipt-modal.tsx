@@ -19,6 +19,7 @@ import { Badge } from "../ui/badge";
  * Agrupa itens idênticos para o recibo.
  */
 function consolidateItems(items: any[]) {
+    if (!items) return [];
     const groups: Record<string, any> = {};
     items.forEach(item => {
         const addonsKey = item.addons?.map((a: any) => a.name).sort().join(',') || '';
@@ -46,8 +47,9 @@ export function OrderReceiptModal({
     const { toast } = useToast();
     if (!order) return null;
 
-    const orderNum = order.orderNumber?.toString().padStart(3, '0') || order.id.slice(-4).toUpperCase();
+    const orderNum = order.orderNumber?.toString().padStart(3, '0') || order.id?.slice(-4).toUpperCase() || '---';
     const groupedItems = consolidateItems(order.items);
+    const isFinished = order.status === 'finalizado';
 
     const getReceiptText = () => {
         let text = `
@@ -73,7 +75,7 @@ ${groupedItems.map(i => `${i.quantity}x ${i.name} - R$ ${(i.priceAtOrder * i.qua
 
         text += `
 💰 *Total: R$ ${order.total.toFixed(2)}*
-💳 Pagamento: ${order.paymentMethod?.toUpperCase() || 'N/A'}
+💳 Status: ${order.paymentMethod?.toUpperCase() || (isFinished ? 'PAGO' : 'PAGAMENTO PENDENTE')}
 
 Obrigado pela preferência!
         `.trim();
@@ -128,10 +130,12 @@ Obrigado pela preferência!
                 <DialogContent className="sm:max-w-md no-print border-none sm:border shadow-2xl">
                     <DialogHeader className="flex flex-col items-center gap-2">
                         <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center animate-bounce">
-                            <CheckCircle2 className="h-10 w-10 text-green-600" />
+                            {isFinished ? <CheckCircle2 className="h-10 w-10 text-green-600" /> : <Printer className="h-10 w-10 text-primary" />}
                         </div>
-                        <DialogTitle className="text-2xl font-black uppercase text-center tracking-tighter">Pedido Finalizado!</DialogTitle>
-                        <p className="text-sm text-muted-foreground text-center font-medium">O que deseja fazer com o recibo do pedido #{orderNum}?</p>
+                        <DialogTitle className="text-2xl font-black uppercase text-center tracking-tighter">
+                            {isFinished ? 'Pedido Finalizado!' : 'Prévia da Comanda'}
+                        </DialogTitle>
+                        <p className="text-sm text-muted-foreground text-center font-medium">O que deseja fazer com o cupom do pedido #{orderNum}?</p>
                         {order.splitPayments && (
                             <Badge variant="secondary" className="mt-2 font-black uppercase text-[10px] gap-2">
                                 <Info className="h-3 w-3" /> Conta Dividida em {order.splitPayments.length} partes
@@ -170,7 +174,7 @@ Obrigado pela preferência!
                     <DialogFooter>
                         <Button variant="ghost" className="w-full font-black uppercase text-[10px] text-muted-foreground" onClick={onClose}>
                             <X className="mr-2 h-3 w-3" />
-                            Fechar sem emitir
+                            Fechar
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -190,6 +194,7 @@ Obrigado pela preferência!
                     <p>PEDIDO: #{orderNum}</p>
                     {order.tableName && <p>LOCAL: {order.tableName}</p>}
                     {order.customerName && <p>CLIENTE: {order.customerName}</p>}
+                    {!isFinished && <p className="text-[10px] bg-black text-white px-1 inline-block">*** PRÉVIA DA CONTA ***</p>}
                 </div>
 
                 <div className="border-t border-black border-dashed my-2" />
@@ -206,7 +211,7 @@ Obrigado pela preferência!
                             <tr key={idx}>
                                 <td className="py-1">
                                     <span className="font-bold">{item.quantity}x</span> {item.name}
-                                    {item.addons?.map((a, ai) => (
+                                    {item.addons?.map((a: any, ai: number) => (
                                         <div key={ai} className="text-[9px] italic ml-2">+ {a.name}</div>
                                     ))}
                                 </td>
@@ -228,7 +233,7 @@ Obrigado pela preferência!
                                     <span>PARTE {p.part} ({p.method.toUpperCase()}):</span>
                                     <span>R$ {p.amount.toFixed(2)}</span>
                                 </div>
-                                {p.items?.map((item, iidx) => (
+                                {p.items?.map((item: any, iidx: number) => (
                                     <div key={iidx} className="text-[9px] italic">- {item.quantity}x {item.name}</div>
                                 ))}
                             </div>
@@ -240,7 +245,7 @@ Obrigado pela preferência!
 
                 <div className="space-y-1 text-right">
                     <p className="text-sm font-bold">VALOR TOTAL: R$ {order.total.toFixed(2)}</p>
-                    <p className="text-[10px] uppercase font-medium">PAGAMENTO: {order.paymentMethod || 'N/A'}</p>
+                    <p className="text-[10px] uppercase font-medium">STATUS: {isFinished ? 'PAGO' : 'PENDENTE'}</p>
                 </div>
 
                 <div className="mt-8 text-center text-[9px] uppercase font-bold space-y-1">

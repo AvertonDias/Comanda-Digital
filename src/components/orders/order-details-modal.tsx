@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { Order, OrderStatus, Restaurant, SplitPaymentPart, MenuItem, MenuItemCategory } from "@/lib/types";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowRight, ChefHat, Bike, ShoppingBag, Trash2, QrCode, Copy, Check, Users, Minus, Plus, Wallet, CreditCard, Banknote, ListChecks, DollarSign, UserPlus, Search, ChevronLeft } from "lucide-react";
+import { ArrowRight, ChefHat, Bike, ShoppingBag, Trash2, QrCode, Copy, Check, Users, Minus, Plus, Wallet, CreditCard, Banknote, ListChecks, DollarSign, UserPlus, Search, ChevronLeft, Printer } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import { doc, updateDoc, arrayUnion, increment, query, collection, orderBy, where } from "firebase/firestore";
@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 import { MenuItemSelectionDialog } from "./menu-item-selection-dialog";
+import { OrderReceiptModal } from "./order-receipt-modal";
 
 type OrderDetailsModalProps = {
     order: Order | null;
@@ -117,6 +118,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [selectedMenuCategoryId, setSelectedMenuCategoryId] = useState<string | null>(null);
     const [selectedItemToAdd, setSelectedItemToAdd] = useState<MenuItem | null>(null);
+    const [showReceiptPreview, setShowReceiptPreview] = useState(false);
 
     const relatedOrdersQuery = useMemoFirebase(() => {
         if (!order?.tableId || !order?.restaurantId || !firestore) return null;
@@ -180,6 +182,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
             setAccumulatedPaid(0);
             setRecordedSplitParts([]);
             setSelectedItemsForPart({});
+            setShowReceiptPreview(false);
         }
     }, [isOpen, order, lastOpenedOrderId]);
 
@@ -306,6 +309,10 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         }
     };
 
+    const handlePrintComanda = () => {
+        setShowReceiptPreview(true);
+    };
+
     return (
         <>
             <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -314,7 +321,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                         <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2" onClick={() => onOpenChange(false)}>
                             <ChevronLeft className="h-5 w-5" />
                         </Button>
-                        <div className="flex flex-col">
+                        <div className="flex flex-col flex-1">
                             <DialogTitle className="font-black uppercase tracking-tight text-xl">
                                 {isGrouped ? `Comanda ${order.tableName || 'Mesa'}` : `Pedido #${displayOrderNumber}`}
                             </DialogTitle>
@@ -324,6 +331,9 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                 </span>
                             )}
                         </div>
+                        <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 border-2" onClick={handlePrintComanda}>
+                            <Printer className="h-4 w-4" />
+                        </Button>
                     </DialogHeader>
                     
                     <ScrollArea className="flex-1">
@@ -673,6 +683,19 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                 isOpen={!!selectedItemToAdd}
                 onClose={() => setSelectedItemToAdd(null)}
                 onConfirm={handleConfirmAddExtra}
+            />
+
+            <OrderReceiptModal 
+                isOpen={showReceiptPreview}
+                onClose={() => setShowReceiptPreview(false)}
+                restaurant={restaurant}
+                order={{
+                    ...order,
+                    items: combinedItems,
+                    total: combinedTotal,
+                    splitPayments: recordedSplitParts.length > 0 ? recordedSplitParts : undefined,
+                    paymentMethod: recordedSplitParts.length > 0 ? 'multiplos' : (paymentMethod || 'A Pagar')
+                }}
             />
         </>
     );
