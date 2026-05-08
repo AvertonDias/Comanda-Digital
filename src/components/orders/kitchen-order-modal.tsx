@@ -1,0 +1,139 @@
+'use client';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Printer, ChefHat, X, MapPin, Phone, MessageSquare } from "lucide-react";
+import type { Order, Restaurant } from "@/lib/types";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+
+export function KitchenOrderModal({ 
+    order, 
+    restaurant,
+    isOpen, 
+    onClose 
+}: { 
+    order: any | null; 
+    restaurant?: Restaurant | null;
+    isOpen: boolean; 
+    onClose: () => void 
+}) {
+    if (!order) return null;
+
+    const orderNum = order.orderNumber?.toString().padStart(3, '0') || '---';
+    const isDelivery = order.destination === 'entrega';
+    const isTakeaway = order.destination === 'retirada';
+
+    const handlePrint = () => {
+        setTimeout(() => {
+            window.print();
+        }, 150);
+    };
+
+    return (
+        <>
+            <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+                <DialogContent className="sm:max-w-md no-print border-none sm:border shadow-2xl">
+                    <DialogHeader className="flex flex-col items-center gap-2">
+                        <div className="h-16 w-16 rounded-full bg-orange-100 flex items-center justify-center animate-pulse">
+                            <ChefHat className="h-10 w-10 text-orange-600" />
+                        </div>
+                        <DialogTitle className="text-2xl font-black uppercase text-center tracking-tighter">
+                            Enviar para Cozinha?
+                        </DialogTitle>
+                        <p className="text-sm text-muted-foreground text-center font-medium">
+                            O pedido #{orderNum} foi salvo. Deseja imprimir a ordem de preparo agora?
+                        </p>
+                    </DialogHeader>
+
+                    <div className="py-6 space-y-3">
+                        <Button 
+                            className="w-full h-16 justify-center gap-4 font-black uppercase text-lg border-2 bg-black hover:bg-zinc-800 text-white shadow-lg transition-all active:scale-95" 
+                            onClick={handlePrint}
+                        >
+                            <Printer className="h-6 w-6" />
+                            Imprimir Ordem
+                        </Button>
+                        
+                        <Button 
+                            variant="ghost" 
+                            className="w-full font-black uppercase text-[10px] text-muted-foreground" 
+                            onClick={onClose}
+                        >
+                            Pular e Voltar
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* ÁREA DE IMPRESSÃO DA COZINHA (OTIMIZADA PARA PRODUÇÃO) */}
+            <div id="print-receipt-area" className="hidden print:block bg-white text-black p-2">
+                <div className="text-center border-b-2 border-black pb-2 mb-2">
+                    <h1 className="text-3xl font-black uppercase leading-none">
+                        {order.tableName || (isDelivery ? 'ENTREGA' : isTakeaway ? 'RETIRADA' : 'PEDIDO')}
+                    </h1>
+                    <p className="text-xl font-bold mt-1">PEDIDO #{orderNum}</p>
+                    <p className="text-sm font-bold">{format(new Date(), "dd/MM HH:mm:ss")}</p>
+                </div>
+
+                {isDelivery && (
+                    <div className="border-b-2 border-black pb-2 mb-2 space-y-1">
+                        <p className="text-sm font-black uppercase flex items-center gap-1">
+                            <MapPin className="h-3 w-3" /> ENDEREÇO DE ENTREGA:
+                        </p>
+                        <p className="text-base font-bold leading-tight">{order.deliveryAddress}</p>
+                        <div className="flex justify-between pt-1">
+                            <p className="text-sm font-bold">CLI: {order.customerName}</p>
+                            <p className="text-sm font-bold">TEL: {order.customerPhone}</p>
+                        </div>
+                    </div>
+                )}
+
+                {(isTakeaway || (isDelivery && order.customerName)) && !isDelivery && (
+                    <div className="border-b-2 border-black pb-2 mb-2">
+                        <p className="text-sm font-bold">CLIENTE: {order.customerName}</p>
+                        <p className="text-sm font-bold">TEL: {order.customerPhone}</p>
+                    </div>
+                )}
+
+                <div className="space-y-4 pt-2">
+                    <p className="text-xs font-black border-b border-black uppercase">Itens do Pedido:</p>
+                    {order.items?.map((item: any, idx: number) => (
+                        <div key={idx} className="border-b border-gray-200 pb-2">
+                            <div className="flex items-start gap-2">
+                                <span className="text-2xl font-black shrink-0">{item.quantity}x</span>
+                                <div className="flex-1">
+                                    <p className="text-lg font-black uppercase leading-none">{item.name}</p>
+                                    {item.addons?.length > 0 && (
+                                        <div className="mt-1 space-y-0.5">
+                                            {item.addons.map((a: any, ai: number) => (
+                                                <p key={ai} className="text-sm font-bold uppercase">+ {a.name}</p>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {item.notes && (
+                                        <div className="mt-2 p-1 bg-gray-100 border-l-4 border-black">
+                                            <p className="text-sm font-black uppercase leading-tight italic">
+                                                OBS: {item.notes}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="mt-6 border-t-2 border-black pt-2 text-center">
+                    <p className="text-xs font-bold uppercase">Sistema Comanda Digital</p>
+                    <p className="text-[10px] font-bold">Fim da Ordem de Produção</p>
+                </div>
+            </div>
+        </>
+    );
+}

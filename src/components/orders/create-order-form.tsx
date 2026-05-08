@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import type { MenuItem, Table, MenuItemCategory } from '@/lib/types';
+import type { MenuItem, Table, MenuItemCategory, Restaurant } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
@@ -9,11 +9,12 @@ import { Plus, ShoppingBag, Trash2, User, Phone, MapPin, ChevronRight, ChevronLe
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, addDoc, serverTimestamp, doc, updateDoc, orderBy, getCountFromServer } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MenuItemSelectionDialog } from './menu-item-selection-dialog';
+import { KitchenOrderModal } from './kitchen-order-modal';
 import { cn } from '@/lib/utils';
 
 type SelectionAddon = { name: string; price: number; groupId: string };
@@ -48,6 +49,13 @@ export function CreateOrderForm({
     const [orderItems, setOrderItems] = useState<NewOrderItem[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+    
+    // Estados para o fluxo de impressão da cozinha
+    const [showKitchenPrint, setShowKitchenPrint] = useState(false);
+    const [createdOrderData, setCreatedOrderData] = useState<any>(null);
+
+    const restaurantRef = useMemoFirebase(() => restaurantId ? doc(firestore, 'restaurants', restaurantId) : null, [firestore, restaurantId]);
+    const { data: restaurant } = useDoc<Restaurant>(restaurantRef);
 
     const categoriesQuery = useMemoFirebase(() => {
         if (!restaurantId || !firestore) return null;
@@ -164,18 +172,21 @@ export function CreateOrderForm({
                 }))
             };
             
-            await addDoc(ordersCol, orderData);
+            const docRef = await addDoc(ordersCol, orderData);
             
             if (orderType === 'mesa' && tableId) {
                 await updateDoc(doc(firestore, `restaurants/${restaurantId}/tables`, tableId), { status: 'ocupada' });
             }
             
             toast({ title: `Pedido #${nextOrderNumber.toString().padStart(3, '0')} enviado!` });
-            onSuccess();
+            
+            // Em vez de fechar, preparamos o modal de impressão da cozinha
+            setCreatedOrderData({ ...orderData, id: docRef.id });
+            setShowKitchenPrint(true);
+
         } catch (error) {
             console.error(error);
             toast({ variant: "destructive", title: "Erro ao criar pedido" });
-        } finally {
             setIsSubmitting(false);
         }
     };
@@ -490,6 +501,16 @@ export function CreateOrderForm({
                 isOpen={!!selectedItem} 
                 onClose={() => setSelectedItem(null)}
                 onConfirm={handleAddConfirmed}
+            />
+
+            <KitchenOrderModal 
+                isOpen={showKitchenPrint}
+                onClose={() => {
+                    setShowKitchenPrint(false);
+                    onSuccess();
+                }}
+                order={createdOrderData}
+                restaurant={restaurant}
             />
         </div>
     );
