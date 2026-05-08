@@ -48,7 +48,10 @@ function ProfileTab({ restaurantId }: { restaurantId: string }) {
     const { toast } = useToast();
     const restaurantRef = useMemoFirebase(() => doc(firestore, "restaurants", restaurantId), [firestore, restaurantId]);
     const { data, isLoading } = useDoc(restaurantRef);
-    const { register, handleSubmit, reset, setValue } = useForm<ProfileFormData>({ resolver: zodResolver(profileSchema) });
+    const { register, handleSubmit, reset, setValue, formState: { isDirty } } = useForm<ProfileFormData>({ 
+        resolver: zodResolver(profileSchema),
+        defaultValues: { name: '', phone: '', city: '', pixKey: '' }
+    });
 
     useEffect(() => {
         if (data) reset({ 
@@ -59,9 +62,22 @@ function ProfileTab({ restaurantId }: { restaurantId: string }) {
         });
     }, [data, reset]);
 
+    // Alerta ao tentar sair se houver alterações
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (isDirty) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [isDirty]);
+
     const onSubmit = (form: ProfileFormData) => {
         updateDoc(restaurantRef, form);
         toast({ title: "Perfil atualizado!" });
+        reset(form); // Reseta o estado isDirty
     };
 
     if (isLoading) return <Skeleton className="h-64" />;
@@ -84,7 +100,7 @@ function ProfileTab({ restaurantId }: { restaurantId: string }) {
                             <Input 
                                 {...register("phone")} 
                                 placeholder="(xx) x xxxx xxxx"
-                                onChange={(e) => setValue("phone", formatPhone(e.target.value))} 
+                                onChange={(e) => setValue("phone", formatPhone(e.target.value), { shouldDirty: true })} 
                             />
                         </div>
                     </div>
@@ -126,7 +142,16 @@ function ProfileTab({ restaurantId }: { restaurantId: string }) {
                         </div>
                     </div>
 
-                    <Button type="submit" className="w-full sm:w-auto">Salvar Alterações</Button>
+                    <div className="flex flex-col gap-2">
+                        {isDirty && (
+                            <p className="text-[10px] text-destructive font-bold uppercase animate-pulse">
+                                Você tem alterações não salvas! Clique no botão abaixo.
+                            </p>
+                        )}
+                        <Button type="submit" className="w-full sm:w-auto" disabled={!isDirty}>
+                            Salvar Alterações
+                        </Button>
+                    </div>
                 </CardContent>
             </form>
         </Card>

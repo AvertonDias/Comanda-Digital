@@ -14,18 +14,15 @@ import {
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { PlusCircle, X, ChevronLeft } from "lucide-react";
 import { useRestaurant } from "@/hooks/use-restaurant";
-import { useState, Suspense } from "react";
+import { useState, Suspense, use } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 
-function OrdersContent() {
+function OrdersContent({ tableId }: { tableId?: string }) {
   const { restaurantId, isLoading } = useRestaurant();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const searchParams = useSearchParams();
   const router = useRouter();
-  
-  const tableId = searchParams.get('tableId');
   
   const clearFilter = () => {
     router.push('/orders');
@@ -100,7 +97,10 @@ function OrdersContent() {
   );
 }
 
-export default function OrdersPage() {
+export default function OrdersPage(props: { searchParams: Promise<{ tableId?: string }> }) {
+  const searchParams = use(props.searchParams);
+  const tableId = searchParams.tableId;
+
   return (
     <Suspense fallback={
         <div className="flex flex-col h-screen bg-background">
@@ -113,7 +113,7 @@ export default function OrdersPage() {
             </main>
         </div>
     }>
-        <OrdersContent />
+        <OrdersContent tableId={tableId} />
     </Suspense>
   );
 }

@@ -357,9 +357,11 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                 {isGrouped ? `Comanda ${order.tableName || 'Mesa'}` : `Pedido #${displayOrderNumber}`}
                             </DialogTitle>
                         </div>
-                        <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 border-2" onClick={handlePrintComanda}>
-                            <Printer className="h-4 w-4" />
-                        </Button>
+                        {order.status !== 'preparando' && (
+                            <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 border-2" onClick={handlePrintComanda}>
+                                <Printer className="h-4 w-4" />
+                            </Button>
+                        )}
                     </DialogHeader>
                     
                     <ScrollArea className="flex-1">
