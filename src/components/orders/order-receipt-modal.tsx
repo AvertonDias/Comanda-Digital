@@ -1,4 +1,3 @@
-
 'use client';
 import {
     Dialog,
@@ -180,12 +179,12 @@ Obrigado pela preferência!
                 </DialogContent>
             </Dialog>
 
-            {/* ÁREA DE IMPRESSÃO (ESTILIZADA PARA TÉRMICA 80MM) */}
+            {/* ÁREA DE IMPRESSÃO (OTIMIZADA PARA CONTRASTE MÁXIMO EM TÉRMICA 80MM) */}
             <div id="print-receipt-area" className="hidden print:block bg-white text-black p-4">
                 <div className="text-center space-y-1 mb-4">
                     <h1 className="text-xl font-bold uppercase">{restaurant?.name || 'RECIBO DE VENDA'}</h1>
-                    {restaurant?.phone && <p className="text-sm">TEL: {restaurant.phone}</p>}
-                    <p className="text-[10px]">{format(new Date(), "dd/MM/yyyy HH:mm:ss")}</p>
+                    {restaurant?.phone && <p className="text-sm font-bold">TEL: {restaurant.phone}</p>}
+                    <p className="text-[10px] font-bold">{format(new Date(), "dd/MM/yyyy HH:mm:ss")}</p>
                 </div>
 
                 <div className="border-t border-black border-dashed my-2" />
@@ -194,7 +193,7 @@ Obrigado pela preferência!
                     <p>PEDIDO: #{orderNum}</p>
                     {order.tableName && <p>LOCAL: {order.tableName}</p>}
                     {order.customerName && <p>CLIENTE: {order.customerName}</p>}
-                    {!isFinished && <p className="text-[10px] bg-black text-white px-1 inline-block">*** PRÉVIA DA CONTA ***</p>}
+                    {!isFinished && <p className="text-[10px] bg-black text-white px-1 inline-block font-bold">*** PRÉVIA DA CONTA ***</p>}
                 </div>
 
                 <div className="border-t border-black border-dashed my-2" />
@@ -202,8 +201,8 @@ Obrigado pela preferência!
                 <table className="w-full text-[11px] mb-4">
                     <thead>
                         <tr className="border-b border-black border-dashed">
-                            <th className="text-left py-1">DESCRIÇÃO</th>
-                            <th className="text-right py-1">TOTAL</th>
+                            <th className="text-left py-1 font-bold">DESCRIÇÃO</th>
+                            <th className="text-right py-1 font-bold">TOTAL</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -212,7 +211,7 @@ Obrigado pela preferência!
                                 <td className="py-1">
                                     <span className="font-bold">{item.quantity}x</span> {item.name}
                                     {item.addons?.map((a: any, ai: number) => (
-                                        <div key={ai} className="text-[9px] italic ml-2">+ {a.name}</div>
+                                        <div key={ai} className="text-[9px] font-bold ml-2">+ {a.name}</div>
                                     ))}
                                 </td>
                                 <td className="text-right py-1 font-bold">
@@ -234,7 +233,7 @@ Obrigado pela preferência!
                                     <span>R$ {p.amount.toFixed(2)}</span>
                                 </div>
                                 {p.items?.map((item: any, iidx: number) => (
-                                    <div key={iidx} className="text-[9px] italic">- {item.quantity}x {item.name}</div>
+                                    <div key={iidx} className="text-[9px] font-bold">- {item.quantity}x {item.name}</div>
                                 ))}
                             </div>
                         ))}
@@ -245,13 +244,13 @@ Obrigado pela preferência!
 
                 <div className="space-y-1 text-right">
                     <p className="text-sm font-bold">VALOR TOTAL: R$ {order.total.toFixed(2)}</p>
-                    <p className="text-[10px] uppercase font-medium">STATUS: {isFinished ? 'PAGO' : 'PENDENTE'}</p>
+                    <p className="text-[11px] uppercase font-bold">STATUS: {isFinished ? 'PAGO' : 'PAGAMENTO PENDENTE'}</p>
                 </div>
 
-                <div className="mt-8 text-center text-[9px] uppercase font-bold space-y-1">
+                <div className="mt-8 text-center text-[10px] uppercase font-bold space-y-1">
                     <p>Obrigado pela preferência!</p>
                     <p>Volte sempre</p>
-                    <p className="text-[7px] mt-4 opacity-50">Comanda Digital - v1.0</p>
+                    <p className="text-[8px] mt-4 font-bold">Comanda Digital - v1.0</p>
                 </div>
             </div>
         </>
