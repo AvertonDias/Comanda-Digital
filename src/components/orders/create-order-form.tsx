@@ -124,15 +124,15 @@ export function CreateOrderForm({
         if (orderType === 'balcao') {
             origin = 'balcao';
             destination = 'local';
-            tableName = 'Balcão';
+            tableName = customerName ? `Balcão - ${customerName}` : 'Balcão';
         } else if (orderType === 'retirada') {
             origin = 'balcao';
             destination = 'retirada';
-            tableName = 'Retirada';
+            tableName = customerName ? `Retirada - ${customerName}` : 'Retirada';
         } else if (orderType === 'entrega') {
             origin = 'telefone';
             destination = 'entrega';
-            tableName = 'Entrega';
+            tableName = customerName ? `Entrega - ${customerName}` : 'Entrega';
         } else {
             origin = 'mesa';
             destination = 'local';
@@ -151,8 +151,8 @@ export function CreateOrderForm({
                 destination,
                 tableId: orderType === 'mesa' ? (tableId || null) : null,
                 tableName,
-                customerName: (orderType === 'retirada' || orderType === 'entrega') ? customerName : null,
-                customerPhone: (orderType === 'retirada' || orderType === 'entrega') ? customerPhone : null,
+                customerName: (orderType === 'balcao' || orderType === 'retirada' || orderType === 'entrega') ? customerName : null,
+                customerPhone: (orderType === 'balcao' || orderType === 'retirada' || orderType === 'entrega') ? customerPhone : null,
                 deliveryAddress: orderType === 'entrega' ? deliveryAddress : null,
                 status: 'aberto',
                 total: orderItems.reduce((acc, item) => {
@@ -195,6 +195,10 @@ export function CreateOrderForm({
         if (step === 1) {
             if (orderType === 'mesa' && !tableId) {
                 toast({ variant: "destructive", title: "Selecione a mesa" });
+                return;
+            }
+            if (orderType === 'balcao' && !customerName) {
+                toast({ variant: "destructive", title: "Informe o nome do cliente" });
                 return;
             }
             if ((orderType === 'retirada' || orderType === 'entrega') && (!customerName || !customerPhone)) {
@@ -287,7 +291,7 @@ export function CreateOrderForm({
                                 )}
                             </div>
 
-                            {(orderType === 'retirada' || orderType === 'entrega') && (
+                            {(orderType === 'balcao' || orderType === 'retirada' || orderType === 'entrega') && (
                                 <div className="space-y-4 pt-4">
                                     <label className="text-xs font-black uppercase text-primary tracking-widest flex items-center gap-2">
                                         <span className="h-4 w-1 bg-primary rounded-full" />
@@ -401,7 +405,7 @@ export function CreateOrderForm({
                                 <Badge variant="outline" className="font-black text-[10px] border-primary text-primary">
                                     {orderType === 'mesa' 
                                         ? (selectedTable?.name.toUpperCase() || 'MESA') 
-                                        : orderType.toUpperCase()}
+                                        : customerName ? `${orderType.toUpperCase()} - ${customerName.toUpperCase()}` : orderType.toUpperCase()}
                                 </Badge>
                             </div>
                             

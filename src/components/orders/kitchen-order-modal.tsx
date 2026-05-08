@@ -28,6 +28,7 @@ export function KitchenOrderModal({
     const orderNum = order.orderNumber?.toString().padStart(3, '0') || '---';
     const isDelivery = order.destination === 'entrega';
     const isTakeaway = order.destination === 'retirada';
+    const isCounter = order.origin === 'balcao' && order.destination === 'local';
 
     const handlePrint = () => {
         setTimeout(() => {
@@ -75,7 +76,7 @@ export function KitchenOrderModal({
             <div id="print-receipt-area" className="hidden print:block bg-white text-black p-2">
                 <div className="text-center border-b-2 border-black pb-2 mb-2">
                     <h1 className="text-3xl font-black uppercase leading-none">
-                        {order.tableName || (isDelivery ? 'ENTREGA' : isTakeaway ? 'RETIRADA' : 'PEDIDO')}
+                        {order.tableName || (isDelivery ? 'ENTREGA' : isTakeaway ? 'RETIRADA' : isCounter ? 'BALCÃO' : 'PEDIDO')}
                     </h1>
                     <p className="text-xl font-bold mt-1">PEDIDO #{orderNum}</p>
                     <p className="text-sm font-bold">{format(new Date(), "dd/MM HH:mm:ss")}</p>
@@ -94,10 +95,10 @@ export function KitchenOrderModal({
                     </div>
                 )}
 
-                {(isTakeaway || (isDelivery && order.customerName)) && !isDelivery && (
+                {(isTakeaway || isCounter || (isDelivery && order.customerName)) && !isDelivery && (
                     <div className="border-b-2 border-black pb-2 mb-2">
-                        <p className="text-sm font-bold">CLIENTE: {order.customerName}</p>
-                        <p className="text-sm font-bold">TEL: {order.customerPhone}</p>
+                        <p className="text-sm font-bold">CLIENTE: {order.customerName || 'NÃO INFORMADO'}</p>
+                        {order.customerPhone && <p className="text-sm font-bold">TEL: {order.customerPhone}</p>}
                     </div>
                 )}
 
