@@ -1,3 +1,4 @@
+
 'use client';
 import {
     Dialog,
@@ -250,7 +251,6 @@ Obrigado pela preferência!
                 <div className="mt-8 text-center text-[10px] uppercase font-bold space-y-1">
                     <p>Obrigado pela preferência!</p>
                     <p>Volte sempre</p>
-                    <p className="text-[8px] mt-4 font-bold">Comanda Digital - v1.0</p>
                 </div>
             </div>
         </>

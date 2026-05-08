@@ -325,11 +325,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                             <DialogTitle className="font-black uppercase tracking-tight text-xl">
                                 {isGrouped ? `Comanda ${order.tableName || 'Mesa'}` : `Pedido #${displayOrderNumber}`}
                             </DialogTitle>
-                            {isGrouped && (
-                                <span className="text-[9px] font-black text-primary uppercase">
-                                    Agrupando {allGroupedOrders.length} pedidos ativos
-                                </span>
-                            )}
                         </div>
                         <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 border-2" onClick={handlePrintComanda}>
                             <Printer className="h-4 w-4" />
@@ -450,7 +445,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                     <div className="text-right">
                                                         <span className="text-[9px] font-black uppercase text-muted-foreground">Status</span>
                                                         <p className="text-sm font-black text-primary">{paidPartsCount} pagas</p>
-                                                        <p className="text-[10px] font-bold text-destructive">Falta {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(remainingBalance)}</p>
                                                     </div>
                                                 </div>
                                             )}
