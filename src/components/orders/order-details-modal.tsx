@@ -63,9 +63,6 @@ const PAYMENT_METHODS = [
     { id: 'dinheiro', label: 'Dinheiro', icon: Banknote },
 ];
 
-/**
- * Agrupa itens idênticos (mesmo id, adicionais e notas).
- */
 function consolidateItems(items: any[]) {
     const groups: Record<string, any> = {};
     items.forEach(item => {
@@ -155,7 +152,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         return allGroupedOrders.reduce((acc, curr) => acc + curr.total, 0);
     }, [allGroupedOrders]);
 
-    // Consolida todos os itens de todos os pedidos da mesa
     const combinedItems = useMemo(() => {
         const rawItems = allGroupedOrders.flatMap(o => o.items);
         return consolidateItems(rawItems);
@@ -207,17 +203,11 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     }, [combinedItems, isOpen]);
 
     useEffect(() => {
-        if (!isMenuOpen) {
-            setSelectedMenuCategoryId(null);
-        }
-    }, [isMenuOpen]);
-
-    useEffect(() => {
         if (splitMode === 'items') {
             let total = 0;
             Object.entries(selectedItemsForPart).forEach(([idx, qty]) => {
                 const item = itemsBalance[Number(idx)];
-                if (item) total += item.priceAtOrder * qty;
+                if (item) total += (item.priceAtOrder + (item.ingredientExtrasPrice || 0)) * qty;
             });
             setCurrentPartAmount(Number(total.toFixed(2)));
         }
@@ -306,7 +296,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         setSelectedItemsForPart(prev => ({ ...prev, [index]: val }));
     };
 
-    const handleConfirmAddExtra = async (data: { item: MenuItem; quantity: number; addons: any[]; notes: string; totalPrice: number }) => {
+    const handleConfirmAddExtra = async (data: { item: MenuItem; quantity: number; addons: any[]; notes: string; totalPrice: number; ingredientsExtraPrice: number }) => {
         const orderRef = doc(firestore, `restaurants/${order.restaurantId}/orders`, order.id);
         
         const newItem = {
@@ -317,16 +307,14 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
             notes: data.notes || null,
             status: 'pendente',
             printSectorId: data.item.printSectorId,
-            addons: data.addons?.map(a => ({ name: a.name, price: a.price })) || []
+            addons: data.addons?.map(a => ({ name: a.name, price: a.price })) || [],
+            ingredientExtrasPrice: data.ingredientsExtraPrice || 0
         };
-
-        const addonsTotal = data.addons?.reduce((acc, curr) => acc + curr.price, 0) || 0;
-        const itemTotal = (data.item.price + addonsTotal) * data.quantity;
 
         try {
             await updateDoc(orderRef, {
                 items: arrayUnion(newItem),
-                total: increment(itemTotal)
+                total: increment(data.totalPrice)
             });
             toast({ title: "Item adicionado com sucesso!" });
             setSelectedItemToAdd(null);
@@ -588,7 +576,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                         {item.addons?.map((a, ai) => (<p key={ai} className="text-[9px] text-muted-foreground font-bold uppercase">+ {a.name}</p>))}
                                                     </div>
                                                 </div>
-                                                <span className="font-black text-xs">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.priceAtOrder * item.quantity)}</span>
+                                                <span className="font-black text-xs">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((item.priceAtOrder + (item.ingredientExtrasPrice || 0)) * item.quantity)}</span>
                                             </li>
                                         ))}
                                     </ul>

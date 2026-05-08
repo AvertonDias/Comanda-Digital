@@ -98,8 +98,8 @@ function OrdersContent({ tableId }: { tableId?: string }) {
 }
 
 export default function OrdersPage(props: { searchParams: Promise<{ tableId?: string }> }) {
-  const searchParams = use(props.searchParams);
-  const tableId = searchParams.tableId;
+  const params = use(props.searchParams);
+  const tableId = params.tableId;
 
   return (
     <Suspense fallback={

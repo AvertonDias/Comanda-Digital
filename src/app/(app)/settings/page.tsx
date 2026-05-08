@@ -62,7 +62,6 @@ function ProfileTab({ restaurantId }: { restaurantId: string }) {
         });
     }, [data, reset]);
 
-    // Alerta ao tentar sair se houver alterações
     useEffect(() => {
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
             if (isDirty) {
@@ -77,7 +76,7 @@ function ProfileTab({ restaurantId }: { restaurantId: string }) {
     const onSubmit = (form: ProfileFormData) => {
         updateDoc(restaurantRef, form);
         toast({ title: "Perfil atualizado!" });
-        reset(form); // Reseta o estado isDirty
+        reset(form);
     };
 
     if (isLoading) return <Skeleton className="h-64" />;
@@ -549,7 +548,6 @@ export default function SettingsPage() {
     const { restaurantId, isLoading, role } = useRestaurant();
     if (isLoading) return <Skeleton className="h-screen w-full" />;
     
-    // Garçons não têm acesso às configurações
     if (role === 'waiter') {
         return (
             <div className="flex flex-col h-screen bg-background items-center justify-center">

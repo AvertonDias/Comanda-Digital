@@ -13,6 +13,17 @@ export type RestaurantUserRole = {
     email?: string;
 };
 
+export type RestaurantUser = {
+    id: string;
+    userId: string;
+    restaurantId: string;
+    role: 'admin' | 'waiter';
+    isActive: boolean;
+    email?: string;
+    name?: string;
+    avatarUrl?: string;
+};
+
 export type Invitation = {
   id: string;
   restaurantId: string;
@@ -149,14 +160,6 @@ export type Table = {
   qrCodeUrl: string;
   currentOrderId?: string;
 };
-
-export type TableHistory = {
-    id: string;
-    tableId: string;
-    orderId: string;
-    status: 'opened' | 'closed';
-    timestamp: any;
-}
 
 export type Customer = {
   id: string;
