@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -30,6 +29,7 @@ import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 import { MenuItemSelectionDialog } from "./menu-item-selection-dialog";
 import { OrderReceiptModal } from "./order-receipt-modal";
+import { KitchenOrderModal } from "./kitchen-order-modal";
 
 type OrderDetailsModalProps = {
     order: Order | null;
@@ -119,6 +119,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const [selectedMenuCategoryId, setSelectedMenuCategoryId] = useState<string | null>(null);
     const [selectedItemToAdd, setSelectedItemToAdd] = useState<MenuItem | null>(null);
     const [showReceiptPreview, setShowReceiptPreview] = useState(false);
+    const [showKitchenPrint, setShowKitchenPrint] = useState(false);
 
     const relatedOrdersQuery = useMemoFirebase(() => {
         if (!order?.tableId || !order?.restaurantId || !firestore) return null;
@@ -183,6 +184,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
             setRecordedSplitParts([]);
             setSelectedItemsForPart({});
             setShowReceiptPreview(false);
+            setShowKitchenPrint(false);
         }
     }, [isOpen, order, lastOpenedOrderId]);
 
@@ -317,7 +319,11 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     };
 
     const handlePrintComanda = () => {
-        setShowReceiptPreview(true);
+        if (order.status === 'finalizado') {
+            setShowReceiptPreview(true);
+        } else {
+            setShowKitchenPrint(true);
+        }
     };
 
     return (
@@ -556,7 +562,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                     <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-white text-[10px] font-black shrink-0">{item.quantity}x</span>
                                                     <div>
                                                         <p className="font-black text-xs uppercase">
-                                                            <span className="text-primary/70 mr-1">[{getCategoryName(item.menuItemId)}]</span>
+                                                            <span className="text-primary/70 mr-1">[{getCategoryName(item.menuItemId).toUpperCase()}]</span>
                                                             {item.name}
                                                         </p>
                                                         {item.addons?.map((a, ai) => (<p key={ai} className="text-[9px] text-muted-foreground font-bold uppercase">+ {a.name}</p>))}
@@ -702,6 +708,16 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                     total: combinedTotal,
                     splitPayments: recordedSplitParts.length > 0 ? recordedSplitParts : undefined,
                     paymentMethod: recordedSplitParts.length > 0 ? 'multiplos' : (paymentMethod || 'A Pagar')
+                }}
+            />
+
+            <KitchenOrderModal 
+                isOpen={showKitchenPrint}
+                onClose={() => setShowKitchenPrint(false)}
+                restaurant={restaurant}
+                order={{
+                    ...order,
+                    items: combinedItems
                 }}
             />
         </>
