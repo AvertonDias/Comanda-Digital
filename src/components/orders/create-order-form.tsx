@@ -1,16 +1,16 @@
 'use client';
-import { useState, useEffect } from 'react';
-import type { MenuItem, Table, MenuItemCategory, Restaurant } from '@/lib/types';
+import { useState, useEffect, useMemo } from 'react';
+import type { MenuItem, Table, MenuItemCategory, Restaurant, Order } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Plus, ShoppingBag, Trash2, User, Phone, MapPin, ChevronRight, ChevronLeft, CheckCircle2 } from 'lucide-react';
+import { Plus, ShoppingBag, Trash2, User, Phone, MapPin, ChevronRight, ChevronLeft, CheckCircle2, Clock } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, addDoc, serverTimestamp, doc, updateDoc, orderBy, getCountFromServer } from 'firebase/firestore';
+import { collection, query, addDoc, serverTimestamp, doc, updateDoc, orderBy, getCountFromServer, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MenuItemSelectionDialog } from './menu-item-selection-dialog';
@@ -28,6 +28,7 @@ type NewOrderItem = {
     notes?: string;
     addons?: SelectionAddon[];
     ingredientsExtraPrice?: number;
+    preparationTime: number;
 };
 
 export function CreateOrderForm({ 
@@ -73,9 +74,27 @@ export function CreateOrderForm({
         return query(collection(firestore, `restaurants/${restaurantId}/tables`), orderBy('name', 'asc'));
     }, [restaurantId, firestore]);
 
+    // Query para calcular tempo de espera (pedidos em preparo)
+    const preparingOrdersQuery = useMemoFirebase(() => {
+        if (!restaurantId || !firestore) return null;
+        return query(
+            collection(firestore, `restaurants/${restaurantId}/orders`),
+            where('status', '==', 'preparando')
+        );
+    }, [restaurantId, firestore]);
+
     const { data: categories, isLoading: isCatsLoading } = useCollection<MenuItemCategory>(categoriesQuery);
     const { data: items, isLoading: isItemsLoading } = useCollection<MenuItem>(itemsQuery);
     const { data: tables, isLoading: isTablesLoading } = useCollection<Table>(tablesQuery);
+    const { data: activeOrders } = useCollection<Order>(preparingOrdersQuery);
+
+    const estimatedWaitTime = useMemo(() => {
+        if (!activeOrders) return 0;
+        return activeOrders.reduce((total, order) => {
+            const orderWait = order.items.reduce((sum, item) => sum + ((item.preparationTimeAtOrder || 0) * item.quantity), 0);
+            return total + orderWait;
+        }, 0);
+    }, [activeOrders]);
 
     useEffect(() => {
         if (initialTableId) {
@@ -104,7 +123,8 @@ export function CreateOrderForm({
             printSectorId: data.item.printSectorId,
             notes: data.notes,
             addons: data.addons,
-            ingredientsExtraPrice: data.ingredientsExtraPrice
+            ingredientsExtraPrice: data.ingredientsExtraPrice,
+            preparationTime: data.item.preparationTime || 0
         }]);
         setSelectedItem(null);
     };
@@ -175,7 +195,8 @@ export function CreateOrderForm({
                     status: 'pendente',
                     printSectorId: item.printSectorId,
                     addons: item.addons?.map(a => ({ name: a.name, price: a.price })) || [],
-                    ingredientExtrasPrice: item.ingredientsExtraPrice || 0
+                    ingredientExtrasPrice: item.ingredientsExtraPrice || 0,
+                    preparationTimeAtOrder: item.preparationTime
                 }))
             };
             
@@ -238,25 +259,35 @@ export function CreateOrderForm({
     return (
         <>
             <div className="flex flex-col h-full bg-background overflow-hidden">
-                <div className="px-6 py-4 bg-muted/30 border-b flex items-center justify-between">
-                    {[1, 2, 3].map((s) => (
-                        <div key={s} className="flex items-center flex-1 last:flex-none">
-                            <div className={cn(
-                                "flex items-center justify-center w-8 h-8 rounded-full text-xs font-black transition-all",
-                                step === s ? "bg-primary text-white scale-110 shadow-lg" : 
-                                step > s ? "bg-green-500 text-white" : "bg-muted text-muted-foreground"
-                            )}>
-                                {step > s ? <CheckCircle2 className="h-5 w-5" /> : s}
+                <div className="px-6 py-4 bg-muted/30 border-b flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                        {[1, 2, 3].map((s) => (
+                            <div key={s} className="flex items-center flex-1 last:flex-none">
+                                <div className={cn(
+                                    "flex items-center justify-center w-8 h-8 rounded-full text-xs font-black transition-all",
+                                    step === s ? "bg-primary text-white scale-110 shadow-lg" : 
+                                    step > s ? "bg-green-500 text-white" : "bg-muted text-muted-foreground"
+                                )}>
+                                    {step > s ? <CheckCircle2 className="h-5 w-5" /> : s}
+                                </div>
+                                <div className={cn(
+                                    "hidden sm:block ml-2 text-[10px] font-black uppercase tracking-widest",
+                                    step === s ? "text-primary" : "text-muted-foreground"
+                                )}>
+                                    {s === 1 ? "Identificação" : s === 2 ? "Cardápio" : "Resumo"}
+                                </div>
+                                {s < 3 && <div className={cn("flex-1 h-0.5 mx-4", step > s ? "bg-green-500" : "bg-muted")} />}
                             </div>
-                            <div className={cn(
-                                "hidden sm:block ml-2 text-[10px] font-black uppercase tracking-widest",
-                                step === s ? "text-primary" : "text-muted-foreground"
-                            )}>
-                                {s === 1 ? "Identificação" : s === 2 ? "Cardápio" : "Resumo"}
-                            </div>
-                            {s < 3 && <div className={cn("flex-1 h-0.5 mx-4", step > s ? "bg-green-500" : "bg-muted")} />}
+                        ))}
+                    </div>
+                    {estimatedWaitTime > 0 && (
+                        <div className="flex items-center justify-center gap-2 bg-orange-100 text-orange-800 py-1 px-3 rounded-full self-center">
+                            <Clock className="h-3 w-3" />
+                            <span className="text-[9px] font-black uppercase tracking-tighter">
+                                Fila de Espera: ~{estimatedWaitTime} MIN
+                            </span>
                         </div>
-                    ))}
+                    )}
                 </div>
 
                 <div className="flex-1 overflow-y-auto">
@@ -373,6 +404,11 @@ export function CreateOrderForm({
                                                     <div className="flex-1 min-w-0">
                                                         <p className="text-xs font-black uppercase truncate leading-tight">{item.name}</p>
                                                         <p className="text-xs text-primary font-black mt-1">R$ {item.price.toFixed(2)}</p>
+                                                        {item.preparationTime && (
+                                                            <div className="flex items-center gap-1 text-[8px] font-black text-muted-foreground mt-1 uppercase">
+                                                                <Clock className="h-2 w-2" /> {item.preparationTime} MIN
+                                                            </div>
+                                                        )}
                                                     </div>
                                                     <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                                                         <Plus className="h-4 w-4 text-primary" />
@@ -441,13 +477,6 @@ export function CreateOrderForm({
                                             </div>
                                         );
                                     })}
-                                    
-                                    {orderItems.length === 0 && (
-                                        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground opacity-30">
-                                            <ShoppingBag className="h-12 w-12 mb-3" />
-                                            <p className="text-xs font-black uppercase">O carrinho está vazio</p>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
 

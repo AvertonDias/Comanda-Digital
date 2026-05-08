@@ -13,7 +13,6 @@
         "phone": {
           "type": "string",
           "description": "Telefone de contato do restaurante."
-"description": "Telefone de contato do restaurante."
         },
         "city": {
           "type": "string",
@@ -174,9 +173,13 @@
           "type": "string",
           "format": "uri",
           "description": "URL da imagem do item."
+        },
+        "preparationTime": {
+            "type": "number",
+            "description": "Tempo médio de preparo em minutos."
         }
       },
-      "required": ["restaurantId", "categoryId", "printSectorId", "name", "price", "isAvailable"]
+      "required": ["restaurantId", "categoryId", "printSectorId", "name", "price", "isAvailable", "preparationTime"]
     },
     "PrintSector": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -373,6 +376,10 @@
         "notes": {
           "type": "string",
           "description": "Observações sobre o item."
+        },
+        "preparationTimeAtOrder": {
+            "type": "number",
+            "description": "Tempo de preparo do item no momento do pedido."
         }
       },
       "required": ["orderId", "menuItemId", "name", "priceAtOrder", "quantity", "printSectorId"]

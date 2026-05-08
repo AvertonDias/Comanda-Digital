@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, X, DollarSign } from 'lucide-react';
+import { Plus, Trash2, X, DollarSign, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import type { MenuItem, MenuItemCategory, MenuItemIngredient } from '@/lib/types';
+import type { MenuItem, MenuItemCategory } from '@/lib/types';
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -16,7 +16,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Switch } from '@/components/ui/switch';
 import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
 
 const formSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres."),
@@ -25,6 +24,7 @@ const formSchema = z.object({
     extraPrice: z.coerce.number().min(0)
   })).default([]),
   price: z.coerce.number().min(0.01, "Preço deve ser maior que zero."),
+  preparationTime: z.coerce.number().min(1, "Obrigatório."),
   categoryId: z.string().min(1, "Selecione uma categoria."),
   isAvailable: z.boolean().default(true),
   addonGroups: z.array(z.object({
@@ -59,6 +59,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
       name: initialData?.name || "",
       ingredients: initialData?.ingredients || [],
       price: initialData?.price || 0,
+      preparationTime: initialData?.preparationTime || 15,
       categoryId: initialData?.categoryId || "",
       isAvailable: initialData?.isAvailable ?? true,
       addonGroups: initialData?.addonGroups || []
@@ -71,6 +72,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
         name: initialData.name,
         ingredients: initialData.ingredients || [],
         price: initialData.price,
+        preparationTime: initialData.preparationTime || 15,
         categoryId: initialData.categoryId,
         isAvailable: initialData.isAvailable,
         addonGroups: initialData.addonGroups || []
@@ -101,7 +103,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
   function onSubmit(values: z.infer<typeof formSchema>) {
     const itemData = {
       ...values,
-      description: "", 
+      description: initialData?.description || "", 
       restaurantId,
       updatedAt: serverTimestamp(),
       imageUrl: initialData?.imageUrl || `https://picsum.photos/seed/${values.name}/600/400`, 
@@ -156,6 +158,33 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
               )}
             />
 
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="price"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-black uppercase">Preço Base (R$)</FormLabel>
+                    <FormControl><Input type="number" step="0.01" className="h-11" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="preparationTime"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-black uppercase flex items-center gap-1">
+                        <Clock className="h-3 w-3" /> Tempo Preparo (Min)
+                    </FormLabel>
+                    <FormControl><Input type="number" className="h-11" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             <div className="space-y-3 bg-muted/10 p-4 rounded-xl border-2 border-dashed border-muted">
               <FormLabel className="text-primary text-[10px] font-black uppercase">Ingredientes e Valor de Extra (+)</FormLabel>
               <div className="flex flex-col gap-2">
@@ -183,9 +212,6 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
                   </Button>
                 </div>
               </div>
-              <FormDescription className="text-[9px] uppercase font-bold text-muted-foreground">
-                Informe o nome e quanto custa se o cliente pedir uma porção extra.
-              </FormDescription>
               
               <div className="space-y-2 pt-2">
                 {ingredientFields.map((field, idx) => (
@@ -205,23 +231,10 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
                     </Button>
                   </div>
                 ))}
-                {ingredientFields.length === 0 && <span className="text-[9px] text-muted-foreground uppercase italic font-bold">Nenhum ingrediente cadastrado</span>}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="price"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-[10px] font-black uppercase">Preço Base (R$)</FormLabel>
-                    <FormControl><Input type="number" step="0.01" className="h-11" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
+            <FormField
                 control={form.control}
                 name="categoryId"
                 render={({ field }) => (
@@ -243,7 +256,6 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
                   </FormItem>
                 )}
               />
-            </div>
           </div>
 
           {/* Coluna 2: Adicionais */}
@@ -365,11 +377,6 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
                   </div>
                 </Card>
               ))}
-              {addonGroups.length === 0 && (
-                <div className="text-center py-10 bg-muted/5 rounded-xl border-2 border-dashed border-muted">
-                  <p className="text-[10px] font-black uppercase text-muted-foreground">Nenhum adicional configurado</p>
-                </div>
-              )}
             </div>
           </div>
         </div>

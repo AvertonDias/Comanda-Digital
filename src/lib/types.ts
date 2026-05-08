@@ -88,6 +88,7 @@ export type MenuItem = {
   imageUrl: string;
   imageHint: string;
   addonGroups?: MenuItemAddonGroup[];
+  preparationTime: number;
 };
 
 export type OrderStatus = 'aberto' | 'preparando' | 'pronto' | 'finalizado' | 'cancelado';
@@ -109,6 +110,7 @@ export type OrderItem = {
   printSectorId: string;
   addons?: OrderItemAddon[];
   ingredientExtrasPrice?: number;
+  preparationTimeAtOrder?: number;
 };
 
 export type SplitPaymentPart = {
