@@ -131,7 +131,7 @@ Obrigado pela preferência!
                             {isFinished ? <CheckCircle2 className="h-10 w-10 text-green-600" /> : <Printer className="h-10 w-10 text-primary" />}
                         </div>
                         <DialogTitle className="text-2xl font-black uppercase text-center tracking-tighter">
-                            {isFinished ? 'Pedido Finalizado!' : 'Prévia da Comanda'}
+                            {isFinished ? 'Pedido Finalizado!' : 'Recibo do Pedido'}
                         </DialogTitle>
                         <p className="text-sm text-muted-foreground text-center font-medium">O que deseja fazer com o cupom do pedido #{orderNum}?</p>
                         {order.splitPayments && (
@@ -192,7 +192,6 @@ Obrigado pela preferência!
                     <p>PEDIDO: #{orderNum}</p>
                     {order.tableName && <p>LOCAL: {order.tableName}</p>}
                     {order.customerName && <p>CLIENTE: {order.customerName}</p>}
-                    {!isFinished && <p className="text-[10px] bg-black text-white px-1 inline-block font-bold">*** PRÉVIA DA CONTA ***</p>}
                 </div>
 
                 <div className="border-t border-black border-dashed my-2" />
