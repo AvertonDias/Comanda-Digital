@@ -21,6 +21,18 @@ export interface UseCollectionResult<T> {
   error: FirestoreError | Error | null;
 }
 
+/**
+ * Tenta extrair o caminho da coleção de forma segura.
+ */
+function getCollectionPath(target: any): string {
+  if (!target) return 'unknown';
+  if (target instanceof CollectionReference) return target.path;
+  // Para objetos Query, tentamos acessar propriedades internas de forma segura ou propriedades conhecidas
+  if (target.path) return target.path;
+  if (target._query?.path?.segments) return target._query.path.segments.join('/');
+  return 'collection_query';
+}
+
 export function useCollection<T = any>(
   memoizedTargetRefOrQuery:
     | ((CollectionReference<DocumentData> | Query<DocumentData>) & { __memo?: boolean })
@@ -57,16 +69,7 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (firebaseError: FirestoreError) => {
-        // Tenta extrair o caminho de forma segura sem acessar propriedades internas
-        let path = 'unknown';
-        
-        if (memoizedTargetRefOrQuery instanceof CollectionReference) {
-          path = memoizedTargetRefOrQuery.path;
-        } else if ('path' in memoizedTargetRefOrQuery) {
-          path = (memoizedTargetRefOrQuery as any).path;
-        } else {
-          path = 'collection_query';
-        }
+        const path = getCollectionPath(memoizedTargetRefOrQuery);
 
         const contextualError = new FirestorePermissionError({
           operation: 'list',

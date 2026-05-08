@@ -9,60 +9,72 @@ service cloud.firestore {
 
     // USERS: Perfil do usuário
     match /users/{userId} {
-      allow read: if isSignedIn();
+      allow get, list: if isSignedIn();
       allow write: if isSignedIn() && request.auth.uid == userId;
     }
 
     // RESTAURANTS
     match /restaurants/{restaurantId} {
-      // Qualquer usuário logado pode criar e qualquer um pode ver (para o cardápio público)
+      // Qualquer usuário logado pode criar um restaurante
       allow create: if isSignedIn();
-      allow read: if true; 
+      // Leitura básica do restaurante é pública (para o cardápio)
+      allow get, list: if true; 
       allow update, delete: if isSignedIn();
 
       // Equipe do restaurante
       match /team/{memberId} {
-        allow read, write: if isSignedIn();
+        allow get, list, write: if isSignedIn();
       }
 
-      // Pedidos: Clientes via QR e Staff gerenciam
+      // Pedidos: Acesso total para permitir consulta via QR Code e gestão pelo Staff
       match /orders/{orderId} {
-        allow read, write: if true;
+        allow get, list, write: if true;
         
         match /items/{itemId} {
-          allow read, write: if true;
+          allow get, list, write: if true;
         }
       }
 
-      // Cardápio e Categorias
+      // Cardápio e Categorias: Leitura pública, escrita para staff
       match /menuItems/{itemId} {
-        allow read: if true;
+        allow get, list: if true;
         allow write: if isSignedIn();
       }
 
       match /menuItemCategories/{catId} {
-        allow read: if true;
+        allow get, list: if true;
         allow write: if isSignedIn();
       }
 
-      // Mesas, Clientes, Impressoras e Setores
+      // Mesas e Convites: Leitura pública
       match /tables/{tableId} {
-        allow read: if true;
+        allow get, list: if true;
         allow write: if isSignedIn();
-      }
-
-      match /customers/{customerId} {
-        allow read, write: if isSignedIn();
       }
 
       match /invitations/{inviteId} {
-        allow read: if true; 
+        allow get, list: if true; 
         allow write: if isSignedIn();
       }
 
-      // Fallback para subcoleções
+      // Clientes, Impressoras e Setores: Requer autenticação
+      match /customers/{customerId} {
+        allow get, list, write: if isSignedIn();
+      }
+
+      match /printSectors/{sectorId} {
+        allow get, list: if isSignedIn();
+        allow write: if isSignedIn();
+      }
+
+      match /printers/{printerId} {
+        allow get, list: if isSignedIn();
+        allow write: if isSignedIn();
+      }
+
+      // Fallback para qualquer outra subcoleção
       match /{allSubcollections=**} {
-        allow read, write: if isSignedIn();
+        allow get, list, write: if isSignedIn();
       }
     }
   }
