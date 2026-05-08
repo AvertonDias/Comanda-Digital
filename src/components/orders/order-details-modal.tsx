@@ -234,7 +234,13 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const pixPayload = useMemo(() => {
         const amountToPay = isSplitting ? currentPartAmount : (combinedTotal || 0);
         if (paymentMethod === 'pix' && restaurant?.pixKey && amountToPay > 0) {
-            return generatePixPayload(restaurant.pixKey, amountToPay, restaurant.name || 'Restaurante', txidLabel);
+            return generatePixPayload(
+                restaurant.pixKey, 
+                amountToPay, 
+                restaurant.name || 'Restaurante', 
+                txidLabel,
+                restaurant.city || 'SAO PAULO'
+            );
         }
         return null;
     }, [paymentMethod, restaurant, currentPartAmount, combinedTotal, isSplitting, txidLabel]);

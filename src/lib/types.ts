@@ -1,4 +1,3 @@
-
 export type UserProfile = {
   name: string;
   email: string;
@@ -127,6 +126,7 @@ export type Restaurant = {
     id: string;
     name: string;
     phone?: string;
+    city?: string;
     pixKey?: string;
     plan: string;
     status: string;

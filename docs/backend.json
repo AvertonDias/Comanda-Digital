@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "Restaurant": {
@@ -14,6 +13,11 @@
         "phone": {
           "type": "string",
           "description": "Telefone de contato do restaurante."
+"description": "Telefone de contato do restaurante."
+        },
+        "city": {
+          "type": "string",
+          "description": "Cidade de registro do restaurante (necessário para Pix)."
         },
         "pixKey": {
           "type": "string",

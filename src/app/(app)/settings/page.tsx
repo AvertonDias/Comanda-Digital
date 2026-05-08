@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AppHeader } from "@/components/layout/app-header";
@@ -29,6 +28,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 const profileSchema = z.object({
     name: z.string().min(1, "Obrigatório"),
     phone: z.string().optional(),
+    city: z.string().optional(),
     pixKey: z.string().optional(),
 });
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -51,7 +51,12 @@ function ProfileTab({ restaurantId }: { restaurantId: string }) {
     const { register, handleSubmit, reset, setValue } = useForm<ProfileFormData>({ resolver: zodResolver(profileSchema) });
 
     useEffect(() => {
-        if (data) reset({ name: data.name || '', phone: data.phone || '', pixKey: data.pixKey || '' });
+        if (data) reset({ 
+            name: data.name || '', 
+            phone: data.phone || '', 
+            city: data.city || '',
+            pixKey: data.pixKey || '' 
+        });
     }, [data, reset]);
 
     const onSubmit = (form: ProfileFormData) => {
@@ -93,19 +98,31 @@ function ProfileTab({ restaurantId }: { restaurantId: string }) {
                             <Info className="h-4 w-4 text-primary" />
                             <AlertTitle className="text-[10px] font-black uppercase">Como funciona?</AlertTitle>
                             <AlertDescription className="text-[10px] text-muted-foreground uppercase leading-tight">
-                                Cadastre sua chave Pix abaixo para que o sistema gere automaticamente o QR Code de pagamento ao finalizar pedidos.
+                                Cadastre sua chave Pix e cidade abaixo para que o sistema gere automaticamente o QR Code de pagamento ao finalizar pedidos.
                             </AlertDescription>
                         </Alert>
 
-                        <div className="space-y-2">
-                            <Label>Sua Chave Pix</Label>
-                            <Input 
-                                {...register("pixKey")} 
-                                placeholder="E-mail, CPF, Celular ou Chave Aleatória"
-                            />
-                            <p className="text-[10px] text-muted-foreground uppercase font-bold">
-                                Certifique-se de que a chave está correta para evitar erros no pagamento.
-                            </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Cidade do Estabelecimento</Label>
+                                <Input 
+                                    {...register("city")} 
+                                    placeholder="Ex: São Paulo"
+                                />
+                                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                                    Campo obrigatório para o padrão Pix.
+                                </p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Sua Chave Pix</Label>
+                                <Input 
+                                    {...register("pixKey")} 
+                                    placeholder="E-mail, CPF, Celular ou Chave Aleatória"
+                                />
+                                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                                    Certifique-se de que a chave está correta.
+                                </p>
+                            </div>
                         </div>
                     </div>
 
