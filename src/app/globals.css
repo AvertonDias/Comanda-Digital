@@ -84,6 +84,11 @@
   }
 }
 
+/* Fix for Radix UI modal lock hang and frozen screens */
+html, body {
+  pointer-events: auto !important;
+}
+
 /* Custom Scrollbar for Categories */
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
@@ -104,6 +109,7 @@
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
     background: white !important;
+    pointer-events: auto !important;
   }
   body * {
     visibility: hidden;

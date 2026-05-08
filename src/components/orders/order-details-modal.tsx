@@ -640,6 +640,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                 </DialogContent>
             </Dialog>
 
+            {/* Modais filhos fora do DialogContent principal para evitar z-index lock */}
             <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
