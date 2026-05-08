@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -13,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import type { MenuItem, MenuItemAddonOption } from '@/lib/types';
+import type { MenuItem, MenuItemAddonOption, MenuItemIngredient } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
@@ -30,6 +29,7 @@ type MenuItemSelectionDialogProps = {
     addons: SelectionAddon[];
     notes: string;
     totalPrice: number;
+    ingredientsExtraPrice: number;
   }) => void;
 };
 
@@ -44,11 +44,21 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
     return Array.isArray(item.ingredients) ? item.ingredients : [];
   }, [item?.ingredients]);
 
+  const ingredientsExtraPrice = useMemo(() => {
+    if (!item?.ingredients) return 0;
+    return Object.entries(ingredientMods)
+        .filter(([_, status]) => status === 'extra')
+        .reduce((acc, [ingName]) => {
+            const ing = item.ingredients?.find(i => i.name === ingName);
+            return acc + (ing?.extraPrice || 0);
+        }, 0);
+  }, [item?.ingredients, ingredientMods]);
+
   const currentTotal = useMemo(() => {
     if (!item) return 0;
     const addonsTotal = selectedAddons.reduce((acc, curr) => acc + curr.price, 0);
-    return (item.price + addonsTotal) * quantity;
-  }, [item, selectedAddons, quantity]);
+    return (item.price + addonsTotal + ingredientsExtraPrice) * quantity;
+  }, [item, selectedAddons, ingredientsExtraPrice, quantity]);
 
   const isMandatoryGroupsMet = useMemo(() => {
     if (!item?.addonGroups) return true;
@@ -112,7 +122,8 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
       quantity,
       addons: selectedAddons,
       notes: finalNotes.trim(),
-      totalPrice: currentTotal
+      totalPrice: currentTotal,
+      ingredientsExtraPrice: ingredientsExtraPrice
     });
     onClose();
   };
@@ -168,7 +179,8 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
                 
                 <div className="space-y-0 divide-y bg-muted/10 rounded-lg">
                   {ingredientsList.map((ingredient, idx) => {
-                    const status = ingredientMods[ingredient] || 'normal';
+                    const status = ingredientMods[ingredient.name] || 'normal';
+                    const hasExtraPrice = ingredient.extraPrice > 0;
                     
                     return (
                       <div 
@@ -181,12 +193,15 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
                                 status === 'removed' ? "text-muted-foreground line-through opacity-50" : "text-foreground",
                                 status === 'extra' ? "text-primary scale-105 origin-left" : ""
                             )}>
-                                {ingredient}
+                                {ingredient.name}
                             </p>
                             {status === 'extra' && (
-                                <Badge variant="secondary" className="h-4 px-1.5 py-0 text-[8px] font-black uppercase bg-primary/10 text-primary border-none">
-                                    Extra
-                                </Badge>
+                                <div className="flex items-center gap-1">
+                                    <Badge variant="secondary" className="h-4 px-1.5 py-0 text-[8px] font-black uppercase bg-primary/10 text-primary border-none">
+                                        Extra
+                                    </Badge>
+                                    {hasExtraPrice && <span className="text-[8px] font-black text-primary">+R${ingredient.extraPrice.toFixed(2)}</span>}
+                                </div>
                             )}
                             {status === 'removed' && (
                                 <Badge variant="outline" className="h-4 px-1.5 py-0 text-[8px] font-black uppercase text-muted-foreground">
@@ -200,7 +215,7 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
                                 variant={status === 'removed' ? "destructive" : "ghost"} 
                                 size="icon" 
                                 className="h-7 w-7 rounded-md"
-                                onClick={() => updateIngredientStatus(ingredient, status === 'removed' ? 'normal' : 'removed')}
+                                onClick={() => updateIngredientStatus(ingredient.name, status === 'removed' ? 'normal' : 'removed')}
                             >
                                 <Minus className="h-3.5 w-3.5" />
                             </Button>
@@ -219,7 +234,7 @@ export function MenuItemSelectionDialog({ item, isOpen, onClose, onConfirm }: Me
                                 variant={status === 'extra' ? "default" : "ghost"} 
                                 size="icon" 
                                 className={cn("h-7 w-7 rounded-md", status === 'extra' ? "bg-primary" : "")}
-                                onClick={() => updateIngredientStatus(ingredient, status === 'extra' ? 'normal' : 'extra')}
+                                onClick={() => updateIngredientStatus(ingredient.name, status === 'extra' ? 'normal' : 'extra')}
                             >
                                 <Plus className="h-3.5 w-3.5" />
                             </Button>

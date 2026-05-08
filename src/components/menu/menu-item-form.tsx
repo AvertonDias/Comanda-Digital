@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, X } from 'lucide-react';
+import { Plus, Trash2, X, DollarSign } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import type { MenuItem, MenuItemCategory } from '@/lib/types';
+import type { MenuItem, MenuItemCategory, MenuItemIngredient } from '@/lib/types';
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -20,7 +20,10 @@ import { Badge } from '@/components/ui/badge';
 
 const formSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres."),
-  ingredients: z.array(z.string()).default([]),
+  ingredients: z.array(z.object({
+    name: z.string().min(1, "Nome é obrigatório"),
+    extraPrice: z.coerce.number().min(0)
+  })).default([]),
   price: z.coerce.number().min(0.01, "Preço deve ser maior que zero."),
   categoryId: z.string().min(1, "Selecione uma categoria."),
   isAvailable: z.boolean().default(true),
@@ -47,13 +50,14 @@ type MenuItemFormProps = {
 export function MenuItemForm({ restaurantId, categories, onSuccess, initialData }: MenuItemFormProps) {
   const { toast } = useToast();
   const firestore = useFirestore();
-  const [newIngredient, setNewIngredient] = useState("");
+  const [newIngName, setNewIngName] = useState("");
+  const [newIngPrice, setNewIngPrice] = useState("");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: initialData?.name || "",
-      ingredients: Array.isArray(initialData?.ingredients) ? initialData.ingredients : [],
+      ingredients: initialData?.ingredients || [],
       price: initialData?.price || 0,
       categoryId: initialData?.categoryId || "",
       isAvailable: initialData?.isAvailable ?? true,
@@ -65,7 +69,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
     if (initialData) {
       form.reset({
         name: initialData.name,
-        ingredients: Array.isArray(initialData.ingredients) ? initialData.ingredients : [],
+        ingredients: initialData.ingredients || [],
         price: initialData.price,
         categoryId: initialData.categoryId,
         isAvailable: initialData.isAvailable,
@@ -74,23 +78,24 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
     }
   }, [initialData, form]);
 
+  const { fields: ingredientFields, append: appendIng, remove: removeIng } = useFieldArray({
+    control: form.control,
+    name: "ingredients"
+  });
+
   const { fields: addonGroups, append: appendGroup, remove: removeGroup } = useFieldArray({
     control: form.control,
     name: "addonGroups"
   });
 
   const handleAddIngredient = () => {
-    if (!newIngredient.trim()) return;
-    const current = Array.isArray(form.getValues("ingredients")) ? form.getValues("ingredients") : [];
-    if (!current.includes(newIngredient.trim())) {
-      form.setValue("ingredients", [...current, newIngredient.trim()]);
-    }
-    setNewIngredient("");
-  };
-
-  const handleRemoveIngredient = (idx: number) => {
-    const current = Array.isArray(form.getValues("ingredients")) ? form.getValues("ingredients") : [];
-    form.setValue("ingredients", current.filter((_, i) => i !== idx));
+    if (!newIngName.trim()) return;
+    appendIng({ 
+      name: newIngName.trim(), 
+      extraPrice: Number(newIngPrice) || 0 
+    });
+    setNewIngName("");
+    setNewIngPrice("");
   };
 
   function onSubmit(values: z.infer<typeof formSchema>) {
@@ -128,9 +133,6 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
     onSuccess?.();
   }
 
-  const watchedIngredients = form.watch("ingredients");
-  const ingredientsArray = Array.isArray(watchedIngredients) ? watchedIngredients : [];
-
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 pb-10">
@@ -155,30 +157,55 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
             />
 
             <div className="space-y-3 bg-muted/10 p-4 rounded-xl border-2 border-dashed border-muted">
-              <FormLabel className="text-primary text-[10px] font-black uppercase">Ingredientes Base (+)</FormLabel>
-              <div className="flex gap-2">
-                <Input 
-                  placeholder="Ex: Pão brioche" 
-                  value={newIngredient} 
-                  className="h-10 text-sm"
-                  onChange={e => setNewIngredient(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddIngredient())}
-                />
-                <Button type="button" size="icon" onClick={handleAddIngredient} className="shrink-0 h-10 w-10">
-                  <Plus className="h-4 w-4" />
-                </Button>
+              <FormLabel className="text-primary text-[10px] font-black uppercase">Ingredientes e Valor de Extra (+)</FormLabel>
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <Input 
+                    placeholder="Nome (Ex: Bacon)" 
+                    value={newIngName} 
+                    className="h-10 text-sm flex-[2]"
+                    onChange={e => setNewIngName(e.target.value)}
+                  />
+                  <div className="relative flex-1">
+                    <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                    <Input 
+                      placeholder="Extra (R$)" 
+                      value={newIngPrice} 
+                      type="number"
+                      step="0.01"
+                      className="h-10 text-sm pl-6"
+                      onChange={e => setNewIngPrice(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddIngredient())}
+                    />
+                  </div>
+                  <Button type="button" size="icon" onClick={handleAddIngredient} className="shrink-0 h-10 w-10">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
               <FormDescription className="text-[9px] uppercase font-bold text-muted-foreground">
-                Adicione cada item que compõe o prato individualmente.
+                Informe o nome e quanto custa se o cliente pedir uma porção extra.
               </FormDescription>
-              <div className="flex flex-wrap gap-2 pt-1">
-                {ingredientsArray.map((ing, idx) => (
-                  <Badge key={idx} variant="secondary" className="gap-1 px-3 py-1.5 font-bold uppercase text-[9px] bg-background border-2 shadow-sm">
-                    {ing}
-                    <X className="h-3 w-3 cursor-pointer text-destructive hover:scale-125 transition-transform" onClick={() => handleRemoveIngredient(idx)} />
-                  </Badge>
+              
+              <div className="space-y-2 pt-2">
+                {ingredientFields.map((field, idx) => (
+                  <div key={field.id} className="flex items-center justify-between bg-background border-2 rounded-lg p-2 group">
+                    <div className="flex flex-col">
+                        <span className="text-[10px] font-black uppercase">{form.watch(`ingredients.${idx}.name`)}</span>
+                        <span className="text-[9px] text-primary font-bold">VALOR EXTRA: R$ {form.watch(`ingredients.${idx}.extraPrice`)?.toFixed(2)}</span>
+                    </div>
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => removeIng(idx)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 ))}
-                {ingredientsArray.length === 0 && <span className="text-[9px] text-muted-foreground uppercase italic font-bold">Nenhum ingrediente base</span>}
+                {ingredientFields.length === 0 && <span className="text-[9px] text-muted-foreground uppercase italic font-bold">Nenhum ingrediente cadastrado</span>}
               </div>
             </div>
 
@@ -224,7 +251,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
             <div className="flex justify-between items-center">
               <h3 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
                 <span className="h-4 w-1 bg-primary rounded-full" />
-                2. Adicionais Pagos
+                2. Grupos de Adicionais
               </h3>
               <Button 
                 type="button" 

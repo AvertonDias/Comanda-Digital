@@ -27,6 +27,7 @@ type NewOrderItem = {
     printSectorId: string;
     notes?: string;
     addons?: SelectionAddon[];
+    ingredientsExtraPrice?: number;
 };
 
 export function CreateOrderForm({ 
@@ -93,6 +94,7 @@ export function CreateOrderForm({
         addons: SelectionAddon[];
         notes: string;
         totalPrice: number;
+        ingredientsExtraPrice: number;
     }) => {
         setOrderItems(prev => [...prev, {
             menuItemId: data.item.id,
@@ -101,7 +103,8 @@ export function CreateOrderForm({
             price: data.item.price, 
             printSectorId: data.item.printSectorId,
             notes: data.notes,
-            addons: data.addons
+            addons: data.addons,
+            ingredientsExtraPrice: data.ingredientsExtraPrice
         }]);
         setSelectedItem(null);
     };
@@ -144,6 +147,12 @@ export function CreateOrderForm({
             const snapshot = await getCountFromServer(ordersCol);
             const nextOrderNumber = (snapshot.data().count || 0) + 1;
 
+            const finalTotal = orderItems.reduce((acc, item) => {
+                const addonsPrice = item.addons?.reduce((sum, a) => sum + a.price, 0) || 0;
+                const ingredientsPrice = item.ingredientsExtraPrice || 0;
+                return acc + (item.price + addonsPrice + ingredientsPrice) * item.quantity;
+            }, 0);
+
             const orderData = {
                 restaurantId,
                 orderNumber: nextOrderNumber,
@@ -155,10 +164,7 @@ export function CreateOrderForm({
                 customerPhone: (orderType === 'balcao' || orderType === 'retirada' || orderType === 'entrega') ? customerPhone : null,
                 deliveryAddress: orderType === 'entrega' ? deliveryAddress : null,
                 status: 'aberto',
-                total: orderItems.reduce((acc, item) => {
-                    const addonsPrice = item.addons?.reduce((sum, a) => sum + a.price, 0) || 0;
-                    return acc + (item.price + addonsPrice) * item.quantity;
-                }, 0),
+                total: finalTotal,
                 createdAt: serverTimestamp(),
                 items: orderItems.map(item => ({
                     menuItemId: item.menuItemId,
@@ -168,7 +174,8 @@ export function CreateOrderForm({
                     notes: item.notes || null,
                     status: 'pendente',
                     printSectorId: item.printSectorId,
-                    addons: item.addons?.map(a => ({ name: a.name, price: a.price })) || []
+                    addons: item.addons?.map(a => ({ name: a.name, price: a.price })) || [],
+                    ingredientExtrasPrice: item.ingredientsExtraPrice || 0
                 }))
             };
             
@@ -180,7 +187,6 @@ export function CreateOrderForm({
             
             toast({ title: `Pedido #${nextOrderNumber.toString().padStart(3, '0')} enviado!` });
             
-            // Em vez de fechar, preparamos o modal de impressão da cozinha
             setCreatedOrderData({ ...orderData, id: docRef.id });
             setShowKitchenPrint(true);
 
@@ -223,14 +229,14 @@ export function CreateOrderForm({
 
     const totalAmount = orderItems.reduce((acc, item) => {
         const addonsPrice = item.addons?.reduce((sum, a) => sum + a.price, 0) || 0;
-        return acc + (item.price + addonsPrice) * item.quantity;
+        const ingredientsPrice = item.ingredientsExtraPrice || 0;
+        return acc + (item.price + addonsPrice + ingredientsPrice) * item.quantity;
     }, 0);
 
     const selectedTable = tables?.find(t => t.id === tableId);
 
     return (
         <div className="flex flex-col h-full bg-background overflow-hidden">
-            {/* Indicador de Passos */}
             <div className="px-6 py-4 bg-muted/30 border-b flex items-center justify-between">
                 {[1, 2, 3].map((s) => (
                     <div key={s} className="flex items-center flex-1 last:flex-none">
@@ -253,7 +259,6 @@ export function CreateOrderForm({
             </div>
 
             <div className="flex-1 overflow-y-auto">
-                {/* PASSO 1: IDENTIFICAÇÃO */}
                 {step === 1 && (
                     <div className="p-6 space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                         <div className="space-y-4">
@@ -334,7 +339,6 @@ export function CreateOrderForm({
                     </div>
                 )}
 
-                {/* PASSO 2: CARDÁPIO */}
                 {step === 2 && (
                     <div className="p-4 space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                         <Tabs defaultValue={categories?.[0]?.id} className="w-full">
@@ -379,7 +383,6 @@ export function CreateOrderForm({
                             ))}
                         </Tabs>
 
-                        {/* Indicador Flutuante de Itens */}
                         {orderItems.length > 0 && (
                             <div className="bg-primary/5 border-2 border-dashed border-primary/30 p-4 rounded-xl flex justify-between items-center">
                                 <div className="flex items-center gap-3">
@@ -396,7 +399,6 @@ export function CreateOrderForm({
                     </div>
                 )}
 
-                {/* PASSO 3: RESUMO */}
                 {step === 3 && (
                     <div className="p-6 space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                         <div className="bg-muted/10 p-5 rounded-2xl border-2 space-y-4">
@@ -412,7 +414,8 @@ export function CreateOrderForm({
                             <div className="space-y-3">
                                 {orderItems.map((item, idx) => {
                                     const addonsPrice = item.addons?.reduce((s, a) => s + a.price, 0) || 0;
-                                    const itemTotal = (item.price + addonsPrice) * item.quantity;
+                                    const ingredientsPrice = item.ingredientsExtraPrice || 0;
+                                    const itemTotal = (item.price + addonsPrice + ingredientsPrice) * item.quantity;
 
                                     return (
                                         <div key={idx} className="bg-background p-4 rounded-xl border-2 flex justify-between items-start shadow-sm">
@@ -463,7 +466,6 @@ export function CreateOrderForm({
                 )}
             </div>
 
-            {/* Rodapé de Navegação */}
             <div className="p-6 bg-background border-t-2 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] flex gap-3">
                 {step > 1 && (
                     <Button 

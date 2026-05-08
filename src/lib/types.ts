@@ -60,11 +60,16 @@ export type MenuItemAddonGroup = {
   options: MenuItemAddonOption[];
 };
 
+export type MenuItemIngredient = {
+  name: string;
+  extraPrice: number;
+};
+
 export type MenuItem = {
   id: string;
   name: string;
   description: string;
-  ingredients?: string[];
+  ingredients?: MenuItemIngredient[];
   price: number;
   isAvailable: boolean;
   categoryId: string;
@@ -92,6 +97,7 @@ export type OrderItem = {
   status: OrderItemStatus;
   printSectorId: string;
   addons?: OrderItemAddon[];
+  ingredientExtrasPrice?: number;
 };
 
 export type SplitPaymentPart = {
