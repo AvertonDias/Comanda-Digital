@@ -347,7 +347,10 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
         <div className="space-y-6">
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>Setores de Impressão</CardTitle>
+                    <div className="flex flex-col gap-1">
+                        <CardTitle>Setores de Impressão</CardTitle>
+                        <CardDescription>Cozinha, Bar, Churrasqueira, etc.</CardDescription>
+                    </div>
                     <Button onClick={() => { setEditingSec(null); setSecName(""); setIsSecModal(true); }} size="sm">
                         <PlusCircle className="mr-2 h-4 w-4" /> Novo Setor
                     </Button>
@@ -357,7 +360,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                         <TableBody>
                             {sectors?.map(s => (
                                 <TableRow key={s.id}>
-                                    <TableCell>{s.name}</TableCell>
+                                    <TableCell className="font-bold uppercase text-xs">{s.name}</TableCell>
                                     <TableCell className="text-right">
                                         <Button variant="ghost" size="icon" onClick={() => { setEditingSec(s); setSecName(s.name); setIsSecModal(true); }}>
                                             <Edit2 className="h-4 w-4" />
@@ -368,6 +371,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                                     </TableCell>
                                 </TableRow>
                             ))}
+                            {sectors?.length === 0 && <TableRow><TableCell className="text-center py-6 text-muted-foreground text-xs uppercase font-bold">Nenhum setor cadastrado</TableCell></TableRow>}
                         </TableBody>
                     </Table>
                 </CardContent>
@@ -376,11 +380,26 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <CardTitle>Impressoras</CardTitle>
+                        <div className="flex flex-col gap-1">
+                            <CardTitle>Impressoras</CardTitle>
+                            <CardDescription>Rede (IP) ou USB (Nativo).</CardDescription>
+                        </div>
                         <Popover>
-                            <PopoverTrigger asChild><Button variant="ghost" size="icon"><HelpCircle className="h-4 w-4 text-muted-foreground" /></Button></PopoverTrigger>
-                            <PopoverContent className="text-xs">
-                                No Windows: Vá em Configurações {'->'} Dispositivos {'->'} Impressoras. O IP ou Nome de Rede aparece nas propriedades do dispositivo.
+                            <PopoverTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><HelpCircle className="h-4 w-4 text-primary" /></Button></PopoverTrigger>
+                            <PopoverContent className="w-80 space-y-4">
+                                <div className="space-y-2">
+                                    <h4 className="font-black uppercase text-xs">Impressora USB (Como a sua)</h4>
+                                    <p className="text-[10px] text-muted-foreground leading-tight uppercase font-bold">
+                                        Para impressoras conectadas via USB ao computador (como a 80mm Series), não é necessário configurar IP. 
+                                        Ao finalizar um pedido, o botão "Imprimir Cupom" abrirá a janela do sistema e você selecionará ela lá.
+                                    </p>
+                                </div>
+                                <div className="space-y-2">
+                                    <h4 className="font-black uppercase text-xs">Impressora de Rede (IP)</h4>
+                                    <p className="text-[10px] text-muted-foreground leading-tight uppercase font-bold">
+                                        Se a impressora estiver ligada no cabo de rede, coloque o IP dela abaixo. O sistema tentará enviar o comando diretamente.
+                                    </p>
+                                </div>
                             </PopoverContent>
                         </Popover>
                     </div>
@@ -392,15 +411,15 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Nome</TableHead>
-                                <TableHead>Endereço</TableHead>
-                                <TableHead className="text-right">Ações</TableHead>
+                                <TableHead className="text-[10px] font-black uppercase">Nome</TableHead>
+                                <TableHead className="text-[10px] font-black uppercase">Endereço/Porta</TableHead>
+                                <TableHead className="text-right text-[10px] font-black uppercase">Ações</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {printers?.map(p => (
                                 <TableRow key={p.id}>
-                                    <TableCell>{p.name}</TableCell>
+                                    <TableCell className="font-bold uppercase text-xs">{p.name}</TableCell>
                                     <TableCell className="font-mono text-xs">{p.address}</TableCell>
                                     <TableCell className="text-right">
                                         <Button variant="ghost" size="icon" onClick={() => { setEditingPri(p); setPriName(p.name); setPriAddr(p.address); setPriType(p.connectionType); setIsPriModal(true); }}>
@@ -412,6 +431,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                                     </TableCell>
                                 </TableRow>
                             ))}
+                            {printers?.length === 0 && <TableRow><TableCell colSpan={3} className="text-center py-6 text-muted-foreground text-xs uppercase font-bold">Nenhuma impressora configurada</TableCell></TableRow>}
                         </TableBody>
                     </Table>
                 </CardContent>
@@ -420,11 +440,13 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
             <Dialog open={isSecModal} onOpenChange={setIsSecModal}>
                 <DialogContent>
                     <DialogHeader><DialogTitle>{editingSec ? "Editar Setor" : "Novo Setor"}</DialogTitle></DialogHeader>
-                    <div className="py-4">
-                        <Label>Nome do Setor</Label>
-                        <Input value={secName} onChange={e => setSecName(e.target.value)} placeholder="Ex: Cozinha" />
+                    <div className="py-4 space-y-4">
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase">Nome do Setor</Label>
+                            <Input value={secName} onChange={e => setSecName(e.target.value)} placeholder="Ex: Cozinha" />
+                        </div>
                     </div>
-                    <DialogFooter><Button onClick={handleSaveSec}>Salvar</Button></DialogFooter>
+                    <DialogFooter><Button onClick={handleSaveSec} className="w-full font-black uppercase">Salvar Setor</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
 
@@ -433,26 +455,26 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
                     <DialogHeader><DialogTitle>{editingPri ? "Editar Impressora" : "Nova Impressora"}</DialogTitle></DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
-                            <Label>Nome</Label>
-                            <Input value={priName} onChange={e => setPriName(e.target.value)} placeholder="Impressora Térmica" />
+                            <Label className="text-[10px] font-black uppercase">Nome Identificador</Label>
+                            <Input value={priName} onChange={e => setPriName(e.target.value)} placeholder="Ex: Impressora do Balcão" />
                         </div>
                         <div className="space-y-2">
-                            <Label>Tipo</Label>
+                            <Label className="text-[10px] font-black uppercase">Tipo de Conexão</Label>
                             <Select value={priType} onValueChange={setPriType}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="network">Rede (IP)</SelectItem>
-                                    <SelectItem value="usb">USB</SelectItem>
+                                    <SelectItem value="usb">USB (Sistema Windows)</SelectItem>
                                     <SelectItem value="bluetooth">Bluetooth</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="space-y-2">
-                            <Label>Endereço (IP ou Porta)</Label>
-                            <Input value={priAddr} onChange={e => setPriAddr(e.target.value)} placeholder="192.168.1.100" />
+                            <Label className="text-[10px] font-black uppercase">Endereço (IP ou 'USB')</Label>
+                            <Input value={priAddr} onChange={e => setPriAddr(e.target.value)} placeholder="192.168.1.100 ou USB" />
                         </div>
                     </div>
-                    <DialogFooter><Button onClick={handleSavePri}>Salvar</Button></DialogFooter>
+                    <DialogFooter><Button onClick={handleSavePri} className="w-full font-black uppercase">Configurar Impressora</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
 

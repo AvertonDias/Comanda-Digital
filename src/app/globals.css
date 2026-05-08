@@ -96,6 +96,14 @@
 
 /* Print Styles */
 @media print {
+  @page {
+    margin: 0;
+    size: auto;
+  }
+  body {
+    margin: 0;
+    -webkit-print-color-adjust: exact;
+  }
   body * {
     visibility: hidden;
   }
@@ -106,11 +114,12 @@
     position: absolute;
     left: 0;
     top: 0;
-    width: 100%;
-    padding: 20px;
+    width: 80mm; /* Força a largura da bobina padrão */
+    padding: 2mm;
     background: white !important;
     color: black !important;
     font-family: 'Courier New', Courier, monospace;
+    font-size: 10pt;
   }
   .no-print {
     display: none !important;

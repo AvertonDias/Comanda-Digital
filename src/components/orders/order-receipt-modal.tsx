@@ -81,9 +81,10 @@ Obrigado pela preferência!
     };
 
     const handlePrint = () => {
+        // Pequeno delay para garantir que o DOM de impressão esteja pronto
         setTimeout(() => {
             window.print();
-        }, 100);
+        }, 150);
     };
 
     const handleWhatsApp = () => {
@@ -153,7 +154,7 @@ Obrigado pela preferência!
                             onClick={handlePrint}
                         >
                             <Printer className="h-6 w-6 text-primary" />
-                            Imprimir Cupom
+                            Imprimir Cupom (80mm)
                         </Button>
                         
                         <Button 
@@ -175,7 +176,7 @@ Obrigado pela preferência!
                 </DialogContent>
             </Dialog>
 
-            {/* ÁREA DE IMPRESSÃO (ESTILIZADA PARA TÉRMICA) */}
+            {/* ÁREA DE IMPRESSÃO (ESTILIZADA PARA TÉRMICA 80MM) */}
             <div id="print-receipt-area" className="hidden print:block bg-white text-black p-4">
                 <div className="text-center space-y-1 mb-4">
                     <h1 className="text-xl font-bold uppercase">{restaurant?.name || 'RECIBO DE VENDA'}</h1>
