@@ -8,6 +8,16 @@ import {
     DialogTitle,
     DialogFooter,
 } from "@/components/ui/dialog";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -120,6 +130,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const [selectedItemToAdd, setSelectedItemToAdd] = useState<MenuItem | null>(null);
     const [showReceiptPreview, setShowReceiptPreview] = useState(false);
     const [showKitchenPrint, setShowKitchenPrint] = useState(false);
+    const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
     const relatedOrdersQuery = useMemoFirebase(() => {
         if (!order?.tableId || !order?.restaurantId || !firestore) return null;
@@ -185,6 +196,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
             setSelectedItemsForPart({});
             setShowReceiptPreview(false);
             setShowKitchenPrint(false);
+            setShowCancelConfirm(false);
         }
     }, [isOpen, order, lastOpenedOrderId]);
 
@@ -329,7 +341,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     return (
         <>
             <Dialog open={isOpen} onOpenChange={onOpenChange}>
-                <DialogContent className="max-w-full w-full h-[100dvh] sm:h-auto sm:max-w-md flex flex-col p-0 overflow-hidden border-none sm:border">
+                <DialogContent className="max-w-full w-full h-[100dvh] sm:h-auto sm:max-w-md flex flex-col p-0 overflow-hidden border-none sm:border [&>button:last-child]:hidden">
                     <DialogHeader className="p-6 pb-0 flex flex-row items-center gap-2 space-y-0">
                         <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2" onClick={() => onOpenChange(false)}>
                             <ChevronLeft className="h-5 w-5" />
@@ -584,8 +596,16 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                         </div>
 
                         <DialogFooter className="flex-row gap-2">
+                            <Button 
+                                variant="ghost" 
+                                className="flex-1 font-black uppercase text-[10px] h-11 border-2" 
+                                onClick={() => onOpenChange(false)}
+                            >
+                                Fechar
+                            </Button>
+                            
                             {order.status === 'aberto' && (
-                                <Button variant="destructive" className="flex-1 font-black uppercase text-[10px] h-11" onClick={() => onStatusChange(order.id, 'cancelado')}>
+                                <Button variant="destructive" className="flex-1 font-black uppercase text-[10px] h-11" onClick={() => setShowCancelConfirm(true)}>
                                     <Trash2 className="mr-2 h-3 w-3"/> Cancelar
                                 </Button>
                             )}
@@ -624,8 +644,31 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                 </DialogContent>
             </Dialog>
 
+            <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Cancelar Pedido?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Tem certeza que deseja cancelar o pedido #{displayOrderNumber}? Esta ação não pode ser desfeita e removerá o item do histórico ativo.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Não, manter pedido</AlertDialogCancel>
+                        <AlertDialogAction 
+                            onClick={() => {
+                                onStatusChange(order.id, 'cancelado');
+                                setShowCancelConfirm(false);
+                            }}
+                            className="bg-destructive hover:bg-destructive/90 text-white"
+                        >
+                            Sim, cancelar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             <Dialog open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-                <DialogContent className="max-w-full w-full h-[100dvh] sm:h-[80vh] sm:max-w-[450px] p-0 flex flex-col border-none sm:border overflow-hidden">
+                <DialogContent className="max-w-full w-full h-[100dvh] sm:h-[80vh] sm:max-w-[450px] p-0 flex flex-col border-none sm:border overflow-hidden [&>button:last-child]:hidden">
                     <DialogHeader className="p-4 border-b flex flex-row items-center gap-2 space-y-0">
                         <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2" onClick={() => setIsMenuOpen(false)}>
                             <ChevronLeft className="h-5 w-5" />
