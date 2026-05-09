@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -41,6 +40,20 @@ import { useToast } from "@/hooks/use-toast";
 import { MenuItemSelectionDialog } from "./menu-item-selection-dialog";
 import { OrderReceiptModal } from "./order-receipt-modal";
 import { KitchenOrderModal } from "./kitchen-order-modal";
+
+const PAYMENT_METHODS = [
+    { id: 'pix', label: 'Pix', icon: QrCode },
+    { id: 'credit', label: 'Crédito', icon: CreditCard },
+    { id: 'debit', label: 'Débito', icon: CreditCard },
+    { id: 'cash', label: 'Dinheiro', icon: Banknote },
+];
+
+interface OrderDetailsModalProps {
+    order: Order | null;
+    isOpen: boolean;
+    onOpenChange: (open: boolean) => void;
+    onStatusChange: (orderIds: string | string[], status: OrderStatus, extraData?: any) => void;
+}
 
 function consolidateItems(items: any[]) {
     if (!items) return [];
@@ -289,7 +302,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
             status: 'pendente',
             printSectorId: data.item.printSectorId,
             addons: data.addons?.map(a => ({ name: a.name, price: a.price })) || [],
-            ingredientExtrasPrice: data.ingredientsExtraPrice || 0
+            ingredientExtrasPrice: data.ingredientExtrasPrice || 0
         };
 
         try {
