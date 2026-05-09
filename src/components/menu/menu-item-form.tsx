@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, X, DollarSign, Clock, Camera, Upload } from 'lucide-react';
+import { Plus, Trash2, X, DollarSign, Clock, Camera } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -24,7 +24,7 @@ const formSchema = z.object({
     extraPrice: z.coerce.number().min(0)
   })).default([]),
   price: z.coerce.number().min(0.01, "Preço deve ser maior que zero."),
-  preparationTime: z.coerce.number().min(1, "Obrigatório."),
+  preparationTime: z.coerce.number().min(0, "Use 0 para entrega imediata (balcão/bomboniere)."),
   categoryId: z.string().min(1, "Selecione uma categoria."),
   isAvailable: z.boolean().default(true),
   addonGroups: z.array(z.object({
@@ -60,7 +60,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
       name: initialData?.name || "",
       ingredients: initialData?.ingredients || [],
       price: initialData?.price || 0,
-      preparationTime: initialData?.preparationTime || 15,
+      preparationTime: initialData?.preparationTime ?? 0,
       categoryId: initialData?.categoryId || "",
       isAvailable: initialData?.isAvailable ?? true,
       addonGroups: initialData?.addonGroups || []
@@ -73,7 +73,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
         name: initialData.name,
         ingredients: initialData.ingredients || [],
         price: initialData.price,
-        preparationTime: initialData.preparationTime || 15,
+        preparationTime: initialData.preparationTime ?? 0,
         categoryId: initialData.categoryId,
         isAvailable: initialData.isAvailable,
         addonGroups: initialData.addonGroups || []

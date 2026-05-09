@@ -88,7 +88,7 @@ export type MenuItem = {
   imageUrl: string;
   imageHint: string;
   addonGroups?: MenuItemAddonGroup[];
-  preparationTime: number;
+  preparationTime?: number;
 };
 
 export type OrderStatus = 'aberto' | 'preparando' | 'pronto' | 'finalizado' | 'cancelado';

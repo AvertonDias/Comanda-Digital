@@ -404,7 +404,7 @@ export function CreateOrderForm({
                                                     <div className="flex-1 min-w-0">
                                                         <p className="text-xs font-black uppercase truncate leading-tight">{item.name}</p>
                                                         <p className="text-xs text-primary font-black mt-1">R$ {item.price.toFixed(2)}</p>
-                                                        {item.preparationTime && (
+                                                        {item.preparationTime && item.preparationTime > 0 && (
                                                             <div className="flex items-center gap-1 text-[8px] font-black text-muted-foreground mt-1 uppercase">
                                                                 <Clock className="h-2 w-2" /> {item.preparationTime} MIN
                                                             </div>
