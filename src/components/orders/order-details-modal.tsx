@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -35,10 +36,10 @@ import {
 } from "@/components/ui/select";
 import type { Order, OrderStatus, Restaurant, SplitPaymentPart, MenuItem, MenuItemCategory } from "@/lib/types";
 import { format } from "date-fns";
-import { ArrowRight, ChefHat, Bike, Trash2, QrCode, Copy, Check, Users, Minus, Plus, Wallet, CreditCard, Banknote, ListChecks, DollarSign, Printer, ChevronLeft, Search } from "lucide-react";
+import { ArrowRight, ChefHat, Bike, Trash2, QrCode, Copy, Check, Users, Minus, Plus, Wallet, CreditCard, Banknote, ListChecks, DollarSign, Printer, ChevronLeft, Search, Info } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, updateDoc, arrayUnion, increment, query, collection, orderBy, where, serverTimestamp } from "firebase/firestore";
+import { doc, updateDoc, arrayUnion, increment, query, collection, orderBy, where, serverTimestamp, addDoc, getCountFromServer } from "firebase/firestore";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
@@ -145,6 +146,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         return allGroupedOrders.reduce((acc, curr) => acc + curr.total, 0);
     }, [allGroupedOrders]);
 
+    // Segmenta itens por status para exibição organizada
     const itemsByStatus = useMemo(() => {
         const map: Record<string, any[]> = {
             'aberto': [],
@@ -299,30 +301,45 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         setSelectedItemsForPart(prev => ({ ...prev, [index]: next }));
     };
 
+    // CORREÇÃO: Adicionar item agora cria sempre um NOVO pedido 'aberto' para evitar "puxar" o status atual
     const handleConfirmAddExtra = async (data: { item: MenuItem; quantity: number; addons: any[]; notes: string; totalPrice: number; ingredientsExtraPrice: number }) => {
-        const orderRef = doc(firestore, `restaurants/${order.restaurantId}/orders`, order.id);
-        
-        const newItem = {
-            menuItemId: data.item.id,
-            name: data.item.name,
-            quantity: data.quantity,
-            priceAtOrder: data.item.price,
-            notes: data.notes || null,
-            status: 'pendente' as const,
-            printSectorId: data.item.printSectorId,
-            addons: data.addons?.map(a => ({ name: a.name, price: a.price })) || [],
-            ingredientExtrasPrice: data.ingredientExtrasPrice || 0
-        };
-
         try {
-            await updateDoc(orderRef, {
-                items: arrayUnion(newItem),
-                total: increment(data.totalPrice)
-            });
-            toast({ title: "Item adicionado!" });
+            const ordersCol = collection(firestore, `restaurants/${order.restaurantId}/orders`);
+            const snapshot = await getCountFromServer(ordersCol);
+            const nextOrderNumber = (snapshot.data().count || 0) + 1;
+
+            const newOrderData = {
+                restaurantId: order.restaurantId,
+                orderNumber: nextOrderNumber,
+                origin: order.origin || 'mesa',
+                destination: order.destination || 'local',
+                tableId: order.tableId || null,
+                tableName: order.tableName || 'Mesa',
+                customerName: order.customerName || null,
+                customerPhone: order.customerPhone || null,
+                status: 'aberto',
+                total: data.totalPrice,
+                createdAt: serverTimestamp(),
+                items: [{
+                    menuItemId: data.item.id,
+                    name: data.item.name,
+                    quantity: data.quantity,
+                    priceAtOrder: data.item.price,
+                    notes: data.notes || null,
+                    status: 'pendente' as const,
+                    printSectorId: data.item.printSectorId,
+                    addons: data.addons?.map(a => ({ name: a.name, price: a.price })) || [],
+                    ingredientExtrasPrice: data.ingredientExtrasPrice || 0,
+                    preparationTimeAtOrder: data.item.preparationTime || 0
+                }]
+            };
+
+            await addDoc(ordersCol, newOrderData);
+            toast({ title: "Novo pedido adicionado à mesa!" });
             setSelectedItemToAdd(null);
             setIsMenuOpen(false);
         } catch (e) {
+            console.error(e);
             toast({ variant: "destructive", title: "Erro ao adicionar item" });
         }
     };
@@ -374,7 +391,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                 {order.tableName || `Pedido #${displayOrderNumber}`}
                             </DialogTitle>
                             {isGrouped && (
-                                <span className="text-primary text-[9px] font-black uppercase tracking-widest animate-pulse">
+                                <span className="text-primary text-[9px] font-black uppercase tracking-widest">
                                     VÁRIOS PEDIDOS AGRUPADOS
                                 </span>
                             )}
@@ -397,17 +414,17 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                         <div className="p-6 space-y-8">
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
-                                    <span className="text-[9px] font-black uppercase text-muted-foreground">Status Geral</span>
+                                    <span className="text-[9px] font-black uppercase text-muted-foreground">Status deste Card</span>
                                     <Badge className={cn("w-full justify-center h-7 font-black text-[10px] uppercase", 
                                         order.status === 'aberto' ? 'bg-blue-500' : 
                                         order.status === 'preparando' ? 'bg-yellow-500' : 
                                         'bg-green-500'
                                     )}>
-                                        {isGrouped ? 'VÁRIOS PEDIDOS' : order.status}
+                                        {order.status}
                                     </Badge>
                                 </div>
                                 <div className="space-y-1">
-                                    <span className="text-[9px] font-black uppercase text-muted-foreground">Valor Acumulado</span>
+                                    <span className="text-[9px] font-black uppercase text-muted-foreground">Total da Mesa</span>
                                     <div className="h-7 flex items-center justify-center rounded-md bg-primary/10 text-primary font-black text-xs">
                                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(combinedTotal)}
                                     </div>
@@ -415,44 +432,55 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                             </div>
 
                             <div className="space-y-6">
-                                {Object.entries(itemsByStatus).map(([status, items]) => items.length > 0 && (
-                                    <div key={status} className="space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <h4 className={cn("text-[10px] font-black uppercase tracking-[0.15em] flex items-center gap-2",
-                                                status === 'aberto' ? "text-blue-600" :
-                                                status === 'preparando' ? "text-yellow-600" : "text-green-600"
-                                            )}>
-                                                <span className={cn("h-1.5 w-1.5 rounded-full", 
-                                                    status === 'aberto' ? "bg-blue-600" : 
-                                                    status === 'preparando' ? "bg-yellow-600" : "bg-green-600"
-                                                )} />
-                                                {status === 'aberto' ? 'Itens Novos (Aguardando)' : 
-                                                 status === 'preparando' ? 'Em Preparo na Cozinha' : 'Itens Prontos p/ Servir'}
-                                            </h4>
-                                            
-                                            {status === 'aberto' && order.status === 'aberto' && (
-                                                <Button variant="ghost" size="sm" className="h-6 text-[8px] font-black uppercase bg-muted" onClick={() => setIsMenuOpen(true)}>
-                                                    <Plus className="h-2 w-2 mr-1" /> Adicionar Item
-                                                </Button>
-                                            )}
-                                        </div>
-                                        
-                                        <div className="space-y-2 bg-muted/20 p-3 rounded-xl border-2 border-dashed">
+                                {/* SEÇÃO PRINCIPAL: Itens que pertencem ao status do card clicado */}
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-[10px] font-black uppercase tracking-[0.15em] text-primary flex items-center gap-2">
+                                            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                                            ITENS DESTE CARD ({order.status.toUpperCase()})
+                                        </h4>
+                                        <Button variant="outline" size="sm" className="h-7 text-[8px] font-black uppercase" onClick={() => setIsMenuOpen(true)}>
+                                            <Plus className="h-2 w-2 mr-1" /> Adicionar Item
+                                        </Button>
+                                    </div>
+                                    <div className="space-y-2 bg-muted/20 p-4 rounded-xl border-2">
+                                        {itemsByStatus[order.status]?.map((item, idx) => (
+                                            <div key={idx} className="flex justify-between items-start gap-3 border-b border-muted last:border-0 pb-2 mb-2 last:pb-0 last:mb-0">
+                                                <span className="text-xs font-black text-muted-foreground mt-0.5">{item.quantity}x</span>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-[11px] font-bold uppercase truncate leading-tight">
+                                                        <span className="text-muted-foreground mr-1">[{getCategoryName(item.menuItemId)}]</span>
+                                                        {item.name}
+                                                    </p>
+                                                    {item.addons?.map((a: any, ai: number) => (
+                                                        <p key={ai} className="text-[9px] text-muted-foreground font-bold uppercase">+ {a.name}</p>
+                                                    ))}
+                                                    {item.notes && <p className="text-[9px] italic text-primary font-bold mt-0.5">Obs: {item.notes}</p>}
+                                                </div>
+                                                <span className="text-[11px] font-black shrink-0">
+                                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((item.priceAtOrder + (item.ingredientExtrasPrice || 0)) * item.quantity)}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* SEÇÕES SECUNDÁRIAS: Outros itens da mesa em outros status */}
+                                {Object.entries(itemsByStatus).map(([status, items]) => status !== order.status && items.length > 0 && (
+                                    <div key={status} className="space-y-3 opacity-60">
+                                        <h4 className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                            <span className="h-1 w-1 rounded-full bg-muted-foreground" />
+                                            OUTROS ITENS ({status.toUpperCase()})
+                                        </h4>
+                                        <div className="space-y-2 bg-muted/10 p-3 rounded-xl border-2 border-dashed">
                                             {items.map((item, idx) => (
-                                                <div key={idx} className="flex justify-between items-start gap-3">
-                                                    <span className="text-xs font-black text-muted-foreground mt-0.5">{item.quantity}x</span>
+                                                <div key={idx} className="flex justify-between items-start gap-3 opacity-80">
+                                                    <span className="text-[10px] font-bold text-muted-foreground">{item.quantity}x</span>
                                                     <div className="flex-1 min-w-0">
-                                                        <p className="text-[11px] font-bold uppercase truncate leading-tight">
-                                                            <span className="text-muted-foreground mr-1">[{getCategoryName(item.menuItemId)}]</span>
-                                                            {item.name}
-                                                        </p>
-                                                        {item.addons?.map((a: any, ai: number) => (
-                                                            <p key={ai} className="text-[9px] text-muted-foreground font-bold uppercase">+ {a.name}</p>
-                                                        ))}
-                                                        {item.notes && <p className="text-[9px] italic text-primary font-bold mt-0.5">Obs: {item.notes}</p>}
+                                                        <p className="text-[10px] font-medium uppercase truncate leading-tight">{item.name}</p>
                                                     </div>
-                                                    <span className="text-[11px] font-black shrink-0">
-                                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((item.priceAtOrder + (item.ingredientExtrasPrice || 0)) * item.quantity)}
+                                                    <span className="text-[10px] font-bold">
+                                                        R$ {((item.priceAtOrder + (item.ingredientExtrasPrice || 0)) * item.quantity).toFixed(2)}
                                                     </span>
                                                 </div>
                                             ))}
