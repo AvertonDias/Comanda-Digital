@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/select";
 import type { Order, OrderStatus, Restaurant, SplitPaymentPart, MenuItem, MenuItemCategory } from "@/lib/types";
 import { format } from "date-fns";
-import { ArrowRight, ChefHat, Bike, Trash2, QrCode, Copy, Check, Users, Minus, Plus, Wallet, CreditCard, Banknote, ListChecks, DollarSign, Printer, ChevronLeft, Search, Info } from "lucide-react";
+import { ArrowRight, ChefHat, Bike, Trash2, QrCode, Copy, Check, Users, Minus, Plus, Wallet, CreditCard, Banknote, ListChecks, DollarSign, Printer, ChevronLeft, Search, Info, ShoppingBag } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import { doc, updateDoc, arrayUnion, increment, query, collection, orderBy, where, serverTimestamp, addDoc, getCountFromServer } from "firebase/firestore";
@@ -301,7 +301,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         setSelectedItemsForPart(prev => ({ ...prev, [index]: next }));
     };
 
-    // CORREÇÃO: Adicionar item agora cria sempre um NOVO pedido 'aberto' para evitar "puxar" o status atual
     const handleConfirmAddExtra = async (data: { item: MenuItem; quantity: number; addons: any[]; notes: string; totalPrice: number; ingredientsExtraPrice: number }) => {
         try {
             const ordersCol = collection(firestore, `restaurants/${order.restaurantId}/orders`);
@@ -432,16 +431,17 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                             </div>
 
                             <div className="space-y-6">
-                                {/* SEÇÃO PRINCIPAL: Itens que pertencem ao status do card clicado */}
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between">
                                         <h4 className="text-[10px] font-black uppercase tracking-[0.15em] text-primary flex items-center gap-2">
                                             <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                                             ITENS DESTE CARD ({order.status.toUpperCase()})
                                         </h4>
-                                        <Button variant="outline" size="sm" className="h-7 text-[8px] font-black uppercase" onClick={() => setIsMenuOpen(true)}>
-                                            <Plus className="h-2 w-2 mr-1" /> Adicionar Item
-                                        </Button>
+                                        {order.status === 'aberto' && (
+                                            <Button variant="outline" size="sm" className="h-7 text-[8px] font-black uppercase" onClick={() => setIsMenuOpen(true)}>
+                                                <Plus className="h-2 w-2 mr-1" /> Adicionar Item
+                                            </Button>
+                                        )}
                                     </div>
                                     <div className="space-y-2 bg-muted/20 p-4 rounded-xl border-2">
                                         {itemsByStatus[order.status]?.map((item, idx) => (
@@ -465,7 +465,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                     </div>
                                 </div>
 
-                                {/* SEÇÕES SECUNDÁRIAS: Outros itens da mesa em outros status */}
                                 {Object.entries(itemsByStatus).map(([status, items]) => status !== order.status && items.length > 0 && (
                                     <div key={status} className="space-y-3 opacity-60">
                                         <h4 className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
@@ -669,7 +668,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                         {selectedMenuCategoryId ? (
                             <div className="space-y-3">
                                 {items?.filter(i => i.categoryId === selectedMenuCategoryId && i.isAvailable).map(item => (
-                                    <Card key={item.id} className="p-3 flex items-center gap-4 cursor-pointer hover:border-primary border-2 transition-all active:scale-95 shadow-sm" onClick={() => { if ((item.ingredients?.length || 0) > 0 || (item.addonGroups?.length || 0) > 0) { setSelectedItemToAdd(item); } else { handleConfirmAddExtra({ item, quantity: 1, addons: [], notes: "", totalPrice: item.price, ingredientsExtraPrice: 0 }); } }}>
+                                    <Card key={item.id} className="p-3 flex items-center gap-4 cursor-pointer hover:border-primary border-2 transition-all active:scale-95 shadow-sm" onClick={() => { if (((item.ingredients?.length || 0) > 0) || ((item.addonGroups?.length || 0) > 0)) { setSelectedItemToAdd(item); } else { handleConfirmAddExtra({ item, quantity: 1, addons: [], notes: "", totalPrice: item.price, ingredientsExtraPrice: 0 }); } }}>
                                         <div className="h-12 w-12 rounded-lg bg-muted overflow-hidden shrink-0 border"><img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" /></div>
                                         <div className="flex-1 min-w-0"><p className="text-[11px] font-black uppercase truncate mb-1">{item.name}</p><p className="text-xs font-black text-primary">R$ {item.price.toFixed(2)}</p></div>
                                         <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20"><Plus className="h-4 w-4 text-primary" /></div>
