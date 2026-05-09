@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import type { Order, OrderStatus, Restaurant } from '@/lib/types';
@@ -26,7 +25,8 @@ function consolidateItems(items: any[]) {
     items.forEach(item => {
         const addonsKey = item.addons?.map((a: any) => a.name).sort().join(',') || '';
         const notesKey = item.notes?.trim() || '';
-        const key = `${item.menuItemId}-${addonsKey}-${notesKey}`;
+        const extraKey = item.ingredientExtrasPrice || 0;
+        const key = `${item.menuItemId}-${addonsKey}-${notesKey}-${extraKey}`;
         if (groups[key]) {
             groups[key].quantity += item.quantity;
         } else {

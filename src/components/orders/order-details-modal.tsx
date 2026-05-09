@@ -428,7 +428,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                         <p key={ai} className="text-[9px] text-muted-foreground font-bold uppercase">+ {a.name} (+R$ {a.price.toFixed(2)})</p>
                                                     ))}
                                                     {item.ingredientExtrasPrice > 0 && (
-                                                        <p className="text-[9px] text-muted-foreground font-bold uppercase">+ EXTRAS (+R$ {item.ingredientExtrasPrice.toFixed(2)})</p>
+                                                        <p className="text-[9px] text-muted-foreground font-bold uppercase">+ EXTRA (+R$ {item.ingredientExtrasPrice.toFixed(2)})</p>
                                                     )}
                                                     {item.notes && <p className="text-[9px] italic text-primary font-bold mt-0.5">Obs: {item.notes}</p>}
                                                 </div>

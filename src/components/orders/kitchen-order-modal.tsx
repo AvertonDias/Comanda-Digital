@@ -48,7 +48,7 @@ export function KitchenOrderModal({
                     </div>
                 )}
                 
-                {/* Dados do Cliente / Entrega - SEMPRE EXIBE SE HOUVER INFO */}
+                {/* Dados do Cliente / Entrega */}
                 {(order.customerName || order.customerPhone || isDelivery) && (
                     <div className="border-2 border-black p-2 mb-2 space-y-1">
                         {order.customerName && <p className="text-xs font-black uppercase">CLIENTE: {order.customerName}</p>}
@@ -66,7 +66,7 @@ export function KitchenOrderModal({
 
             <div className="border-b border-black border-dashed my-2" />
 
-            {/* Cabeçalho da Lista - OCULTAR VALOR PARA MESAS */}
+            {/* Cabeçalho da Lista - OCULTAR VALOR APENAS PARA MESAS SE NÃO HOUVER EXTRA */}
             <div className={cn(
                 "grid font-bold text-[8px] mb-1 px-1",
                 isTableOrder ? "grid-cols-[2.5rem_1fr]" : "grid-cols-[2.5rem_1fr_4.5rem]"
@@ -101,7 +101,7 @@ export function KitchenOrderModal({
                                 )}
 
                                 {item.ingredientExtrasPrice > 0 && (
-                                    <p className="text-[8px] font-bold text-primary ml-1">+ EXTRA {!isTableOrder ? `(+R$ ${item.ingredientExtrasPrice.toFixed(2)})` : ''}</p>
+                                    <p className="text-[8px] font-bold text-primary ml-1">+ EXTRA (+R$ {item.ingredientExtrasPrice.toFixed(2)})</p>
                                 )}
 
                                 {item.notes && (
