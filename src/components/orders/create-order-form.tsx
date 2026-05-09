@@ -89,13 +89,19 @@ export function CreateOrderForm({
     const { data: tables, isLoading: isTablesLoading } = useCollection<Table>(tablesQuery);
     const { data: activeOrders } = useCollection<Order>(preparingOrdersQuery);
 
+    // Cálculo do tempo de espera levando em conta a fila e o pedido atual
     const estimatedWaitTime = useMemo(() => {
-        if (!activeOrders) return 0;
-        return activeOrders.reduce((total, order) => {
+        // 1. Soma o tempo de todos os itens em todos os pedidos que já estão sendo preparados
+        const backlogTime = activeOrders?.reduce((total, order) => {
             const orderWait = order.items.reduce((sum, item) => sum + ((item.preparationTimeAtOrder || 0) * item.quantity), 0);
             return total + orderWait;
-        }, 0);
-    }, [activeOrders]);
+        }, 0) || 0;
+
+        // 2. Soma o tempo dos itens que o garçom está selecionando agora
+        const currentOrderTime = orderItems.reduce((sum, item) => sum + (item.preparationTime * item.quantity), 0);
+
+        return backlogTime + currentOrderTime;
+    }, [activeOrders, orderItems]);
 
     useEffect(() => {
         if (initialTableId) {
@@ -267,7 +273,7 @@ export function CreateOrderForm({
     return (
         <>
             <div className="flex flex-col h-full bg-background overflow-hidden">
-                <div className="px-6 py-4 bg-muted/30 border-b flex flex-col gap-2">
+                <div className="px-6 py-4 bg-muted/30 border-b flex flex-col gap-3">
                     <div className="flex items-center justify-between">
                         {[1, 2, 3].map((s) => (
                             <div key={s} className="flex items-center flex-1 last:flex-none">
@@ -288,11 +294,13 @@ export function CreateOrderForm({
                             </div>
                         ))}
                     </div>
+                    
+                    {/* Alerta de Tempo Estimado de Espera */}
                     {estimatedWaitTime > 0 && (
-                        <div className="flex items-center justify-center gap-2 bg-orange-100 text-orange-800 py-1 px-3 rounded-full self-center">
-                            <Clock className="h-3 w-3" />
-                            <span className="text-[9px] font-black uppercase tracking-tighter">
-                                Fila de Espera: ~{estimatedWaitTime} MIN
+                        <div className="flex items-center justify-center gap-2 bg-orange-100 text-orange-800 py-1.5 px-4 rounded-full self-center border border-orange-200 animate-in fade-in duration-500">
+                            <Clock className="h-3.5 w-3.5" />
+                            <span className="text-[10px] font-black uppercase tracking-tighter">
+                                Tempo estimado para entrega: ~{estimatedWaitTime} min
                             </span>
                         </div>
                     )}
