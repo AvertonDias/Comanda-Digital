@@ -1,4 +1,3 @@
-
 'use client';
 import {
     Dialog,
@@ -7,7 +6,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Printer, ChefHat, Clock } from "lucide-react";
+import { Printer, ChefHat } from "lucide-react";
 import type { Restaurant, MenuItem, MenuItemCategory } from "@/lib/types";
 import { format } from "date-fns";
 import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
@@ -104,17 +103,17 @@ export function KitchenOrderModal({
             <div id="print-receipt-area" className="hidden print:block bg-white text-black font-mono">
                 <div className="space-y-0.5 mb-2">
                     <div className="flex justify-between items-start font-bold">
-                        <span className="text-lg">COMANDA No {orderNum}</span>
-                        <span className="text-sm">{format(new Date(), "dd/MM/yyyy HH:mm:ss")}</span>
+                        <span className="text-lg text-black">COMANDA No {orderNum}</span>
+                        <span className="text-sm text-black">{format(new Date(), "dd/MM/yyyy HH:mm:ss")}</span>
                     </div>
-                    <p className="text-base font-bold uppercase">MESA / COMANDA: {order.tableName || 'BALCAO'}</p>
-                    <p className="text-2xl font-black uppercase">Local: {order.tableName?.replace(/\D/g, '') || order.tableName || '---'}</p>
-                    <p className="text-base font-bold uppercase">GARÇOM: {waiterName.toUpperCase()}</p>
+                    <p className="text-base font-bold uppercase text-black">MESA / COMANDA: {order.tableName || 'BALCAO'}</p>
+                    <p className="text-2xl font-black uppercase text-black">Local: {order.tableName?.replace(/\D/g, '') || order.tableName || '---'}</p>
+                    <p className="text-base font-bold uppercase text-black">GARÇOM: {waiterName.toUpperCase()}</p>
                 </div>
 
                 <div className="border-b border-black border-dashed my-2" />
 
-                <div className="grid grid-cols-[3rem_1fr] font-bold text-sm mb-1">
+                <div className="grid grid-cols-[3rem_1fr] font-bold text-sm mb-1 text-black">
                     <span>QTD</span>
                     <span>DESCRICAO</span>
                 </div>
@@ -123,11 +122,11 @@ export function KitchenOrderModal({
                     {order.items?.map((item: any, idx: number) => {
                         const categoryName = getCategoryName(item.menuItemId);
                         return (
-                            <div key={idx} className="grid grid-cols-[3rem_1fr] items-start">
+                            <div key={idx} className="grid grid-cols-[3rem_1fr] items-start text-black">
                                 <span className="text-xl font-black">{item.quantity}x</span>
                                 <div className="space-y-0.5">
                                     <p className="text-lg font-black uppercase leading-none">
-                                        {item.name} [UN]
+                                        {categoryName ? `[${categoryName.toUpperCase()}] ` : ''}{item.name} [UN]
                                     </p>
                                     
                                     {item.addons?.length > 0 && (
@@ -153,11 +152,10 @@ export function KitchenOrderModal({
 
                 <div className="border-t border-black border-dashed my-4" />
                 
-                <div className="text-center text-[10px] font-bold uppercase">
+                <div className="text-center text-[10px] font-bold uppercase text-black">
                     <p>Sistema Comanda Digital • Produção</p>
                 </div>
             </div>
         </>
     );
-}
 }
