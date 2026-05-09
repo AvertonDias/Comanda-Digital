@@ -334,23 +334,27 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                             </DialogDescription>
                         </div>
                         <div className="flex gap-2">
-                            <Button 
-                                variant="outline" 
-                                size="icon" 
-                                className="h-9 w-9 shrink-0 border-2 border-orange-200 text-orange-600 hover:bg-orange-50 transition-all" 
-                                onClick={() => setShowKitchenPrint(true)}
-                                title="Imprimir Ordem de Produção (Cozinha)"
-                            >
-                                <ChefHat className="h-4 w-4" />
-                            </Button>
-
-                            {order.status !== 'preparando' && (
+                            {/* Botão Cozinha: Aparece apenas para Pedidos Novos (Abertos) */}
+                            {order.status === 'aberto' && (
                                 <Button 
                                     variant="outline" 
                                     size="icon" 
-                                    className="h-9 w-9 shrink-0 border-2" 
+                                    className="h-9 w-9 shrink-0 border-2 border-orange-200 text-orange-600 hover:bg-orange-50 transition-all" 
+                                    onClick={() => setShowKitchenPrint(true)}
+                                    title="Imprimir para Cozinha"
+                                >
+                                    <ChefHat className="h-4 w-4" />
+                                </Button>
+                            )}
+
+                            {/* Botão Cliente: Aparece apenas para Pedidos Prontos */}
+                            {order.status === 'pronto' && (
+                                <Button 
+                                    variant="outline" 
+                                    size="icon" 
+                                    className="h-9 w-9 shrink-0 border-2 border-primary/20 text-primary hover:bg-primary/5 transition-all" 
                                     onClick={() => setShowReceiptPreview(true)}
-                                    title="Imprimir Recibo / Conta do Cliente"
+                                    title="Imprimir para Cliente"
                                 >
                                     <Printer className="h-4 w-4" />
                                 </Button>
@@ -358,7 +362,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                         </div>
                     </DialogHeader>
                     
-                    <ScrollArea className="flex-1 overflow-y-auto">
+                    <ScrollArea className="flex-1">
                         <div className="p-6 space-y-6">
                             {!isSplitting && (
                                 <div className="grid grid-cols-2 gap-4 text-[10px] font-black uppercase">
@@ -413,7 +417,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                         <Label className="text-[10px] font-black uppercase text-muted-foreground">Itens Pendentes</Label>
                                                         {order.status === 'aberto' && (
                                                             <Button variant="ghost" size="sm" className="h-7 text-[8px] font-black uppercase text-primary" onClick={() => setIsMenuOpen(true)}>
-                                                                <Plus className="h-3 w-3 mr-1" /> Add Item Extra
+                                                                <Plus className="h-3 w-3 mr-1" /> Adicionar Item
                                                             </Button>
                                                         )}
                                                     </div>
@@ -540,7 +544,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                 <p className="font-black text-[10px] uppercase text-primary flex items-center gap-2"><CreditCard className="h-3 w-3" /> Forma de Pagamento</p>
                                                 {order.status === 'aberto' && (
                                                     <Button variant="ghost" size="sm" className="h-7 text-[8px] font-black uppercase text-primary" onClick={() => setIsMenuOpen(true)}>
-                                                        <Plus className="h-3 w-3 mr-1" /> Add Item Extra
+                                                        <Plus className="h-3 w-3 mr-1" /> Adicionar Item
                                                     </Button>
                                                 )}
                                             </div>
