@@ -51,11 +51,14 @@ const OrderCard = ({
     const isNew = order.status === 'aberto' && !order.isPrinted;
 
     return (
-        <Card className={cn(
-            "active:scale-[0.98] transition-all shadow-sm hover:shadow-md border-2",
-            order.status === 'aberto' ? 'border-blue-100' : 'border-transparent',
-            isNew && "animate-pulse border-blue-500 bg-blue-50/30"
-        )}>
+        <Card 
+            className={cn(
+                "active:scale-[0.98] transition-all shadow-sm hover:shadow-md border-2 cursor-pointer",
+                order.status === 'aberto' ? 'border-blue-100' : 'border-transparent',
+                isNew && "animate-pulse border-blue-500 bg-blue-50/30"
+            )}
+            onClick={() => onDetailsClick(order)}
+        >
             <CardHeader className='p-4 pb-2'>
                 <CardTitle className="text-sm flex justify-between items-start gap-2">
                     <span className="font-black uppercase leading-tight flex-1">
@@ -85,7 +88,7 @@ const OrderCard = ({
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}
                  </span>
                  <div className="flex gap-1">
-                    <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold uppercase" onClick={() => onDetailsClick(order)}>Ver</Button>
+                    <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold uppercase">Ver Detalhes</Button>
                  </div>
             </CardFooter>
         </Card>
