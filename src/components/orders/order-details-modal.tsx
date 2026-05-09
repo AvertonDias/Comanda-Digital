@@ -411,9 +411,11 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                 <div className="space-y-3 bg-muted/20 p-4 rounded-xl border-2">
                                                     <div className="flex justify-between items-center mb-1">
                                                         <Label className="text-[10px] font-black uppercase text-muted-foreground">Itens Pendentes</Label>
-                                                        <Button variant="ghost" size="sm" className="h-7 text-[8px] font-black uppercase text-primary" onClick={() => setIsMenuOpen(true)}>
-                                                            <Plus className="h-3 w-3 mr-1" /> Add Item Extra
-                                                        </Button>
+                                                        {order.status === 'aberto' && (
+                                                            <Button variant="ghost" size="sm" className="h-7 text-[8px] font-black uppercase text-primary" onClick={() => setIsMenuOpen(true)}>
+                                                                <Plus className="h-3 w-3 mr-1" /> Add Item Extra
+                                                            </Button>
+                                                        )}
                                                     </div>
                                                     <div className="space-y-2">
                                                         {itemsBalance.map((item, idx) => item.remainingQty > 0 && (
@@ -536,9 +538,11 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                         <div className="space-y-4">
                                             <div className="flex justify-between items-center">
                                                 <p className="font-black text-[10px] uppercase text-primary flex items-center gap-2"><CreditCard className="h-3 w-3" /> Forma de Pagamento</p>
-                                                <Button variant="ghost" size="sm" className="h-7 text-[8px] font-black uppercase text-primary" onClick={() => setIsMenuOpen(true)}>
-                                                    <Plus className="h-3 w-3 mr-1" /> Add Item Extra
-                                                </Button>
+                                                {order.status === 'aberto' && (
+                                                    <Button variant="ghost" size="sm" className="h-7 text-[8px] font-black uppercase text-primary" onClick={() => setIsMenuOpen(true)}>
+                                                        <Plus className="h-3 w-3 mr-1" /> Add Item Extra
+                                                    </Button>
+                                                )}
                                             </div>
                                             <div className="grid grid-cols-2 gap-2">
                                                 {PAYMENT_METHODS.map((method) => (
@@ -592,9 +596,9 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                 <div className="space-y-4">
                                     <div className="flex justify-between items-center">
                                         <p className="font-black text-[10px] uppercase text-muted-foreground">Itens da Sessão (Total Mesa)</p>
-                                        {!isFinalizing && (
+                                        {order.status === 'aberto' && (
                                             <Button variant="outline" size="sm" className="h-7 text-[8px] font-black uppercase" onClick={() => setIsMenuOpen(true)}>
-                                                <Plus className="h-3 w-3 mr-1" /> Adicionar
+                                                <Plus className="h-3 w-3 mr-1" /> Adicionar Item
                                             </Button>
                                         )}
                                     </div>
