@@ -38,26 +38,33 @@ function consolidateItems(items: any[]) {
 const OrderCard = ({ 
     order, 
     onDetailsClick, 
+    role 
 }: { 
-    order: Order, 
-    onDetailsClick: (order: Order) => void,
+    order: Order & { allOrderIds?: string[] }, 
+    onDetailsClick: (order: Order & { allOrderIds?: string[] }) => void,
+    role: string | null
 }) => {
     const displayOrderNumber = order.orderNumber 
         ? order.orderNumber.toString().padStart(3, '0') 
         : order.id.slice(-4).toUpperCase();
 
     const previewItems = useMemo(() => consolidateItems(order.items), [order.items]);
-    const isNew = order.status === 'aberto' && !order.isPrinted;
+    
+    // O pulso só aparece para ADMIN se o pedido for novo (aberto e não impresso/visto)
+    const isNew = role === 'admin' && order.status === 'aberto' && !order.isPrinted;
 
     return (
         <Card 
             className={cn(
-                "active:scale-[0.98] transition-all shadow-sm hover:shadow-md border-2 cursor-pointer",
+                "active:scale-[0.98] transition-all shadow-sm hover:shadow-md border-2 cursor-pointer relative overflow-hidden",
                 order.status === 'aberto' ? 'border-blue-100' : 'border-transparent',
                 isNew && "animate-pulse border-blue-500 bg-blue-50/30"
             )}
             onClick={() => onDetailsClick(order)}
         >
+            {isNew && (
+                <div className="absolute top-0 left-0 w-1 h-full bg-blue-600" />
+            )}
             <CardHeader className='p-4 pb-2'>
                 <CardTitle className="text-sm flex justify-between items-start gap-2">
                     <span className="font-black uppercase leading-tight flex-1">
@@ -94,7 +101,7 @@ const OrderCard = ({
 export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: string, tableId?: string }) {
   const firestore = useFirestore();
   const { role } = useRestaurant();
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<(Order & { allOrderIds?: string[] }) | null>(null);
   const [lastFinalizedOrder, setLastFinalizedOrder] = useState<Order | null>(null);
   const [autoOpened, setAutoOpened] = useState(false);
   const [soundEnabled, setSoundAlertEnabled] = useState(true);
@@ -146,7 +153,7 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
   }, [orders, soundEnabled, isLoading, role]);
 
   const groupedOrdersByStatus = useMemo(() => {
-    const result: Record<string, Order[]> = {
+    const result: Record<string, (Order & { allOrderIds?: string[] })[]> = {
         'aberto': [],
         'preparando': [],
         'pronto': [],
@@ -158,16 +165,17 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
 
     statusesToShow.forEach(status => {
         const statusOrders = orders.filter(o => o.status === status);
-        const groups: Record<string, Order> = {};
+        const groups: Record<string, Order & { allOrderIds: string[] }> = {};
         
         statusOrders.forEach(order => {
             const key = order.tableId || order.id;
             
             if (!groups[key]) {
-                groups[key] = { ...order };
+                groups[key] = { ...order, allOrderIds: [order.id] };
             } else {
+                groups[key].allOrderIds.push(order.id);
                 groups[key].total += order.total;
-                groups[key].items = consolidateItems([...groups[key].items, ...order.items]);
+                groups[key].items = [...groups[key].items, ...order.items];
                 
                 if (order.orderNumber && (!groups[key].orderNumber || order.orderNumber > groups[key].orderNumber)) {
                     groups[key].orderNumber = order.orderNumber;
@@ -179,13 +187,18 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
                     groups[key].createdAt = order.createdAt;
                 }
                 
+                // Se algum pedido do grupo não foi impresso/visto, o grupo todo é marcado como não visto
                 if (order.status === 'aberto' && !order.isPrinted) {
                     groups[key].isPrinted = false;
                 }
             }
         });
         
-        result[status] = Object.values(groups);
+        // Consolida itens após o agrupamento
+        result[status] = Object.values(groups).map(g => ({
+            ...g,
+            items: consolidateItems(g.items)
+        }));
     });
 
     return result;
@@ -196,13 +209,26 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
         for (const status of statusesToShow) {
             const orderForTable = groupedOrdersByStatus[status].find(o => o.tableId === tableId);
             if (orderForTable) {
-                setSelectedOrder(orderForTable);
+                handleDetailsClick(orderForTable);
                 setAutoOpened(true);
                 break;
             }
         }
     }
   }, [tableId, orders, groupedOrdersByStatus, autoOpened]);
+
+  const handleDetailsClick = (order: Order & { allOrderIds?: string[] }) => {
+    setSelectedOrder(order);
+    
+    // SE FOR ADMIN: Ao clicar em um pedido novo (piscando), marca como "visto" no servidor
+    if (role === 'admin' && order.status === 'aberto' && !order.isPrinted) {
+        const idsToUpdate = order.allOrderIds || [order.id];
+        idsToUpdate.forEach(id => {
+            const orderRef = doc(firestore, `restaurants/${restaurantId}/orders/${id}`);
+            updateDoc(orderRef, { isPrinted: true }).catch(() => {});
+        });
+    }
+  };
 
   const handleStatusChange = (orderIds: string | string[], newStatus: OrderStatus, extraData: any = {}) => {
     const ids = Array.isArray(orderIds) ? orderIds : [orderIds];
@@ -241,7 +267,6 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
         return updateDoc(orderRef, updatePayload);
     });
 
-    // Se o pedido está sendo finalizado e tem uma mesa, libera a mesa automaticamente
     if (newStatus === 'finalizado' && targetTableId) {
         const tableRef = doc(firestore, `restaurants/${restaurantId}/tables/${targetTableId}`);
         batchPromises.push(updateDoc(tableRef, { status: 'livre' }));
@@ -310,7 +335,8 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
                               <OrderCard 
                                 key={order.id} 
                                 order={order} 
-                                onDetailsClick={setSelectedOrder} 
+                                onDetailsClick={handleDetailsClick}
+                                role={role}
                               />
                           ))}
                           {groupedOrdersByStatus[status].length === 0 && (
