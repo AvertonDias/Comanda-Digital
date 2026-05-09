@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import type { Order, OrderStatus, Restaurant } from '@/lib/types';
@@ -11,11 +10,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '../ui/scroll-area';
 import { OrderDetailsModal } from './order-details-modal';
 import { OrderReceiptModal } from './order-receipt-modal';
-import { KitchenOrderModal } from './kitchen-order-modal';
 import { useFirestore, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError, useDoc } from '@/firebase';
 import { collection, query, doc, updateDoc, orderBy, where, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '../ui/skeleton';
-import { Printer, Bell, BellRing } from 'lucide-react';
+import { Bell, BellRing } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useRestaurant } from '@/hooks/use-restaurant';
 
@@ -46,11 +44,9 @@ function consolidateItems(items: any[]) {
 const OrderCard = ({ 
     order, 
     onDetailsClick, 
-    onQuickPrint 
 }: { 
     order: Order, 
     onDetailsClick: (order: Order) => void,
-    onQuickPrint: (order: Order) => void
 }) => {
     const displayOrderNumber = order.orderNumber 
         ? order.orderNumber.toString().padStart(3, '0') 
@@ -94,18 +90,6 @@ const OrderCard = ({
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}
                  </span>
                  <div className="flex gap-1">
-                    <Button 
-                        variant={isNew ? "default" : "outline"} 
-                        size="icon" 
-                        className={cn(
-                            "h-8 w-8",
-                            isNew ? "bg-orange-600 hover:bg-orange-700 text-white" : "text-orange-600 border-orange-200 hover:bg-orange-50"
-                        )}
-                        onClick={(e) => { e.stopPropagation(); onQuickPrint(order); }}
-                        title="Imprimir para Cozinha"
-                    >
-                        <Printer className="h-4 w-4" />
-                    </Button>
                     <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold uppercase" onClick={() => onDetailsClick(order)}>Ver</Button>
                  </div>
             </CardFooter>
@@ -118,7 +102,6 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
   const { role } = useRestaurant();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [lastFinalizedOrder, setLastFinalizedOrder] = useState<Order | null>(null);
-  const [orderToQuickPrint, setOrderToQuickPrint] = useState<Order | null>(null);
   const [autoOpened, setAutoOpened] = useState(false);
   const [soundEnabled, setSoundAlertEnabled] = useState(true);
   
@@ -144,20 +127,17 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
 
   const { data: orders, isLoading } = useCollection<Order>(ordersQuery);
 
-  // Sistema de alerta sonoro para novos pedidos (trabalhando com IDs para evitar disparo em refresh)
+  // Sistema de alerta sonoro para novos pedidos
   useEffect(() => {
-    // Só toca som para administradores
     if (orders && !isLoading && role === 'admin') {
         const currentAbertoOrders = orders.filter(o => o.status === 'aberto');
         
         if (!initialLoadDone.current) {
-            // No primeiro carregamento, apenas populamos os IDs conhecidos
             currentAbertoOrders.forEach(o => knownOrderIds.current.add(o.id));
             initialLoadDone.current = true;
             return;
         }
 
-        // Verifica se há algum pedido novo que não estava no set anterior
         let hasNewOrder = false;
         currentAbertoOrders.forEach(o => {
             if (!knownOrderIds.current.has(o.id)) {
@@ -188,7 +168,6 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
         const groups: Record<string, Order> = {};
         
         statusOrders.forEach(order => {
-            // Para agrupamento em Kanban, mantemos a lógica de agrupar por mesa se for mesa
             const key = order.tableId || order.id;
             
             if (!groups[key]) {
@@ -207,7 +186,6 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
                     groups[key].createdAt = order.createdAt;
                 }
                 
-                // Se qualquer um dos pedidos do grupo não foi impresso, o grupo inteiro não foi
                 if (order.status === 'aberto' && !order.isPrinted) {
                     groups[key].isPrinted = false;
                 }
@@ -279,18 +257,6 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
     setSelectedOrder(null);
   };
 
-  const handleQuickPrint = async (order: Order) => {
-      // Se for um grupo de pedidos de mesa, precisamos marcar todos como impressos
-      const idsToMark = orders?.filter(o => (o.tableId && o.tableId === order.tableId && o.status === order.status) || o.id === order.id).map(o => o.id) || [order.id];
-      
-      const batchPromises = idsToMark.map(id => {
-          return updateDoc(doc(firestore, `restaurants/${restaurantId}/orders/${id}`), { isPrinted: true });
-      });
-
-      await Promise.all(batchPromises);
-      setOrderToQuickPrint(order);
-  };
-
   const getOrdersCount = (status: OrderStatus) => {
     return groupedOrdersByStatus[status].length;
   }
@@ -299,10 +265,8 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
 
   return (
     <div className="flex flex-col h-full -mx-4 md:mx-0">
-      {/* Alerta de som invisível */}
       <audio ref={audioRef} src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto" />
 
-      {/* Somente administradores vêem o controle de som */}
       {role === 'admin' && (
         <div className="flex items-center justify-between px-4 mb-2 bg-muted/20 py-2 border-b md:rounded-t-lg">
             <div className="flex items-center gap-2">
@@ -347,7 +311,6 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
                                 key={order.id} 
                                 order={order} 
                                 onDetailsClick={setSelectedOrder} 
-                                onQuickPrint={handleQuickPrint}
                               />
                           ))}
                           {getOrdersCount(status) === 0 && (
@@ -373,13 +336,6 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
         restaurant={restaurant}
         isOpen={!!lastFinalizedOrder}
         onClose={() => setLastFinalizedOrder(null)}
-      />
-
-      <KitchenOrderModal 
-        order={orderToQuickPrint}
-        restaurant={restaurant}
-        isOpen={!!orderToQuickPrint}
-        onClose={() => setOrderToQuickPrint(null)}
       />
     </div>
   );
