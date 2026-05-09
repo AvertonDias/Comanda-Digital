@@ -1,8 +1,9 @@
+
 'use client';
 
 import { AppHeader } from '@/components/layout/app-header';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Settings2, Search, Clock, MapPin, ChevronLeft } from 'lucide-react';
+import { PlusCircle, Settings2, Search, Clock, MapPin, ChevronLeft, Bike } from 'lucide-react';
 import { MenuItemCard } from '@/components/menu/menu-item-card';
 import { MenuItemForm } from '@/components/menu/menu-item-form';
 import { CategoryManager } from '@/components/menu/category-manager';
@@ -12,7 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useRestaurant } from '@/hooks/use-restaurant';
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, orderBy, doc } from 'firebase/firestore';
-import type { MenuItem, MenuItemCategory } from '@/lib/types';
+import type { MenuItem, MenuItemCategory, Restaurant } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useState, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
@@ -30,7 +31,7 @@ export default function MenuPage() {
     restaurantId ? doc(firestore, 'restaurants', restaurantId) : null, 
     [restaurantId, firestore]
   );
-  const { data: restaurant } = useDoc(restaurantRef);
+  const { data: restaurant } = useDoc<Restaurant>(restaurantRef);
 
   const categoriesQuery = useMemoFirebase(() => {
     if (!restaurantId || !firestore) return null;
@@ -147,13 +148,21 @@ export default function MenuPage() {
                     {restaurant?.name}
                 </h2>
                 <div className="flex flex-wrap items-center justify-center gap-2 md:gap-4">
-                    <span className="flex items-center gap-1.5 bg-background/80 backdrop-blur-sm px-3 py-1.5 rounded-full border shadow-sm text-[9px] md:text-xs font-black uppercase text-muted-foreground">
-                        <Clock className="h-3 w-3 text-primary" /> 
-                        30-45 min
-                    </span>
+                    {restaurant?.openingHours && (
+                        <span className="flex items-center gap-1.5 bg-background/80 backdrop-blur-sm px-3 py-1.5 rounded-full border shadow-sm text-[9px] md:text-xs font-black uppercase text-muted-foreground">
+                            <Clock className="h-3 w-3 text-primary" /> 
+                            {restaurant.openingHours}
+                        </span>
+                    )}
+                    {restaurant?.deliveryFee !== undefined && (
+                        <span className="flex items-center gap-1.5 bg-background/80 backdrop-blur-sm px-3 py-1.5 rounded-full border shadow-sm text-[9px] md:text-xs font-black uppercase text-muted-foreground">
+                            <Bike className="h-3 w-3 text-primary" /> 
+                            Entrega: {restaurant.deliveryFee === 0 ? 'Grátis' : `R$ ${restaurant.deliveryFee.toFixed(2)}`}
+                        </span>
+                    )}
                     <span className="flex items-center gap-1.5 bg-background/80 backdrop-blur-sm px-3 py-1.5 rounded-full border shadow-sm text-[9px] md:text-xs font-black uppercase text-muted-foreground">
                         <MapPin className="h-3 w-3 text-primary" /> 
-                        Local
+                        {restaurant?.city || 'Local'}
                     </span>
                 </div>
             </div>

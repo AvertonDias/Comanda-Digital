@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AppHeader } from "@/components/layout/app-header";
@@ -7,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { HelpCircle, Edit2, Trash2, PlusCircle, UserPlus, Copy, Link as LinkIcon, Info } from "lucide-react";
+import { HelpCircle, Edit2, Trash2, PlusCircle, UserPlus, Copy, Link as LinkIcon, Info, Clock, Bike } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
@@ -30,6 +31,8 @@ const profileSchema = z.object({
     phone: z.string().optional(),
     city: z.string().optional(),
     pixKey: z.string().optional(),
+    openingHours: z.string().optional(),
+    deliveryFee: z.coerce.number().min(0, "Mínimo 0"),
 });
 type ProfileFormData = z.infer<typeof profileSchema>;
 
@@ -50,7 +53,14 @@ function ProfileTab({ restaurantId }: { restaurantId: string }) {
     const { data, isLoading } = useDoc(restaurantRef);
     const { register, handleSubmit, reset, setValue, formState: { isDirty } } = useForm<ProfileFormData>({ 
         resolver: zodResolver(profileSchema),
-        defaultValues: { name: '', phone: '', city: '', pixKey: '' }
+        defaultValues: { 
+            name: '', 
+            phone: '', 
+            city: '', 
+            pixKey: '',
+            openingHours: '',
+            deliveryFee: 0 
+        }
     });
 
     useEffect(() => {
@@ -58,7 +68,9 @@ function ProfileTab({ restaurantId }: { restaurantId: string }) {
             name: data.name || '', 
             phone: data.phone || '', 
             city: data.city || '',
-            pixKey: data.pixKey || '' 
+            pixKey: data.pixKey || '',
+            openingHours: data.openingHours || '',
+            deliveryFee: data.deliveryFee || 0
         });
     }, [data, reset]);
 
@@ -86,21 +98,54 @@ function ProfileTab({ restaurantId }: { restaurantId: string }) {
             <form onSubmit={handleSubmit(onSubmit)}>
                 <CardHeader>
                     <CardTitle>Perfil do Estabelecimento</CardTitle>
-                    <CardDescription>Gerencie as informações públicas e de recebimento.</CardDescription>
+                    <CardDescription>Gerencie as informações públicas e operacionais.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-8">
                     <div className="space-y-4">
-                        <div className="space-y-2">
-                            <Label>Nome do Estabelecimento</Label>
-                            <Input {...register("name")} placeholder="Ex: Pizzaria do Zé" />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Nome do Estabelecimento</Label>
+                                <Input {...register("name")} placeholder="Ex: Pizzaria do Zé" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Telefone de Contato</Label>
+                                <Input 
+                                    {...register("phone")} 
+                                    placeholder="(xx) x xxxx xxxx"
+                                    onChange={(e) => setValue("phone", formatPhone(e.target.value), { shouldDirty: true })} 
+                                />
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label>Telefone</Label>
-                            <Input 
-                                {...register("phone")} 
-                                placeholder="(xx) x xxxx xxxx"
-                                onChange={(e) => setValue("phone", formatPhone(e.target.value), { shouldDirty: true })} 
-                            />
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                            <div className="space-y-2">
+                                <Label className="flex items-center gap-2">
+                                    <Clock className="h-3 w-3 text-muted-foreground" />
+                                    Horário de Funcionamento
+                                </Label>
+                                <Input 
+                                    {...register("openingHours")} 
+                                    placeholder="Ex: Seg-Sex: 18h às 23h"
+                                />
+                                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                                    Será exibido no topo do seu cardápio digital.
+                                </p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="flex items-center gap-2">
+                                    <Bike className="h-3 w-3 text-muted-foreground" />
+                                    Taxa de Entrega Padrão (R$)
+                                </Label>
+                                <Input 
+                                    type="number"
+                                    step="0.01"
+                                    {...register("deliveryFee")} 
+                                    placeholder="0,00"
+                                />
+                                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                                    Somada automaticamente em pedidos de "Entrega".
+                                </p>
+                            </div>
                         </div>
                     </div>
 

@@ -1,3 +1,4 @@
+
 export type UserProfile = {
   name: string;
   email: string;
@@ -132,6 +133,7 @@ export type Order = {
   deliveryAddress?: string;
   items: OrderItem[];
   total: number;
+  deliveryFee?: number;
   status: OrderStatus;
   origin: 'mesa' | 'whatsapp' | 'balcao' | 'telefone';
   destination: 'local' | 'retirada' | 'entrega';
@@ -147,6 +149,8 @@ export type Restaurant = {
     phone?: string;
     city?: string;
     pixKey?: string;
+    openingHours?: string;
+    deliveryFee?: number;
     plan: string;
     status: string;
     createdAt: any;

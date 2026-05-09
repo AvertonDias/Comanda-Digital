@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import type { MenuItem, Table, MenuItemCategory, Restaurant, Order } from '@/lib/types';
@@ -5,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Plus, ShoppingBag, Trash2, User, Phone, MapPin, ChevronRight, ChevronLeft, CheckCircle2, Clock } from 'lucide-react';
+import { Plus, ShoppingBag, Trash2, User, Phone, MapPin, ChevronRight, ChevronLeft, CheckCircle2, Clock, Bike } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -167,11 +168,14 @@ export function CreateOrderForm({
             const snapshot = await getCountFromServer(ordersCol);
             const nextOrderNumber = (snapshot.data().count || 0) + 1;
 
-            const finalTotal = orderItems.reduce((acc, item) => {
+            const itemsTotal = orderItems.reduce((acc, item) => {
                 const addonsPrice = item.addons?.reduce((sum, a) => sum + a.price, 0) || 0;
                 const ingredientsPrice = item.ingredientsExtraPrice || 0;
                 return acc + (item.price + addonsPrice + ingredientsPrice) * item.quantity;
             }, 0);
+
+            const deliveryFee = orderType === 'entrega' ? (restaurant?.deliveryFee || 0) : 0;
+            const finalTotal = itemsTotal + deliveryFee;
 
             const orderData = {
                 restaurantId,
@@ -185,6 +189,7 @@ export function CreateOrderForm({
                 deliveryAddress: orderType === 'entrega' ? deliveryAddress : null,
                 status: 'aberto',
                 total: finalTotal,
+                deliveryFee: deliveryFee,
                 createdAt: serverTimestamp(),
                 items: orderItems.map(item => ({
                     menuItemId: item.menuItemId,
@@ -248,11 +253,14 @@ export function CreateOrderForm({
 
     if (isCatsLoading || isItemsLoading || isTablesLoading) return <Skeleton className="h-[80vh] w-full" />;
 
-    const totalAmount = orderItems.reduce((acc, item) => {
+    const itemsSubtotal = orderItems.reduce((acc, item) => {
         const addonsPrice = item.addons?.reduce((sum, a) => sum + a.price, 0) || 0;
         const ingredientsPrice = item.ingredientsExtraPrice || 0;
         return acc + (item.price + addonsPrice + ingredientsPrice) * item.quantity;
     }, 0);
+
+    const activeDeliveryFee = orderType === 'entrega' ? (restaurant?.deliveryFee || 0) : 0;
+    const totalAmount = itemsSubtotal + activeDeliveryFee;
 
     const selectedTable = tables?.find(t => t.id === tableId);
 
@@ -426,7 +434,12 @@ export function CreateOrderForm({
                                         <div className="bg-primary text-white h-8 w-8 rounded-full flex items-center justify-center font-black text-xs">
                                             {orderItems.length}
                                         </div>
-                                        <span className="text-[10px] font-black uppercase text-primary">Itens adicionados</span>
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-black uppercase text-primary">Itens adicionados</span>
+                                            {orderType === 'entrega' && activeDeliveryFee > 0 && (
+                                                <span className="text-[8px] font-bold text-primary uppercase">+ TAXA DE ENTREGA</span>
+                                            )}
+                                        </div>
                                     </div>
                                     <span className="font-black text-sm">
                                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalAmount)}
@@ -477,13 +490,23 @@ export function CreateOrderForm({
                                             </div>
                                         );
                                     })}
+
+                                    {orderType === 'entrega' && activeDeliveryFee > 0 && (
+                                        <div className="bg-primary/5 p-4 rounded-xl border-2 border-dashed border-primary/20 flex justify-between items-center">
+                                            <div className="flex items-center gap-2">
+                                                <Bike className="h-4 w-4 text-primary" />
+                                                <span className="text-xs font-black uppercase">Taxa de Entrega</span>
+                                            </div>
+                                            <span className="text-sm font-black">R$ {activeDeliveryFee.toFixed(2)}</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
                             <div className="bg-primary/5 p-5 rounded-2xl border-2 border-primary/20 space-y-2">
                                 <div className="flex justify-between items-center">
                                     <span className="text-[10px] font-black uppercase text-muted-foreground">Valor Subtotal</span>
-                                    <span className="text-sm font-bold">R$ {totalAmount.toFixed(2)}</span>
+                                    <span className="text-sm font-bold">R$ {itemsSubtotal.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between items-center text-primary">
                                     <span className="text-xs font-black uppercase">Total Final</span>
