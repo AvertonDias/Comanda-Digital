@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import type { Order, OrderStatus, Restaurant } from '@/lib/types';
@@ -17,21 +18,15 @@ import { Bell, BellRing } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useRestaurant } from '@/hooks/use-restaurant';
 
-const STATUS_CONFIG: Record<OrderStatus, { title: string; color: string }> = {
-    'aberto': { title: 'Abertos', color: 'bg-blue-500' },
-    'preparando': { title: 'Preparando', color: 'bg-yellow-500' },
-    'pronto': { title: 'Prontos', color: 'bg-green-500' },
-    'finalizado': { title: 'Finalizados', color: 'bg-gray-500' },
-    'cancelado': { title: 'Cancelados', color: 'bg-red-500' },
-};
-
 const statusesToShow: OrderStatus[] = ['aberto', 'preparando', 'pronto'];
 
 function consolidateItems(items: any[]) {
+    if (!items) return [];
     const groups: Record<string, any> = {};
     items.forEach(item => {
         const addonsKey = item.addons?.map((a: any) => a.name).sort().join(',') || '';
-        const key = `${item.menuItemId}-${addonsKey}-${item.notes || ''}`;
+        const notesKey = item.notes?.trim() || '';
+        const key = `${item.menuItemId}-${addonsKey}-${notesKey}`;
         if (groups[key]) {
             groups[key].quantity += item.quantity;
         } else {
@@ -127,7 +122,6 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
 
   const { data: orders, isLoading } = useCollection<Order>(ordersQuery);
 
-  // Sistema de alerta sonoro para novos pedidos
   useEffect(() => {
     if (orders && !isLoading && role === 'admin') {
         const currentAbertoOrders = orders.filter(o => o.status === 'aberto');
@@ -153,7 +147,7 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
   }, [orders, soundEnabled, isLoading, role]);
 
   const groupedOrdersByStatus = useMemo(() => {
-    const result: Record<OrderStatus, Order[]> = {
+    const result: Record<string, Order[]> = {
         'aberto': [],
         'preparando': [],
         'pronto': [],
@@ -186,6 +180,7 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
                     groups[key].createdAt = order.createdAt;
                 }
                 
+                // Se algum pedido do grupo não estiver impresso, o grupo inteiro não está
                 if (order.status === 'aberto' && !order.isPrinted) {
                     groups[key].isPrinted = false;
                 }
@@ -257,10 +252,6 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
     setSelectedOrder(null);
   };
 
-  const getOrdersCount = (status: OrderStatus) => {
-    return groupedOrdersByStatus[status].length;
-  }
-  
   if (isLoading) return <Skeleton className="h-full w-full" />;
 
   return (
@@ -292,12 +283,12 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
           <TabsList className="grid w-full grid-cols-3 bg-muted/50 rounded-none h-12 sticky top-0 z-10 px-4">
               {statusesToShow.map(status => (
                    <TabsTrigger key={status} value={status} className="flex items-center gap-1.5 data-[state=active]:bg-background text-[10px] uppercase font-bold tracking-tight">
-                      {STATUS_CONFIG[status].title}
+                      {status === 'aberto' ? 'Abertos' : status === 'preparando' ? 'Preparando' : 'Prontos'}
                       <Badge className={cn(
                           "hover:opacity-90 text-[8px] h-4 w-4 p-0 flex items-center justify-center text-white border-none",
-                          STATUS_CONFIG[status].color
+                          status === 'aberto' ? 'bg-blue-500' : status === 'preparando' ? 'bg-yellow-500' : 'bg-green-500'
                       )}>
-                          {getOrdersCount(status)}
+                          {groupedOrdersByStatus[status].length}
                       </Badge>
                    </TabsTrigger>
               ))}
@@ -313,7 +304,7 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
                                 onDetailsClick={setSelectedOrder} 
                               />
                           ))}
-                          {getOrdersCount(status) === 0 && (
+                          {groupedOrdersByStatus[status].length === 0 && (
                              <div className="col-span-full flex flex-col items-center justify-center py-20 text-center opacity-40">
                                 <p className="text-sm font-black uppercase">Nenhum pedido {status}</p>
                              </div>

@@ -42,33 +42,13 @@ import { MenuItemSelectionDialog } from "./menu-item-selection-dialog";
 import { OrderReceiptModal } from "./order-receipt-modal";
 import { KitchenOrderModal } from "./kitchen-order-modal";
 
-type OrderDetailsModalProps = {
-    order: Order | null;
-    isOpen: boolean;
-    onOpenChange: (isOpen: boolean) => void;
-    onStatusChange: (orderIds: string | string[], newStatus: OrderStatus, extraData?: any) => void;
-};
-
-const STATUS_CONFIG: Record<OrderStatus, { title: string; color: string }> = {
-    'aberto': { title: 'Aberto', color: 'bg-blue-500' },
-    'preparando': { title: 'Em Preparação', color: 'bg-yellow-500' },
-    'pronto': { title: 'Pronto', color: 'bg-green-500' },
-    'finalizado': { title: 'Finalizado', color: 'bg-gray-500' },
-    'cancelado': { title: 'Cancelados', color: 'bg-red-500' },
-};
-
-const PAYMENT_METHODS = [
-    { id: 'pix', label: 'Pix', icon: QrCode },
-    { id: 'cartao_credito', label: 'Crédito', icon: CreditCard },
-    { id: 'cartao_debito', label: 'Débito', icon: CreditCard },
-    { id: 'dinheiro', label: 'Dinheiro', icon: Banknote },
-];
-
 function consolidateItems(items: any[]) {
+    if (!items) return [];
     const groups: Record<string, any> = {};
     items.forEach(item => {
         const addonsKey = item.addons?.map((a: any) => a.name).sort().join(',') || '';
-        const key = `${item.menuItemId}-${addonsKey}-${item.notes || ''}`;
+        const notesKey = item.notes?.trim() || '';
+        const key = `${item.menuItemId}-${addonsKey}-${notesKey}`;
         if (groups[key]) {
             groups[key].quantity += item.quantity;
         } else {
@@ -339,7 +319,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                             </DialogTitle>
                         </div>
                         <div className="flex gap-2">
-                            {/* Botão Exclusivo para Cozinha */}
                             <Button 
                                 variant="outline" 
                                 size="icon" 
@@ -350,7 +329,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                 <ChefHat className="h-4 w-4" />
                             </Button>
 
-                            {/* Botão Exclusivo para Recibo do Cliente */}
                             {order.status !== 'preparando' && (
                                 <Button 
                                     variant="outline" 
@@ -371,8 +349,8 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                 <div className="grid grid-cols-2 gap-4 text-[10px] font-black uppercase">
                                     <div className="space-y-1">
                                         <span className="text-muted-foreground">Status Geral</span>
-                                        <Badge className={`${STATUS_CONFIG[order.status].color} text-white w-full justify-center h-6`}>
-                                            {isGrouped ? 'Múltiplos' : STATUS_CONFIG[order.status].title}
+                                        <Badge className={`${cn(order.status === 'aberto' ? 'bg-blue-500' : order.status === 'preparando' ? 'bg-yellow-500' : order.status === 'pronto' ? 'bg-green-500' : order.status === 'finalizado' ? 'bg-gray-500' : 'bg-red-500')} text-white w-full justify-center h-6`}>
+                                            {isGrouped ? 'Múltiplos' : order.status.toUpperCase()}
                                         </Badge>
                                     </div>
                                     <div className="space-y-1">
@@ -444,22 +422,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                                             <Plus className="h-3 w-3" />
                                                                         </Button>
                                                                     </div>
-                                                                    <div className="flex flex-col gap-1 items-end w-full">
-                                                                        <span className="text-[8px] font-black uppercase text-muted-foreground">Dividir por:</span>
-                                                                        <div className="flex items-center gap-1">
-                                                                            <Input 
-                                                                                type="number" 
-                                                                                min="1"
-                                                                                placeholder="Nº" 
-                                                                                className="h-7 w-10 text-[10px] p-1 text-center font-black bg-muted/50 border-none shadow-none"
-                                                                                onChange={(e) => {
-                                                                                    const divisor = Number(e.target.value);
-                                                                                    if (divisor > 0) handleSetFraction(idx, divisor);
-                                                                                }}
-                                                                            />
-                                                                            <span className="text-[8px] font-black uppercase text-muted-foreground">Pessoas</span>
-                                                                        </div>
-                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         ))}
@@ -518,15 +480,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                         </div>
                                                     </div>
 
-                                                    {paymentMethod === 'pix' && qrCodeUrl && (
-                                                        <div className="flex flex-col items-center gap-3 bg-white p-3 rounded-lg border">
-                                                            <Image src={qrCodeUrl} alt="Pix" width={150} height={150} />
-                                                            <Button variant="secondary" size="sm" className="w-full text-[9px] font-black h-8" onClick={() => { navigator.clipboard.writeText(pixPayload!); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>
-                                                                {copied ? "Copiado!" : "Copiar Pix"}
-                                                            </Button>
-                                                        </div>
-                                                    )}
-
                                                     <Button className="w-full h-10 font-black uppercase text-[10px] bg-black hover:bg-zinc-800" onClick={handleRegisterPart}>
                                                         Confirmar Parte {paidPartsCount + 1}
                                                     </Button>
@@ -553,14 +506,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                     </button>
                                                 ))}
                                             </div>
-                                            {paymentMethod === 'pix' && qrCodeUrl && (
-                                                <div className="bg-muted/30 p-4 rounded-xl flex flex-col items-center gap-4">
-                                                    <div className="bg-white p-4 rounded-lg shadow-sm border"><Image src={qrCodeUrl} alt="Pix" width={200} height={200} /></div>
-                                                    <Button variant="secondary" className="w-full font-black uppercase text-[10px]" onClick={() => { navigator.clipboard.writeText(pixPayload!); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>
-                                                        {copied ? "Copiado!" : "Copiar Pix Copia e Cola"}
-                                                    </Button>
-                                                </div>
-                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -586,7 +531,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                             <span className="text-primary/70 mr-1">[{getCategoryName(item.menuItemId).toUpperCase()}]</span>
                                                             {item.name}
                                                         </p>
-                                                        {item.addons?.map((a, ai) => (<p key={ai} className="text-[9px] text-muted-foreground font-bold uppercase">+ {a.name}</p>))}
+                                                        {item.addons?.map((a: any, ai: number) => (<p key={ai} className="text-[9px] text-muted-foreground font-bold uppercase">+ {a.name}</p>))}
                                                     </div>
                                                 </div>
                                                 <span className="font-black text-xs">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((item.priceAtOrder + (item.ingredientExtrasPrice || 0)) * item.quantity)}</span>
@@ -625,7 +570,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                         if (isFinalizing && !isFullyPaid && isSplitting) return toast({ variant: "destructive", title: "Conta incompleta" });
                                         if (isFinalizing && !paymentMethod && !isSplitting) return toast({ variant: "destructive", title: "Selecione o pagamento" });
                                         
-                                        const nextStatusMap: Record<OrderStatus, OrderStatus> = {
+                                        const nextStatusMap: Record<string, OrderStatus> = {
                                             'aberto': 'preparando',
                                             'preparando': 'pronto',
                                             'pronto': 'finalizado',
@@ -658,11 +603,11 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                     <AlertDialogHeader>
                         <AlertDialogTitle>Cancelar Pedido?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Tem certeza que deseja cancelar o pedido #{displayOrderNumber}? Esta ação não pode ser desfeita e removerá o item do histórico ativo.
+                            Tem certeza que deseja cancelar este pedido? Esta ação não pode ser desfeita.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Não, manter pedido</AlertDialogCancel>
+                        <AlertDialogCancel>Não</AlertDialogCancel>
                         <AlertDialogAction 
                             onClick={() => {
                                 onStatusChange(order.id, 'cancelado');
@@ -689,7 +634,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                         <Label className="text-[10px] font-black uppercase text-muted-foreground">1. Escolha a Categoria</Label>
                         <Select value={selectedMenuCategoryId || ""} onValueChange={setSelectedMenuCategoryId}>
                             <SelectTrigger className="h-12 border-2 bg-background font-bold text-xs uppercase shadow-sm">
-                                <SelectValue placeholder="Selecione para ver os itens..." />
+                                <SelectValue placeholder="Selecione..." />
                             </SelectTrigger>
                             <SelectContent>
                                 {categories?.map(cat => (
@@ -704,14 +649,13 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                     <ScrollArea className="flex-1 p-4 bg-background">
                         {selectedMenuCategoryId ? (
                             <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                <Label className="text-[10px] font-black uppercase text-primary tracking-widest block mb-1">2. Selecione o Produto</Label>
                                 {items?.filter(i => i.categoryId === selectedMenuCategoryId && i.isAvailable).map(item => (
                                     <Card 
                                         key={item.id} 
                                         className="p-3 flex items-center gap-4 cursor-pointer hover:border-primary border-2 transition-all active:scale-95 shadow-sm" 
                                         onClick={() => setSelectedItemToAdd(item)}
                                     >
-                                        <div className="h-12 w-12 rounded-lg bg-muted overflow-hidden shrink-0 border shadow-inner">
+                                        <div className="h-12 w-12 rounded-lg bg-muted overflow-hidden shrink-0 border">
                                             <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -727,19 +671,10 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                         ) : (
                             <div className="flex flex-col items-center justify-center h-full py-20 text-center space-y-4 opacity-30">
                                 <Search className="h-12 w-12 text-muted-foreground" />
-                                <div className="space-y-1">
-                                    <p className="text-[11px] font-black uppercase tracking-tight">Aguardando Categoria</p>
-                                    <p className="text-[9px] font-bold uppercase text-muted-foreground leading-tight px-8">Selecione uma opção no menu acima para listar os produtos do cardápio</p>
-                                </div>
+                                <p className="text-[11px] font-black uppercase">Aguardando Categoria</p>
                             </div>
                         )}
                     </ScrollArea>
-                    
-                    <div className="p-4 border-t bg-muted/10 flex flex-col gap-2">
-                        <Button variant="ghost" className="w-full font-black uppercase text-[10px]" onClick={() => setIsMenuOpen(false)}>
-                            Cancelar
-                        </Button>
-                    </div>
                 </DialogContent>
             </Dialog>
 
@@ -772,6 +707,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                     ...order,
                     items: combinedItems
                 }}
+                orderIds={allGroupedOrders.map(o => o.id)}
             />
         </>
     );

@@ -1,3 +1,4 @@
+
 'use client';
 import {
     Dialog,
@@ -16,12 +17,14 @@ export function KitchenOrderModal({
     order, 
     restaurant,
     isOpen, 
-    onClose 
+    onClose,
+    orderIds // Recebe lista de IDs para marcar todos como impressos
 }: { 
     order: any | null; 
     restaurant?: Restaurant | null;
     isOpen: boolean; 
-    onClose: () => void 
+    onClose: () => void;
+    orderIds?: string[];
 }) {
     const firestore = useFirestore();
     const { user } = useUser();
@@ -52,10 +55,15 @@ export function KitchenOrderModal({
     const waiterName = user?.displayName || user?.email?.split('@')[0] || 'SISTEMA';
 
     const handlePrint = async () => {
-        if (order.id && order.restaurantId) {
-            const orderRef = doc(firestore, `restaurants/${order.restaurantId}/orders`, order.id);
-            await updateDoc(orderRef, { isPrinted: true }).catch(() => {});
-        }
+        // Marca todos os pedidos do grupo como impressos
+        const idsToUpdate = orderIds && orderIds.length > 0 ? orderIds : (order.id ? [order.id] : []);
+        
+        const promises = idsToUpdate.map(id => {
+            const orderRef = doc(firestore, `restaurants/${order.restaurantId}/orders`, id);
+            return updateDoc(orderRef, { isPrinted: true }).catch(() => {});
+        });
+
+        await Promise.all(promises);
 
         setTimeout(() => {
             window.print();
@@ -99,7 +107,6 @@ export function KitchenOrderModal({
                 </DialogContent>
             </Dialog>
 
-            {/* ÁREA DE IMPRESSÃO DA COZINHA (EXCLUSIVO PRODUÇÃO - SEM PAGAMENTO) */}
             <div id="print-receipt-area" className="hidden print:block bg-white text-black font-mono">
                 <div className="space-y-0.5 mb-2">
                     <div className="flex justify-between items-start font-bold">

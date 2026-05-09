@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AppHeader } from "@/components/layout/app-header";
@@ -98,6 +99,7 @@ function OrdersContent({ tableId }: { tableId?: string }) {
 }
 
 export default function OrdersPage(props: { searchParams: Promise<{ tableId?: string }> }) {
+  // Desembrulha searchParams corretamente para Next.js 15
   const searchParams = use(props.searchParams);
   const tableId = searchParams.tableId;
 
