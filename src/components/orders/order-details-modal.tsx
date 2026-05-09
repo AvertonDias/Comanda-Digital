@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -140,7 +139,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         return allGroupedOrders.reduce((acc, curr) => acc + curr.total, 0);
     }, [allGroupedOrders]);
 
-    // Agrupa itens por status para evitar confusão visual de "pulling to open"
     const itemsByStatus = useMemo(() => {
         const map: Record<string, any[]> = {
             'aberto': [],
@@ -152,7 +150,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                 map[o.status].push(...o.items);
             }
         });
-        // Consolida dentro de cada status
         Object.keys(map).forEach(s => {
             map[s] = consolidateItems(map[s]);
         });
@@ -354,7 +351,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
             closedAt: serverTimestamp()
         } : {};
 
-        // Importante: Altera apenas os IDs que pertencem a este grupo de status (evita puxar tudo)
         const targetIds = (order as any).allOrderIds || [order.id];
         onStatusChange(targetIds, nextStatusMap[order.status], finalData);
     };
@@ -373,7 +369,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                             </DialogTitle>
                             {isGrouped && (
                                 <span className="text-primary text-[9px] font-black uppercase tracking-widest animate-pulse">
-                                    Vários Pedidos Agrupados
+                                    VÁRIOS PEDIDOS AGRUPADOS
                                 </span>
                             )}
                         </div>
@@ -393,27 +389,25 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                     
                     <ScrollArea className="flex-1">
                         <div className="p-6 space-y-8">
-                            {/* Resumo de Status */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
-                                    <span className="text-[9px] font-black uppercase text-muted-foreground">Status Atual</span>
+                                    <span className="text-[9px] font-black uppercase text-muted-foreground">Status Geral</span>
                                     <Badge className={cn("w-full justify-center h-7 font-black text-[10px] uppercase", 
                                         order.status === 'aberto' ? 'bg-blue-500' : 
                                         order.status === 'preparando' ? 'bg-yellow-500' : 
                                         'bg-green-500'
                                     )}>
-                                        {order.status}
+                                        {isGrouped ? 'VÁRIOS PEDIDOS' : order.status}
                                     </Badge>
                                 </div>
                                 <div className="space-y-1">
-                                    <span className="text-[9px] font-black uppercase text-muted-foreground">Total Acumulado</span>
+                                    <span className="text-[9px] font-black uppercase text-muted-foreground">Valor Acumulado</span>
                                     <div className="h-7 flex items-center justify-center rounded-md bg-primary/10 text-primary font-black text-xs">
                                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(combinedTotal)}
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Seção de Itens Organizada por Status (Evita confusão visual) */}
                             <div className="space-y-6">
                                 {Object.entries(itemsByStatus).map(([status, items]) => items.length > 0 && (
                                     <div key={status} className="space-y-3">
@@ -432,7 +426,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                             
                                             {status === 'aberto' && order.status === 'aberto' && (
                                                 <Button variant="ghost" size="sm" className="h-6 text-[8px] font-black uppercase bg-muted" onClick={() => setIsMenuOpen(true)}>
-                                                    <Plus className="h-2 w-2 mr-1" /> Add Item
+                                                    <Plus className="h-2 w-2 mr-1" /> Adicionar Item
                                                 </Button>
                                             )}
                                         </div>
@@ -461,7 +455,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                 ))}
                             </div>
 
-                            {/* Fluxo de Pagamento / Finalização */}
                             {isFinalizing && (
                                 <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
                                     <Separator />
@@ -475,7 +468,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
 
                                     {isSplitting ? (
                                         <div className="space-y-4">
-                                            {/* Modos de Divisão */}
                                             <div className="flex bg-muted/50 p-1 rounded-lg">
                                                 <button onClick={() => setSplitMode('value')} className={cn("flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-[10px] font-black uppercase transition-all", splitMode === 'value' ? "bg-background shadow-sm" : "opacity-50")}><DollarSign className="h-3 w-3" /> Valor</button>
                                                 <button onClick={() => setSplitMode('items')} className={cn("flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-[10px] font-black uppercase transition-all", splitMode === 'items' ? "bg-background shadow-sm" : "opacity-50")}><ListChecks className="h-3 w-3" /> Itens</button>
@@ -658,7 +650,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
 
             <MenuItemSelectionDialog item={selectedItemToAdd} isOpen={!!selectedItemToAdd} onClose={() => setSelectedItemToAdd(null)} onConfirm={handleConfirmAddExtra} />
             <OrderReceiptModal isOpen={showReceiptPreview} onClose={() => setShowReceiptPreview(false)} restaurant={restaurant} pixPayload={pixPayload} order={{ ...order, items: itemsByStatus['aberto'].concat(itemsByStatus['preparando'], itemsByStatus['pronto']), total: combinedTotal, splitPayments: recordedSplitParts.length > 0 ? recordedSplitParts : (order.splitPayments || []), paymentMethod: recordedSplitParts.length > 0 ? 'multiplos' : (paymentMethod || order.paymentMethod || 'A Pagar') }} />
-            {showKitchenPrint && <KitchenOrderModal restaurant={restaurant} order={{ ...order, items: itemsByStatus['aberto'] }} />}
+            {showKitchenPrint && <KitchenOrderModal restaurant={restaurant} pixPayload={pixPayload} order={{ ...order, items: itemsByStatus['aberto'] }} />}
         </>
     );
 }
