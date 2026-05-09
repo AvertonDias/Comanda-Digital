@@ -54,6 +54,7 @@ export function OrderReceiptModal({
     const groupedItems = consolidateItems(order.items);
     const isFinished = order.status === 'finalizado';
     const hasSplits = order.splitPayments && order.splitPayments.length > 0;
+    const isDelivery = order.destination === 'entrega';
 
     const handlePrint = () => {
         setTimeout(() => {
@@ -80,10 +81,14 @@ ${groupedItems.map(i => {
 
         text += `\n*TOTAL: R$ ${order.total.toFixed(2)}*`;
 
+        if (isDelivery && order.deliveryAddress) {
+            text += `\n\n📍 *ENDEREÇO DE ENTREGA:*\n${order.deliveryAddress}`;
+        }
+
         if (hasSplits) {
-            text += `\n\n*RATEIO DA CONTA:*`;
+            text += `\n\n*RESUMO DA DIVISÃO:*`;
             order.splitPayments?.forEach(p => {
-                text += `\n- Parte ${p.part}: R$ ${p.amount.toFixed(2)} (${p.method.toUpperCase()})`;
+                text += `\n- Parte ${p.part} (${p.method.toUpperCase()}): R$ ${p.amount.toFixed(2)}`;
             });
         }
 
@@ -182,6 +187,12 @@ ${groupedItems.map(i => {
                             {order.origin === 'mesa' ? `MESA: ${order.tableName?.replace(/\D/g, '') || order.tableName}` : `PEDIDO: #${orderNum}`}
                         </p>
                         {order.customerName && <p className="text-[10px] uppercase">CLIENTE: {order.customerName}</p>}
+                        {isDelivery && order.deliveryAddress && (
+                            <div className="border-2 border-black p-1.5 mt-2 bg-gray-50">
+                                <p className="text-[9px] font-black uppercase leading-tight mb-0.5">📍 ENDEREÇO DE ENTREGA:</p>
+                                <p className="text-[9px] font-bold uppercase leading-tight">{order.deliveryAddress}</p>
+                            </div>
+                        )}
                     </div>
 
                     <div className="border-t border-black border-dashed my-2" />
@@ -259,7 +270,6 @@ ${groupedItems.map(i => {
 
                     {(pixPayload && order.origin !== 'mesa' && !order.tableId) && (
                         <div className="mt-6 flex flex-col items-center border-t-2 border-black border-dashed pt-4">
-                            <p className="text-[9px] font-black uppercase mb-2">Pague com Pix aqui:</p>
                             <div className="bg-white p-2 border border-black">
                                  <img 
                                     src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(pixPayload)}`}

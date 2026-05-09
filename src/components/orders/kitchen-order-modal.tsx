@@ -2,6 +2,7 @@
 import type { Restaurant, MenuItem, MenuItemCategory, Order } from "@/lib/types";
 import { format } from "date-fns";
 import { useUser } from "@/firebase";
+import { cn } from "@/lib/utils";
 
 /**
  * Componente que renderiza a comanda de produção customizada.
@@ -37,7 +38,7 @@ export function KitchenOrderModal({
             <div className="mb-3">
                 {isDelivery ? (
                     <div className="border-[4px] border-black p-2 text-center mb-3">
-                        <p className="text-2xl font-black uppercase leading-none">ENTREGA</p>
+                        <p className="text-2xl font-black uppercase leading-none">MÉTODO: ENTREGA</p>
                     </div>
                 ) : (
                     <div className="border-2 border-black px-2 py-2 text-center mb-2">
@@ -65,11 +66,14 @@ export function KitchenOrderModal({
 
             <div className="border-b border-black border-dashed my-2" />
 
-            {/* Cabeçalho da Lista */}
-            <div className="grid grid-cols-[2.5rem_1fr_4.5rem] font-bold text-[8px] mb-1 px-1">
+            {/* Cabeçalho da Lista - OCULTAR VALOR PARA MESAS */}
+            <div className={cn(
+                "grid font-bold text-[8px] mb-1 px-1",
+                isTableOrder ? "grid-cols-[2.5rem_1fr]" : "grid-cols-[2.5rem_1fr_4.5rem]"
+            )}>
                 <span>QTD</span>
                 <span>DESCRIÇÃO</span>
-                <span className="text-right">VALOR</span>
+                {!isTableOrder && <span className="text-right">VALOR</span>}
             </div>
 
             {/* Lista de Itens */}
@@ -78,7 +82,10 @@ export function KitchenOrderModal({
                     const itemTotal = (item.priceAtOrder + (item.ingredientExtrasPrice || 0)) * item.quantity;
                     
                     return (
-                        <div key={idx} className="grid grid-cols-[2.5rem_1fr_4.5rem] items-start border-b border-gray-200 pb-2">
+                        <div key={idx} className={cn(
+                            "grid items-start border-b border-gray-200 pb-2",
+                            isTableOrder ? "grid-cols-[2.5rem_1fr]" : "grid-cols-[2.5rem_1fr_4.5rem]"
+                        )}>
                             <span className="text-xl font-black leading-none">{item.quantity}x</span>
                             <div className="space-y-1">
                                 <p className="text-xs font-black uppercase leading-tight">
@@ -93,8 +100,12 @@ export function KitchenOrderModal({
                                     </div>
                                 )}
 
-                                {item.ingredientExtrasPrice > 0 && (
+                                {item.ingredientExtrasPrice > 0 && !isTableOrder && (
                                     <p className="text-[8px] font-bold text-primary ml-1">+ EXTRA (+R$ {item.ingredientExtrasPrice.toFixed(2)})</p>
+                                )}
+                                
+                                {item.ingredientExtrasPrice > 0 && isTableOrder && (
+                                    <p className="text-[8px] font-bold text-primary ml-1">+ EXTRA</p>
                                 )}
 
                                 {item.notes && (
@@ -105,27 +116,31 @@ export function KitchenOrderModal({
                                     </div>
                                 )}
                             </div>
-                            <span className="text-right text-[10px] font-black">
-                                {itemTotal.toFixed(2)}
-                            </span>
+                            {!isTableOrder && (
+                                <span className="text-right text-[10px] font-black">
+                                    {itemTotal.toFixed(2)}
+                                </span>
+                            )}
                         </div>
                     );
                 })}
             </div>
 
-            {/* Resumo Financeiro */}
-            <div className="mt-4 border-t-2 border-black pt-2 space-y-1">
-                {order.deliveryFee > 0 && (
-                    <div className="flex justify-between text-[10px] font-bold uppercase">
-                        <span>TAXA ENTREGA:</span>
-                        <span>R$ {order.deliveryFee.toFixed(2)}</span>
+            {/* Resumo Financeiro - OCULTAR PARA MESAS */}
+            {!isTableOrder && (
+                <div className="mt-4 border-t-2 border-black pt-2 space-y-1">
+                    {order.deliveryFee > 0 && (
+                        <div className="flex justify-between text-[10px] font-bold uppercase">
+                            <span>TAXA ENTREGA:</span>
+                            <span>R$ {order.deliveryFee.toFixed(2)}</span>
+                        </div>
+                    )}
+                    <div className="flex justify-between items-center text-lg font-black uppercase">
+                        <span>TOTAL:</span>
+                        <span>R$ {order.total.toFixed(2)}</span>
                     </div>
-                )}
-                <div className="flex justify-between items-center text-lg font-black uppercase">
-                    <span>TOTAL:</span>
-                    <span>R$ {order.total.toFixed(2)}</span>
                 </div>
-            </div>
+            )}
 
             {/* QR Code Pix - EXIBIR APENAS EM ENTREGAS E RETIRADAS */}
             {pixPayload && !isTableOrder && (
