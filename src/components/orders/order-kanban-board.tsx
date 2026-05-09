@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import type { Order, OrderStatus, Restaurant } from '@/lib/types';
@@ -180,7 +179,6 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
                     groups[key].createdAt = order.createdAt;
                 }
                 
-                // Se algum pedido do grupo não estiver impresso, o grupo inteiro não está
                 if (order.status === 'aberto' && !order.isPrinted) {
                     groups[key].isPrinted = false;
                 }
@@ -210,23 +208,28 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
     const ids = Array.isArray(orderIds) ? orderIds : [orderIds];
     
     let mergedOrderForReceipt: any = null;
-    if (newStatus === 'finalizado') {
-        const selectedOrders = orders?.filter(o => ids.includes(o.id)) || [];
+    let targetTableId: string | null = null;
+
+    if (orders) {
+        const selectedOrders = orders.filter(o => ids.includes(o.id));
         if (selectedOrders.length > 0) {
-            mergedOrderForReceipt = {
-                ...selectedOrders[0],
-                id: ids.join('_'),
-                items: consolidateItems(selectedOrders.flatMap(o => o.items)),
-                total: selectedOrders.reduce((acc, o) => acc + o.total, 0),
-                status: 'finalizado',
-                paymentMethod: extraData.paymentMethod,
-                splitPayments: extraData.splitPayments,
-                closedAt: serverTimestamp()
-            };
+            targetTableId = selectedOrders[0].tableId || null;
+            if (newStatus === 'finalizado') {
+                mergedOrderForReceipt = {
+                    ...selectedOrders[0],
+                    id: ids.join('_'),
+                    items: consolidateItems(selectedOrders.flatMap(o => o.items)),
+                    total: selectedOrders.reduce((acc, o) => acc + o.total, 0),
+                    status: 'finalizado',
+                    paymentMethod: extraData.paymentMethod,
+                    splitPayments: extraData.splitPayments,
+                    closedAt: serverTimestamp()
+                };
+            }
         }
     }
 
-    const batchPromises = ids.map(id => {
+    const batchPromises: Promise<any>[] = ids.map(id => {
         const orderRef = doc(firestore, `restaurants/${restaurantId}/orders/${id}`);
         const updatePayload: any = { 
             status: newStatus, 
@@ -237,6 +240,12 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
         }
         return updateDoc(orderRef, updatePayload);
     });
+
+    // Se o pedido está sendo finalizado e tem uma mesa, libera a mesa automaticamente
+    if (newStatus === 'finalizado' && targetTableId) {
+        const tableRef = doc(firestore, `restaurants/${restaurantId}/tables/${targetTableId}`);
+        batchPromises.push(updateDoc(tableRef, { status: 'livre' }));
+    }
 
     Promise.all(batchPromises).then(() => {
         if (newStatus === 'finalizado' && mergedOrderForReceipt) {
