@@ -2,9 +2,9 @@
   "name": "Comanda Digital",
   "short_name": "Comanda",
   "description": "Sistema de cardápio digital e gestão de pedidos para restaurantes.",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#f1f5f9",
+  "background_color": "#ffffff",
   "theme_color": "#15803d",
   "icons": [
     {

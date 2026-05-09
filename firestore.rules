@@ -15,7 +15,8 @@ service cloud.firestore {
     match /restaurants/{restaurantId} {
       allow read, write: if isSignedIn();
       
-      match /{allSubcollections=**} {
+      // Corrigido para garantir que listagens de coleções e subcoleções funcionem
+      match /{allPaths=**} {
         allow read, write: if isSignedIn();
       }
     }
