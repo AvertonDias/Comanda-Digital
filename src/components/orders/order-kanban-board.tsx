@@ -49,8 +49,6 @@ const OrderCard = ({
         : order.id.slice(-4).toUpperCase();
 
     const previewItems = useMemo(() => consolidateItems(order.items), [order.items]);
-    
-    // O pulso só aparece para ADMIN se o pedido for novo (aberto e não impresso/visto)
     const isNew = role === 'admin' && order.status === 'aberto' && !order.isPrinted;
 
     return (
@@ -147,7 +145,7 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
         });
 
         if (hasNewOrder && soundEnabled && audioRef.current) {
-            audioRef.current.play().catch(e => console.log('Áudio bloqueado pelo navegador'));
+            audioRef.current.play().catch(e => console.log('Áudio bloqueado'));
         }
     }
   }, [orders, soundEnabled, isLoading, role]);
@@ -187,14 +185,12 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
                     groups[key].createdAt = order.createdAt;
                 }
                 
-                // Se algum pedido do grupo não foi impresso/visto, o grupo todo é marcado como não visto
                 if (order.status === 'aberto' && !order.isPrinted) {
                     groups[key].isPrinted = false;
                 }
             }
         });
         
-        // Consolida itens após o agrupamento
         result[status] = Object.values(groups).map(g => ({
             ...g,
             items: consolidateItems(g.items)
@@ -219,8 +215,6 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
 
   const handleDetailsClick = (order: Order & { allOrderIds?: string[] }) => {
     setSelectedOrder(order);
-    
-    // SE FOR ADMIN: Ao clicar em um pedido novo (piscando), marca como "visto" no servidor
     if (role === 'admin' && order.status === 'aberto' && !order.isPrinted) {
         const idsToUpdate = order.allOrderIds || [order.id];
         idsToUpdate.forEach(id => {
@@ -257,19 +251,23 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
 
     const batchPromises: Promise<any>[] = ids.map(id => {
         const orderRef = doc(firestore, `restaurants/${restaurantId}/orders/${id}`);
-        const updatePayload: any = { 
-            status: newStatus, 
-            ...extraData 
-        };
-        if (newStatus === 'finalizado') {
-            updatePayload.closedAt = serverTimestamp();
-        }
+        const updatePayload: any = { status: newStatus, ...extraData };
+        if (newStatus === 'finalizado') updatePayload.closedAt = serverTimestamp();
         return updateDoc(orderRef, updatePayload);
     });
 
+    // 🔒 LÓGICA DE MESA LIVRE: Só libera a mesa se não houver NENHUM outro pedido ativo (Aberto/Prep/Pronto)
     if (newStatus === 'finalizado' && targetTableId) {
-        const tableRef = doc(firestore, `restaurants/${restaurantId}/tables/${targetTableId}`);
-        batchPromises.push(updateDoc(tableRef, { status: 'livre' }));
+        const otherActiveOrders = orders?.filter(o => 
+            o.tableId === targetTableId && 
+            !ids.includes(o.id) && 
+            ['aberto', 'preparando', 'pronto'].includes(o.status)
+        );
+
+        if (!otherActiveOrders || otherActiveOrders.length === 0) {
+            const tableRef = doc(firestore, `restaurants/${restaurantId}/tables/${targetTableId}`);
+            batchPromises.push(updateDoc(tableRef, { status: 'livre' }));
+        }
     }
 
     Promise.all(batchPromises).then(() => {

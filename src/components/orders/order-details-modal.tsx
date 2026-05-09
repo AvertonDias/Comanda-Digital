@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -39,7 +38,7 @@ import { format } from "date-fns";
 import { ArrowRight, ChefHat, Bike, Trash2, QrCode, Copy, Check, Users, Minus, Plus, Wallet, CreditCard, Banknote, ListChecks, DollarSign, Printer, ChevronLeft, Search, Info, ShoppingBag } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, updateDoc, arrayUnion, increment, query, collection, orderBy, where, serverTimestamp, addDoc, getCountFromServer } from "firebase/firestore";
+import { doc, updateDoc, query, collection, orderBy, where, serverTimestamp, addDoc, getCountFromServer } from "firebase/firestore";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
@@ -123,21 +122,21 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const [showKitchenPrint, setShowKitchenPrint] = useState(false);
     const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
+    // 🔒 ISOLAMENTO: Busca apenas pedidos com o MESMO STATUS
     const relatedOrdersQuery = useMemoFirebase(() => {
         if (!order?.tableId || !order?.restaurantId || !firestore) return null;
         return query(
             collection(firestore, `restaurants/${order.restaurantId}/orders`),
             where('tableId', '==', order.tableId),
-            where('status', 'in', ['aberto', 'preparando', 'pronto'])
+            where('status', '==', order.status)
         );
-    }, [order?.tableId, order?.restaurantId, firestore, isOpen]);
+    }, [order?.tableId, order?.restaurantId, order?.status, firestore, isOpen]);
 
     const { data: relatedOrders } = useCollection<Order>(relatedOrdersQuery);
 
     const allGroupedOrders = useMemo(() => {
         if (!order) return [];
-        if (!relatedOrders || relatedOrders.length === 0) return [order];
-        const list = [...relatedOrders];
+        const list = relatedOrders ? [...relatedOrders] : [];
         if (!list.some(o => o.id === order.id)) list.push(order);
         return list;
     }, [relatedOrders, order]);
@@ -146,22 +145,9 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         return allGroupedOrders.reduce((acc, curr) => acc + curr.total, 0);
     }, [allGroupedOrders]);
 
-    // Segmenta itens por status para exibição organizada
-    const itemsByStatus = useMemo(() => {
-        const map: Record<string, any[]> = {
-            'aberto': [],
-            'preparando': [],
-            'pronto': []
-        };
-        allGroupedOrders.forEach(o => {
-            if (map[o.status]) {
-                map[o.status].push(...o.items);
-            }
-        });
-        Object.keys(map).forEach(s => {
-            map[s] = consolidateItems(map[s]);
-        });
-        return map;
+    const currentGroupItems = useMemo(() => {
+        const combined = allGroupedOrders.flatMap(o => o.items);
+        return consolidateItems(combined);
     }, [allGroupedOrders]);
 
     const restaurantRef = useMemoFirebase(() => order?.restaurantId ? doc(firestore, 'restaurants', order.restaurantId) : null, [firestore, order?.restaurantId]);
@@ -204,11 +190,9 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
 
     useEffect(() => {
         if (isOpen) {
-            const combined = allGroupedOrders.flatMap(o => o.items);
-            const consolidated = consolidateItems(combined);
-            setItemsBalance(consolidated.map((item, idx) => ({ ...item, originalIndex: idx, remainingQty: item.quantity })));
+            setItemsBalance(currentGroupItems.map((item, idx) => ({ ...item, originalIndex: idx, remainingQty: item.quantity })));
         }
-    }, [allGroupedOrders, isOpen]);
+    }, [currentGroupItems, isOpen]);
 
     useEffect(() => {
         if (splitMode === 'items') {
@@ -252,8 +236,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     if (!order) return null;
 
     const displayOrderNumber = order.orderNumber?.toString().padStart(3, '0') || '000';
-    const isGrouped = allGroupedOrders.length > 1;
-    const isFinalizing = order.status === 'pronto' || (isGrouped && allGroupedOrders.some(o => o.status === 'pronto'));
+    const isFinalizing = order.status === 'pronto';
     const isFullyPaid = accumulatedPaid >= (combinedTotal || 0) - 0.05;
 
     const getCategoryName = (menuItemId: string) => {
@@ -334,7 +317,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
             };
 
             await addDoc(ordersCol, newOrderData);
-            toast({ title: "Novo pedido adicionado à mesa!" });
+            toast({ title: "Novo pedido adicionado!" });
             setSelectedItemToAdd(null);
             setIsMenuOpen(false);
         } catch (e) {
@@ -344,7 +327,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     };
 
     const handlePrintKitchen = async () => {
-        const idsToUpdate = (order as any).allOrderIds || [order.id];
+        const idsToUpdate = allGroupedOrders.map(o => o.id);
         const promises = idsToUpdate.map(id => {
             const orderRef = doc(firestore, `restaurants/${order.restaurantId}/orders`, id);
             return updateDoc(orderRef, { isPrinted: true }).catch(() => {});
@@ -373,7 +356,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
             closedAt: serverTimestamp()
         } : {};
 
-        const targetIds = (order as any).allOrderIds || [order.id];
+        const targetIds = allGroupedOrders.map(o => o.id);
         onStatusChange(targetIds, nextStatusMap[order.status], finalData);
     };
 
@@ -389,11 +372,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                             <DialogTitle className="font-black uppercase tracking-tight text-xl">
                                 {order.tableName || `Pedido #${displayOrderNumber}`}
                             </DialogTitle>
-                            {isGrouped && (
-                                <span className="text-primary text-[9px] font-black uppercase tracking-widest">
-                                    VÁRIOS PEDIDOS AGRUPADOS
-                                </span>
-                            )}
                         </div>
                         <div className="flex gap-2">
                             {order.status === 'aberto' && (
@@ -413,7 +391,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                         <div className="p-6 space-y-8">
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
-                                    <span className="text-[9px] font-black uppercase text-muted-foreground">Status deste Card</span>
+                                    <span className="text-[9px] font-black uppercase text-muted-foreground">Status do Card</span>
                                     <Badge className={cn("w-full justify-center h-7 font-black text-[10px] uppercase", 
                                         order.status === 'aberto' ? 'bg-blue-500' : 
                                         order.status === 'preparando' ? 'bg-yellow-500' : 
@@ -423,7 +401,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                     </Badge>
                                 </div>
                                 <div className="space-y-1">
-                                    <span className="text-[9px] font-black uppercase text-muted-foreground">Total da Mesa</span>
+                                    <span className="text-[9px] font-black uppercase text-muted-foreground">Total do Card</span>
                                     <div className="h-7 flex items-center justify-center rounded-md bg-primary/10 text-primary font-black text-xs">
                                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(combinedTotal)}
                                     </div>
@@ -435,7 +413,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                     <div className="flex items-center justify-between">
                                         <h4 className="text-[10px] font-black uppercase tracking-[0.15em] text-primary flex items-center gap-2">
                                             <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                                            ITENS DESTE CARD ({order.status.toUpperCase()})
+                                            ITENS DO CARD ({order.status.toUpperCase()})
                                         </h4>
                                         {order.status === 'aberto' && (
                                             <Button variant="outline" size="sm" className="h-7 text-[8px] font-black uppercase" onClick={() => setIsMenuOpen(true)}>
@@ -444,7 +422,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                         )}
                                     </div>
                                     <div className="space-y-2 bg-muted/20 p-4 rounded-xl border-2">
-                                        {itemsByStatus[order.status]?.map((item, idx) => (
+                                        {currentGroupItems.map((item, idx) => (
                                             <div key={idx} className="flex justify-between items-start gap-3 border-b border-muted last:border-0 pb-2 mb-2 last:pb-0 last:mb-0">
                                                 <span className="text-xs font-black text-muted-foreground mt-0.5">{item.quantity}x</span>
                                                 <div className="flex-1 min-w-0">
@@ -464,28 +442,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                         ))}
                                     </div>
                                 </div>
-
-                                {Object.entries(itemsByStatus).map(([status, items]) => status !== order.status && items.length > 0 && (
-                                    <div key={status} className="space-y-3 opacity-60">
-                                        <h4 className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                                            <span className="h-1 w-1 rounded-full bg-muted-foreground" />
-                                            OUTROS ITENS ({status.toUpperCase()})
-                                        </h4>
-                                        <div className="space-y-2 bg-muted/10 p-3 rounded-xl border-2 border-dashed">
-                                            {items.map((item, idx) => (
-                                                <div key={idx} className="flex justify-between items-start gap-3 opacity-80">
-                                                    <span className="text-[10px] font-bold text-muted-foreground">{item.quantity}x</span>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-[10px] font-medium uppercase truncate leading-tight">{item.name}</p>
-                                                    </div>
-                                                    <span className="text-[10px] font-bold">
-                                                        R$ {((item.priceAtOrder + (item.ingredientExtrasPrice || 0)) * item.quantity).toFixed(2)}
-                                                    </span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
                             </div>
 
                             {isFinalizing && (
@@ -612,7 +568,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
 
                     <div className="p-6 bg-muted/20 border-t mt-auto shrink-0 bg-background z-10">
                         <div className="flex justify-between items-center text-lg font-black uppercase mb-4">
-                            <span>Total Comanda</span>
+                            <span>Total Card</span>
                             <span className="text-primary">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(combinedTotal)}</span>
                         </div>
 
@@ -641,12 +597,12 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                 </DialogContent>
             </Dialog>
 
-            <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
+            <AlertDialog open={showCancelConfirm} onOpenChange={showCancelConfirm}>
                 <AlertDialogContent>
                     <AlertDialogHeader><AlertDialogTitle>Cancelar Pedido?</AlertDialogTitle><AlertDialogDescription>Tem certeza? Esta ação removerá os itens da comanda.</AlertDialogDescription></AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Não</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => { onStatusChange(order.id, 'cancelado'); setShowCancelConfirm(false); }} className="bg-destructive">Sim, cancelar</AlertDialogAction>
+                        <AlertDialogAction onClick={() => { onStatusChange(allGroupedOrders.map(o => o.id), 'cancelado'); setShowCancelConfirm(false); }} className="bg-destructive">Sim, cancelar</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
@@ -682,8 +638,8 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
             </Dialog>
 
             <MenuItemSelectionDialog item={selectedItemToAdd} isOpen={!!selectedItemToAdd} onClose={() => setSelectedItemToAdd(null)} onConfirm={handleConfirmAddExtra} />
-            <OrderReceiptModal isOpen={showReceiptPreview} onClose={() => setShowReceiptPreview(false)} restaurant={restaurant} pixPayload={pixPayload} order={{ ...order, items: itemsByStatus['aberto'].concat(itemsByStatus['preparando'], itemsByStatus['pronto']), total: combinedTotal, splitPayments: recordedSplitParts.length > 0 ? recordedSplitParts : (order.splitPayments || []), paymentMethod: recordedSplitParts.length > 0 ? 'multiplos' : (paymentMethod || order.paymentMethod || 'A Pagar') }} />
-            {showKitchenPrint && <KitchenOrderModal restaurant={restaurant} pixPayload={pixPayload} order={{ ...order, items: itemsByStatus['aberto'] }} />}
+            <OrderReceiptModal isOpen={showReceiptPreview} onClose={() => setShowReceiptPreview(false)} restaurant={restaurant} pixPayload={pixPayload} order={{ ...order, items: currentGroupItems, total: combinedTotal, splitPayments: recordedSplitParts.length > 0 ? recordedSplitParts : (order.splitPayments || []), paymentMethod: recordedSplitParts.length > 0 ? 'multiplos' : (paymentMethod || order.paymentMethod || 'A Pagar') }} />
+            {showKitchenPrint && <KitchenOrderModal restaurant={restaurant} pixPayload={pixPayload} order={{ ...order, items: currentGroupItems }} />}
         </>
     );
 }
