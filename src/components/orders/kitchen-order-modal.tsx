@@ -6,7 +6,6 @@ import { useUser } from "@/firebase";
 /**
  * Componente que renderiza a comanda de produção customizada.
  * Otimizado para visualização clara na cozinha/balcão.
- * Oculta o QR Code Pix para ordens de MESA.
  */
 export function KitchenOrderModal({ 
     order, 
@@ -25,7 +24,7 @@ export function KitchenOrderModal({
     const waiterName = user?.displayName || user?.email?.split('@')[0] || 'SISTEMA';
 
     const isDelivery = order.destination === 'entrega';
-    const isTableOrder = order.origin === 'mesa';
+    const isTableOrder = order.origin === 'mesa' || !!order.tableId;
 
     return (
         <div id="print-receipt-area" className="hidden print:block bg-white text-black font-mono p-2">
@@ -124,11 +123,10 @@ export function KitchenOrderModal({
                 </div>
             </div>
 
-            {/* QR Code Pix (Apenas imagem) - REMOVIDO PARA ORDENS DE MESA */}
+            {/* QR Code Pix - EXIBIR APENAS EM ENTREGAS E RETIRADAS */}
             {pixPayload && !isTableOrder && (
-                <div className="mt-6 flex flex-col items-center border-t-2 border-black border-dashed pt-4 pb-4">
-                    <p className="text-[8px] font-black uppercase mb-3">PAGUE COM PIX:</p>
-                    <div className="bg-white p-2 border-2 border-black shadow-sm">
+                <div className="mt-6 flex flex-col items-center border-t-2 border-black border-dashed pt-4">
+                    <div className="bg-white p-2 border-2 border-black">
                          <img 
                             src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pixPayload)}`}
                             alt="Pix QR Code"
@@ -137,11 +135,6 @@ export function KitchenOrderModal({
                     </div>
                 </div>
             )}
-
-            <div className="mt-4 text-center text-[8px] uppercase font-black space-y-1 border-t border-black pt-4">
-                <p>Comanda de Produção - {restaurant?.name}</p>
-                <p>Sistema Comanda Digital</p>
-            </div>
         </div>
     );
 }
