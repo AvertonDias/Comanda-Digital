@@ -6,7 +6,7 @@ import { useUser } from "@/firebase";
 /**
  * Componente que renderiza a comanda de produção customizada.
  * Otimizado para visualização clara na cozinha/balcão.
- * Removido: Categorias nos itens, chaves Pix e termo 'pagamento'.
+ * Oculta o QR Code Pix para ordens de MESA.
  */
 export function KitchenOrderModal({ 
     order, 
@@ -25,6 +25,7 @@ export function KitchenOrderModal({
     const waiterName = user?.displayName || user?.email?.split('@')[0] || 'SISTEMA';
 
     const isDelivery = order.destination === 'entrega';
+    const isTableOrder = order.origin === 'mesa';
 
     return (
         <div id="print-receipt-area" className="hidden print:block bg-white text-black font-mono p-2">
@@ -72,7 +73,7 @@ export function KitchenOrderModal({
                 <span className="text-right">VALOR</span>
             </div>
 
-            {/* Lista de Itens (Sem categorias) */}
+            {/* Lista de Itens */}
             <div className="space-y-3">
                 {order.items?.map((item: any, idx: number) => {
                     const itemTotal = (item.priceAtOrder + (item.ingredientExtrasPrice || 0)) * item.quantity;
@@ -123,8 +124,8 @@ export function KitchenOrderModal({
                 </div>
             </div>
 
-            {/* QR Code Pix (Apenas imagem) */}
-            {pixPayload && (
+            {/* QR Code Pix (Apenas imagem) - REMOVIDO PARA ORDENS DE MESA */}
+            {pixPayload && !isTableOrder && (
                 <div className="mt-6 flex flex-col items-center border-t-2 border-black border-dashed pt-4 pb-4">
                     <p className="text-[8px] font-black uppercase mb-3">PAGUE COM PIX:</p>
                     <div className="bg-white p-2 border-2 border-black shadow-sm">
