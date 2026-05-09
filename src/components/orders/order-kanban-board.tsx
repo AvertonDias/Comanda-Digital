@@ -1,6 +1,5 @@
-
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { Order, OrderStatus, Restaurant } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { formatDistanceToNow } from 'date-fns';
@@ -25,9 +24,6 @@ const STATUS_CONFIG: Record<OrderStatus, { title: string; color: string }> = {
 
 const statusesToShow: OrderStatus[] = ['aberto', 'preparando', 'pronto'];
 
-/**
- * Agrupa itens idênticos para exibição limpa.
- */
 function consolidateItems(items: any[]) {
     const groups: Record<string, any> = {};
     items.forEach(item => {
@@ -47,7 +43,6 @@ const OrderCard = ({ order, onDetailsClick }: { order: Order, onDetailsClick: (o
         ? order.orderNumber.toString().padStart(3, '0') 
         : order.id.slice(-4).toUpperCase();
 
-    // Consolida itens repetidos para a prévia do cartão
     const previewItems = useMemo(() => consolidateItems(order.items), [order.items]);
 
     return (
@@ -89,6 +84,7 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
   const firestore = useFirestore();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [lastFinalizedOrder, setLastFinalizedOrder] = useState<Order | null>(null);
+  const [autoOpened, setAutoOpened] = useState(false);
 
   const restaurantRef = useMemoFirebase(() => 
     restaurantId ? doc(firestore, 'restaurants', restaurantId) : null,
@@ -150,6 +146,21 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
     return result;
   }, [orders]);
 
+  // Efeito para abrir a comanda automaticamente se um tableId for fornecido via URL
+  useEffect(() => {
+    if (tableId && !autoOpened && orders && orders.length > 0) {
+        // Busca se existe algum pedido ativo para esta mesa em qualquer uma das colunas visíveis
+        for (const status of statusesToShow) {
+            const orderForTable = groupedOrdersByStatus[status].find(o => o.tableId === tableId);
+            if (orderForTable) {
+                setSelectedOrder(orderForTable);
+                setAutoOpened(true);
+                break;
+            }
+        }
+    }
+  }, [tableId, orders, groupedOrdersByStatus, autoOpened]);
+
   const handleStatusChange = (orderIds: string | string[], newStatus: OrderStatus, extraData: any = {}) => {
     const ids = Array.isArray(orderIds) ? orderIds : [orderIds];
     
@@ -172,7 +183,7 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
 
     const batchPromises = ids.map(id => {
         const orderRef = doc(firestore, `restaurants/${restaurantId}/orders/${id}`);
-        const updatePayload = { 
+        const updatePayload: any = { 
             status: newStatus, 
             ...extraData 
         };

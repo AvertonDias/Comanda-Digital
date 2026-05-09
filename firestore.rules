@@ -12,62 +12,12 @@ service cloud.firestore {
       allow write: if isSignedIn() && request.auth.uid == userId;
     }
 
-    // RESTAURANTS
+    // RESTAURANTS - Acesso total para desenvolvimento/protótipo
     match /restaurants/{restaurantId} {
-      // Qualquer usuário logado pode criar um restaurante
-      allow create: if isSignedIn();
-      // Leitura do restaurante
-      allow get, list: if true; 
-      allow update, delete: if isSignedIn();
-
-      // Equipe do restaurante
-      match /team/{memberId} {
-        allow read, write: if true;
-      }
-
-      // Pedidos
-      match /orders/{orderId} {
-        allow read, write: if true;
-        
-        match /items/{itemId} {
-          allow read, write: if true;
-        }
-      }
-
-      // Cardápio e Categorias
-      match /menuItems/{itemId} {
-        allow read, write: if true;
-      }
-
-      match /menuItemCategories/{catId} {
-        allow read, write: if true;
-      }
-
-      // Mesas e Convites
-      match /tables/{tableId} {
-        allow read, write: if true;
-      }
-
-      match /invitations/{inviteId} {
-        allow read, write: if true; 
-      }
-
-      // Clientes, Impressoras e Setores
-      match /customers/{customerId} {
-        allow read, write: if true;
-      }
-
-      match /printSectors/{sectorId} {
-        allow read, write: if true;
-      }
-
-      match /printers/{printerId} {
-        allow read, write: if true;
-      }
-
-      // Fallback para qualquer outra subcoleção
+      allow read, write: if true;
+      
       match /{allSubcollections=**} {
-        allow read, write: if isSignedIn() || true;
+        allow read, write: if true;
       }
     }
   }

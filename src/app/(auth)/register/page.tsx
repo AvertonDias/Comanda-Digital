@@ -9,8 +9,8 @@ import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, GoogleA
 import { collection, doc, serverTimestamp, writeBatch, getDoc } from 'firebase/firestore';
 import { UtensilsCrossed, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useState, FormEvent, useEffect, Suspense, use } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, FormEvent, useEffect, Suspense } from 'react';
 import { useRestaurant } from "@/hooks/use-restaurant";
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -22,12 +22,16 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
   );
 
-function RegisterContent({ inviteId, invitedRestId }: { inviteId?: string | null, invitedRestId?: string | null }) {
+function RegisterContent() {
   const [restaurantName, setRestaurantName] = useState('');
   const [userName, setUserName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   
+  const searchParams = useSearchParams();
+  const inviteId = searchParams.get('invite');
+  const invitedRestId = searchParams.get('rest');
+
   const auth = useAuth();
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
@@ -70,7 +74,6 @@ function RegisterContent({ inviteId, invitedRestId }: { inviteId?: string | null
     try {
       let targetUser = user;
       
-      // 1. Criar usuário se não estiver logado
       if (!targetUser) {
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
           targetUser = userCredential.user;
@@ -81,7 +84,6 @@ function RegisterContent({ inviteId, invitedRestId }: { inviteId?: string | null
       let targetRestaurantId = invitedRestId;
       let targetRole = 'waiter';
 
-      // 2. Se for convite, validar e preparar atualização
       if (inviteId && invitedRestId) {
           const inviteRef = doc(firestore, `restaurants/${invitedRestId}/invitations/${inviteId}`);
           const inviteSnap = await getDoc(inviteRef);
@@ -95,7 +97,6 @@ function RegisterContent({ inviteId, invitedRestId }: { inviteId?: string | null
           targetRole = inviteSnap.data().role || 'waiter';
           batch.update(inviteRef, { status: 'accepted' });
       } else {
-          // 3. Criar novo restaurante se não for convite
           const restaurantRef = doc(collection(firestore, "restaurants"));
           targetRestaurantId = restaurantRef.id;
           targetRole = 'admin';
@@ -108,7 +109,6 @@ function RegisterContent({ inviteId, invitedRestId }: { inviteId?: string | null
           });
       }
 
-      // 4. Salvar perfil do usuário
       const userProfileRef = doc(firestore, `users/${targetUser.uid}`);
       batch.set(userProfileRef, {
         name: targetUser.displayName || userName || targetUser.email,
@@ -117,7 +117,6 @@ function RegisterContent({ inviteId, invitedRestId }: { inviteId?: string | null
         activeRestaurantId: targetRestaurantId
       }, { merge: true });
       
-      // 5. Salvar na subcoleção de equipe
       const memberRef = doc(firestore, `restaurants/${targetRestaurantId}/team/${targetUser.uid}`);
       batch.set(memberRef, {
           userId: targetUser.uid,
@@ -229,7 +228,7 @@ function RegisterContent({ inviteId, invitedRestId }: { inviteId?: string | null
               </Button>
             </>
           )}
-          <p className="text-center text-xs text-muted-foreground mt-4">
+          <p className="text-center text-sm mt-4">
             Já tem uma conta? <Link href="/login" className="underline">Faça login</Link>
           </p>
         </form>
@@ -238,14 +237,10 @@ function RegisterContent({ inviteId, invitedRestId }: { inviteId?: string | null
   );
 }
 
-export default function RegisterPage(props: { searchParams: Promise<{ invite?: string, rest?: string }> }) {
-    const searchParams = use(props.searchParams);
-    const inviteId = searchParams.invite;
-    const invitedRestId = searchParams.rest;
-
+export default function RegisterPage() {
     return (
         <Suspense fallback={<div className="flex items-center justify-center p-12"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>}>
-            <RegisterContent inviteId={inviteId} invitedRestId={invitedRestId} />
+            <RegisterContent />
         </Suspense>
     );
 }

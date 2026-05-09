@@ -14,15 +14,17 @@ import {
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { PlusCircle, X, ChevronLeft } from "lucide-react";
 import { useRestaurant } from "@/hooks/use-restaurant";
-import { useState, Suspense, use } from "react";
+import { useState, Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 
-function OrdersContent({ tableId }: { tableId?: string }) {
+function OrdersContent() {
   const { restaurantId, isLoading } = useRestaurant();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const tableId = searchParams.get('tableId') || undefined;
   
   const clearFilter = () => {
     router.push('/orders');
@@ -75,7 +77,7 @@ function OrdersContent({ tableId }: { tableId?: string }) {
               <div className="flex-1 overflow-y-auto sm:p-6">
                 <CreateOrderForm 
                   restaurantId={restaurantId!} 
-                  initialTableId={tableId || undefined}
+                  initialTableId={tableId}
                   onSuccess={() => setIsDialogOpen(false)} 
                 />
               </div>
@@ -87,7 +89,7 @@ function OrdersContent({ tableId }: { tableId?: string }) {
         {restaurantId ? (
             <OrderKanbanBoard 
                 restaurantId={restaurantId} 
-                tableId={tableId || undefined} 
+                tableId={tableId} 
             />
         ) : (
             <p>Erro ao carregar restaurante.</p>
@@ -97,10 +99,7 @@ function OrdersContent({ tableId }: { tableId?: string }) {
   );
 }
 
-export default function OrdersPage(props: { searchParams: Promise<{ tableId?: string }> }) {
-  const params = use(props.searchParams);
-  const tableId = params.tableId;
-
+export default function OrdersPage() {
   return (
     <Suspense fallback={
         <div className="flex flex-col h-screen bg-background">
@@ -113,7 +112,7 @@ export default function OrdersPage(props: { searchParams: Promise<{ tableId?: st
             </main>
         </div>
     }>
-        <OrdersContent tableId={tableId} />
+        <OrdersContent />
     </Suspense>
   );
 }
