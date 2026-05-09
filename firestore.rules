@@ -8,16 +8,15 @@ service cloud.firestore {
 
     // USERS: Perfil do usuário
     match /users/{userId} {
-      allow get, list: if isSignedIn();
-      allow write: if isSignedIn() && request.auth.uid == userId;
+      allow read, write: if isSignedIn();
     }
 
-    // RESTAURANTS - Acesso total para desenvolvimento/protótipo
+    // RESTAURANTS: Acesso total para usuários autenticados no protótipo
     match /restaurants/{restaurantId} {
-      allow read, write: if true;
+      allow read, write: if isSignedIn();
       
       match /{allSubcollections=**} {
-        allow read, write: if true;
+        allow read, write: if isSignedIn();
       }
     }
   }
