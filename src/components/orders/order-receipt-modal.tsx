@@ -37,11 +37,13 @@ function consolidateItems(items: any[]) {
 export function OrderReceiptModal({ 
     order, 
     restaurant,
+    pixPayload,
     isOpen, 
     onClose 
 }: { 
     order: Order | null; 
     restaurant?: Restaurant | null;
+    pixPayload?: string | null;
     isOpen: boolean; 
     onClose: () => void 
 }) {
@@ -162,7 +164,7 @@ Obrigado pela preferência!
                             {isFinished ? 'Pedido Finalizado!' : 'Recibo do Pedido'}
                         </DialogTitle>
                         <p className="text-sm text-muted-foreground text-center font-medium">O que deseja fazer com o cupom do pedido #{orderNum}?</p>
-                        {order.splitPayments && (
+                        {order.splitPayments && order.splitPayments.length > 0 && (
                             <Badge variant="secondary" className="mt-2 font-black uppercase text-[10px] gap-2">
                                 <Info className="h-3 w-3" /> Conta Dividida em {order.splitPayments.length} partes
                             </Badge>
@@ -272,6 +274,21 @@ Obrigado pela preferência!
                     <p className="text-lg font-bold">VALOR TOTAL: R$ {order.total.toFixed(2)}</p>
                     <p className="text-[12px] uppercase font-bold">PAGAMENTO: {order.paymentMethod?.toUpperCase() || (isFinished ? 'PAGO' : 'PENDENTE')}</p>
                 </div>
+
+                {/* SEÇÃO DO QR CODE PIX PARA PEDIDOS NÃO PAGOS */}
+                {!isFinished && pixPayload && (
+                    <div className="mt-6 flex flex-col items-center border-t-2 border-black border-dashed pt-4">
+                        <p className="text-[10px] font-bold uppercase mb-2">Pague agora com Pix:</p>
+                        <div className="bg-white p-2">
+                             <img 
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pixPayload)}`}
+                                alt="Pix QR Code"
+                                className="w-40 h-40"
+                            />
+                        </div>
+                        <p className="text-[8px] mt-2 max-w-[200px] text-center break-all font-bold">CHAVE: {restaurant?.pixKey}</p>
+                    </div>
+                )}
 
                 <div className="mt-8 text-center text-[11px] uppercase font-bold space-y-1 text-black">
                     <p>Obrigado pela preferência!</p>

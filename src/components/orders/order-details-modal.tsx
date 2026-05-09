@@ -223,7 +223,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const txidLabel = isSplitting ? `PEDIDO${order?.orderNumber}P${paidPartsCount + 1}` : `PEDIDO${order?.orderNumber}`;
     const pixPayload = useMemo(() => {
         const amountToPay = isSplitting ? currentPartAmount : (combinedTotal || 0);
-        if (paymentMethod === 'pix' && restaurant?.pixKey && amountToPay > 0) {
+        if (restaurant?.pixKey && amountToPay > 0) {
             return generatePixPayload(
                 restaurant.pixKey, 
                 amountToPay, 
@@ -233,7 +233,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
             );
         }
         return null;
-    }, [paymentMethod, restaurant, currentPartAmount, combinedTotal, isSplitting, txidLabel]);
+    }, [restaurant, currentPartAmount, combinedTotal, isSplitting, txidLabel]);
 
     const qrCodeUrl = pixPayload ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(pixPayload)}` : null;
 
@@ -325,7 +325,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     };
 
     const handlePrintComanda = () => {
-        if (order.status === 'finalizado') {
+        if (order.status === 'pronto' || order.status === 'finalizado') {
             setShowReceiptPreview(true);
         } else {
             setShowKitchenPrint(true);
@@ -742,12 +742,13 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                 isOpen={showReceiptPreview}
                 onClose={() => setShowReceiptPreview(false)}
                 restaurant={restaurant}
+                pixPayload={pixPayload}
                 order={{
                     ...order,
                     items: combinedItems,
                     total: combinedTotal,
-                    splitPayments: recordedSplitParts.length > 0 ? recordedSplitParts : undefined,
-                    paymentMethod: recordedSplitParts.length > 0 ? 'multiplos' : (paymentMethod || 'A Pagar')
+                    splitPayments: recordedSplitParts.length > 0 ? recordedSplitParts : (order.splitPayments || []),
+                    paymentMethod: recordedSplitParts.length > 0 ? 'multiplos' : (paymentMethod || order.paymentMethod || 'A Pagar')
                 }}
             />
 
