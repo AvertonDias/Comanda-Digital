@@ -46,7 +46,7 @@ function formatPhone(value: string) {
     return `(${v.slice(0, 2)}) ${v.slice(2, 3)} ${v.slice(3, 7)} ${v.slice(7, 11)}`;
 }
 
-function ProfileTab({ restaurantId }: { restaurantId: string }) {
+function ProfileTab({ restaurantId, onDirtyChange }: { restaurantId: string, onDirtyChange: (dirty: boolean) => void }) {
     const firestore = useFirestore();
     const { toast } = useToast();
     const restaurantRef = useMemoFirebase(() => doc(firestore, "restaurants", restaurantId), [firestore, restaurantId]);
@@ -64,14 +64,21 @@ function ProfileTab({ restaurantId }: { restaurantId: string }) {
     });
 
     useEffect(() => {
-        if (data) reset({ 
-            name: data.name || '', 
-            phone: data.phone || '', 
-            city: data.city || '',
-            pixKey: data.pixKey || '',
-            openingHours: data.openingHours || '',
-            deliveryFee: data.deliveryFee || 0
-        });
+        onDirtyChange(isDirty);
+    }, [isDirty, onDirtyChange]);
+
+    useEffect(() => {
+        if (data) {
+            const initialValues = { 
+                name: data.name || '', 
+                phone: data.phone || '', 
+                city: data.city || '',
+                pixKey: data.pixKey || '',
+                openingHours: data.openingHours || '',
+                deliveryFee: data.deliveryFee || 0
+            };
+            reset(initialValues);
+        }
     }, [data, reset]);
 
     useEffect(() => {
@@ -591,6 +598,18 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
 
 export default function SettingsPage() {
     const { restaurantId, isLoading, role } = useRestaurant();
+    const [activeTab, setActiveTab] = useState("profile");
+    const [isProfileDirty, setIsProfileDirty] = useState(false);
+    const [pendingTab, setPendingTab] = useState<string | null>(null);
+
+    const handleTabChange = (value: string) => {
+        if (activeTab === "profile" && isProfileDirty && value !== "profile") {
+            setPendingTab(value);
+        } else {
+            setActiveTab(value);
+        }
+    };
+
     if (isLoading) return <Skeleton className="h-screen w-full" />;
     
     if (role === 'waiter') {
@@ -605,12 +624,50 @@ export default function SettingsPage() {
         <div className="flex flex-col h-screen bg-background">
             <AppHeader><SidebarTrigger /><h1 className="text-xl font-semibold">Configurações</h1></AppHeader>
             <main className="flex-1 p-6 overflow-y-auto">
-                <Tabs defaultValue="profile">
-                    <TabsList><TabsTrigger value="profile">Perfil</TabsTrigger><TabsTrigger value="users">Equipe</TabsTrigger><TabsTrigger value="printing">Impressão</TabsTrigger></TabsList>
-                    <TabsContent value="profile" className="mt-6">{restaurantId && <ProfileTab restaurantId={restaurantId} />}</TabsContent>
-                    <TabsContent value="users" className="mt-6">{restaurantId && <UsersTab restaurantId={restaurantId} />}</TabsContent>
-                    <TabsContent value="printing" className="mt-6">{restaurantId && <PrintingTab restaurantId={restaurantId} />}</TabsContent>
+                <Tabs value={activeTab} onValueChange={handleTabChange}>
+                    <TabsList>
+                        <TabsTrigger value="profile">Perfil</TabsTrigger>
+                        <TabsTrigger value="users">Equipe</TabsTrigger>
+                        <TabsTrigger value="printing">Impressão</TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="profile" className="mt-6">
+                        {restaurantId && <ProfileTab restaurantId={restaurantId} onDirtyChange={setIsProfileDirty} />}
+                    </TabsContent>
+                    
+                    <TabsContent value="users" className="mt-6">
+                        {restaurantId && <UsersTab restaurantId={restaurantId} />}
+                    </TabsContent>
+                    
+                    <TabsContent value="printing" className="mt-6">
+                        {restaurantId && <PrintingTab restaurantId={restaurantId} />}
+                    </TabsContent>
                 </Tabs>
+
+                <AlertDialog open={!!pendingTab} onOpenChange={() => setPendingTab(null)}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Alterações não salvas</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Você tem alterações pendentes no perfil do estabelecimento. 
+                                Se mudar de aba agora, as edições serão perdidas.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Voltar e Salvar</AlertDialogCancel>
+                            <AlertDialogAction 
+                                onClick={() => {
+                                    setIsProfileDirty(false);
+                                    if (pendingTab) setActiveTab(pendingTab);
+                                    setPendingTab(null);
+                                }}
+                                className="bg-destructive hover:bg-destructive/90"
+                            >
+                                Descartar e Mudar
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </main>
         </div>
     );
