@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -212,7 +213,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         }
     }, [isSplitting, splitMode, remainingBalance, combinedTotal, peopleCount, paidPartsCount]);
 
-    const amountForPix = isSplitting ? currentPartAmount : (remainingBalance || 0);
+    const amountForPix = isSplitting ? currentPartAmount : (remainingBalance || combinedTotal || 0);
     const txidLabel = `PEDIDO${order?.orderNumber}${isSplitting ? 'P' + (paidPartsCount + 1) : ''}`;
 
     const pixPayload = useMemo(() => {
@@ -333,11 +334,13 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
             return updateDoc(orderRef, { isPrinted: true }).catch(() => {});
         });
         await Promise.all(promises);
+        
+        // Ativa o modal de impressão e aguarda um pouco mais para o QR Code carregar
         setShowKitchenPrint(true);
         setTimeout(() => {
             window.print();
             setShowKitchenPrint(false);
-        }, 150);
+        }, 500); // 500ms garantem o carregamento da imagem externa
     };
 
     const handleActionClick = () => {
@@ -597,7 +600,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                 </DialogContent>
             </Dialog>
 
-            <AlertDialog open={showCancelConfirm} onOpenChange={showCancelConfirm}>
+            <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
                 <AlertDialogContent>
                     <AlertDialogHeader><AlertDialogTitle>Cancelar Pedido?</AlertDialogTitle><AlertDialogDescription>Tem certeza? Esta ação removerá os itens da comanda.</AlertDialogDescription></AlertDialogHeader>
                     <AlertDialogFooter>
