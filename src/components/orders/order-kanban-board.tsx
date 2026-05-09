@@ -1,5 +1,6 @@
+
 'use client';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import type { Order, OrderStatus, Restaurant } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { formatDistanceToNow } from 'date-fns';
@@ -10,9 +11,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '../ui/scroll-area';
 import { OrderDetailsModal } from './order-details-modal';
 import { OrderReceiptModal } from './order-receipt-modal';
+import { KitchenOrderModal } from './kitchen-order-modal';
 import { useFirestore, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError, useDoc } from '@/firebase';
 import { collection, query, doc, updateDoc, orderBy, where, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '../ui/skeleton';
+import { Printer, Bell, BellRing } from 'lucide-react';
 
 const STATUS_CONFIG: Record<OrderStatus, { title: string; color: string }> = {
     'aberto': { title: 'Abertos', color: 'bg-blue-500' },
@@ -38,7 +41,15 @@ function consolidateItems(items: any[]) {
     return Object.values(groups);
 }
 
-const OrderCard = ({ order, onDetailsClick }: { order: Order, onDetailsClick: (order: Order) => void }) => {
+const OrderCard = ({ 
+    order, 
+    onDetailsClick, 
+    onQuickPrint 
+}: { 
+    order: Order, 
+    onDetailsClick: (order: Order) => void,
+    onQuickPrint: (order: Order) => void
+}) => {
     const displayOrderNumber = order.orderNumber 
         ? order.orderNumber.toString().padStart(3, '0') 
         : order.id.slice(-4).toUpperCase();
@@ -46,7 +57,7 @@ const OrderCard = ({ order, onDetailsClick }: { order: Order, onDetailsClick: (o
     const previewItems = useMemo(() => consolidateItems(order.items), [order.items]);
 
     return (
-        <Card className="active:scale-[0.98] transition-transform shadow-sm hover:shadow-md">
+        <Card className={`active:scale-[0.98] transition-all shadow-sm hover:shadow-md border-2 ${order.status === 'aberto' ? 'border-blue-100 animate-in fade-in duration-500' : 'border-transparent'}`}>
             <CardHeader className='p-4 pb-2'>
                 <CardTitle className="text-sm flex justify-between items-start gap-2">
                     <span className="font-black uppercase leading-tight flex-1">
@@ -56,6 +67,7 @@ const OrderCard = ({ order, onDetailsClick }: { order: Order, onDetailsClick: (o
                 </CardTitle>
                 <CardDescription className="text-[10px] flex items-center gap-1">
                     {order.createdAt?.seconds ? formatDistanceToNow(new Date(order.createdAt.seconds * 1000), { addSuffix: true, locale: ptBR }) : 'Agora'}
+                    {order.status === 'aberto' && <span className="ml-2 h-2 w-2 rounded-full bg-blue-500 animate-pulse" />}
                 </CardDescription>
             </CardHeader>
             <CardContent className="p-4 py-2">
@@ -70,11 +82,22 @@ const OrderCard = ({ order, onDetailsClick }: { order: Order, onDetailsClick: (o
                     )}
                 </ul>
             </CardContent>
-            <CardFooter className="p-4 pt-0 flex justify-between items-center">
+            <CardFooter className="p-4 pt-0 flex justify-between items-center gap-2">
                  <span className="text-base font-black">
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}
                  </span>
-                 <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold uppercase" onClick={() => onDetailsClick(order)}>Ver</Button>
+                 <div className="flex gap-1">
+                    <Button 
+                        variant="outline" 
+                        size="icon" 
+                        className="h-8 w-8 text-orange-600 border-orange-200 hover:bg-orange-50" 
+                        onClick={(e) => { e.stopPropagation(); onQuickPrint(order); }}
+                        title="Imprimir para Cozinha"
+                    >
+                        <Printer className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold uppercase" onClick={() => onDetailsClick(order)}>Ver</Button>
+                 </div>
             </CardFooter>
         </Card>
     )
@@ -84,7 +107,12 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
   const firestore = useFirestore();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [lastFinalizedOrder, setLastFinalizedOrder] = useState<Order | null>(null);
+  const [orderToQuickPrint, setOrderToQuickPrint] = useState<Order | null>(null);
   const [autoOpened, setAutoOpened] = useState(false);
+  const [soundEnabled, setSoundAlertEnabled] = useState(true);
+  
+  const lastOrderCount = useRef(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const restaurantRef = useMemoFirebase(() => 
     restaurantId ? doc(firestore, 'restaurants', restaurantId) : null,
@@ -103,6 +131,19 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
   }, [restaurantId, firestore, tableId]);
 
   const { data: orders, isLoading } = useCollection<Order>(ordersQuery);
+
+  // Sistema de alerta sonoro para novos pedidos (útil para o PC do balcão)
+  useEffect(() => {
+    if (orders) {
+        const currentCount = orders.filter(o => o.status === 'aberto').length;
+        if (currentCount > lastOrderCount.current && !isLoading) {
+            if (soundEnabled && audioRef.current) {
+                audioRef.current.play().catch(e => console.log('Áudio bloqueado pelo navegador'));
+            }
+        }
+        lastOrderCount.current = currentCount;
+    }
+  }, [orders, soundEnabled, isLoading]);
 
   const groupedOrdersByStatus = useMemo(() => {
     const result: Record<OrderStatus, Order[]> = {
@@ -146,10 +187,8 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
     return result;
   }, [orders]);
 
-  // Efeito para abrir a comanda automaticamente se um tableId for fornecido via URL
   useEffect(() => {
     if (tableId && !autoOpened && orders && orders.length > 0) {
-        // Busca se existe algum pedido ativo para esta mesa em qualquer uma das colunas visíveis
         for (const status of statusesToShow) {
             const orderForTable = groupedOrdersByStatus[status].find(o => o.tableId === tableId);
             if (orderForTable) {
@@ -215,6 +254,25 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
 
   return (
     <div className="flex flex-col h-full -mx-4 md:mx-0">
+      {/* Alerta de som invisível */}
+      <audio ref={audioRef} src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto" />
+
+      <div className="flex items-center justify-between px-4 mb-2 bg-muted/20 py-2 border-b md:rounded-t-lg">
+          <div className="flex items-center gap-2">
+            <Bell className="h-4 w-4 text-muted-foreground" />
+            <span className="text-[10px] font-black uppercase text-muted-foreground">Alertas de Balcão</span>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className={`h-7 px-3 gap-2 text-[9px] font-black uppercase transition-all ${soundEnabled ? 'text-green-600' : 'text-muted-foreground'}`}
+            onClick={() => setSoundAlertEnabled(!soundEnabled)}
+          >
+            {soundEnabled ? <BellRing className="h-3 w-3" /> : <Bell className="h-3 w-3" />}
+            {soundEnabled ? 'Som Ativado' : 'Som Mudo'}
+          </Button>
+      </div>
+
       <Tabs defaultValue={statusesToShow[0]} className="w-full h-full flex flex-col">
           <TabsList className="grid w-full grid-cols-3 bg-muted/50 rounded-none h-12 sticky top-0 z-10 px-4">
               {statusesToShow.map(status => (
@@ -231,7 +289,12 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
                    <ScrollArea className="h-full px-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 py-4">
                           {groupedOrdersByStatus[status].map(order => (
-                              <OrderCard key={order.id} order={order} onDetailsClick={setSelectedOrder} />
+                              <OrderCard 
+                                key={order.id} 
+                                order={order} 
+                                onDetailsClick={setSelectedOrder} 
+                                onQuickPrint={setOrderToQuickPrint}
+                              />
                           ))}
                           {getOrdersCount(status) === 0 && (
                              <div className="col-span-full flex flex-col items-center justify-center py-20 text-center opacity-40">
@@ -256,6 +319,13 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
         restaurant={restaurant}
         isOpen={!!lastFinalizedOrder}
         onClose={() => setLastFinalizedOrder(null)}
+      />
+
+      <KitchenOrderModal 
+        order={orderToQuickPrint}
+        restaurant={restaurant}
+        isOpen={!!orderToQuickPrint}
+        onClose={() => setOrderToQuickPrint(null)}
       />
     </div>
   );

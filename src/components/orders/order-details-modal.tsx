@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -346,7 +347,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                             </DialogTitle>
                         </div>
                         <div className="flex gap-2">
-                            {/* Botão de re-imprimir para cozinha sempre disponível para garçom */}
                             {(order.status === 'aberto' || order.status === 'preparando') && (
                                 <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 border-2 border-orange-200 text-orange-600" onClick={() => setShowKitchenPrint(true)}>
                                     <ChefHat className="h-4 w-4" />
@@ -648,7 +648,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                 </DialogContent>
             </Dialog>
 
-            {/* Modais filhos fora do DialogContent principal para evitar z-index lock */}
             <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
@@ -755,8 +754,8 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                     ...order,
                     items: combinedItems,
                     total: combinedTotal,
-                    splitPayments: recordedSplitPayments.length > 0 ? recordedSplitPayments : (order.splitPayments || []),
-                    paymentMethod: recordedSplitPayments.length > 0 ? 'multiplos' : (paymentMethod || order.paymentMethod || 'A Pagar')
+                    splitPayments: recordedSplitParts.length > 0 ? recordedSplitParts : (order.splitPayments || []),
+                    paymentMethod: recordedSplitParts.length > 0 ? 'multiplos' : (paymentMethod || order.paymentMethod || 'A Pagar')
                 }}
             />
 
