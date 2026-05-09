@@ -21,12 +21,14 @@ import {
     Settings,
     LogOut
 } from "lucide-react";
-import { useAuth, useUser } from "@/firebase";
+import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { collection, query, where } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import Link from "next/link";
 import { useRestaurant } from "@/hooks/use-restaurant";
 import { useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 
 const allMenuItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ['admin'] },
@@ -41,9 +43,22 @@ export function AppSidebar() {
     const pathname = usePathname();
     const router = useRouter();
     const auth = useAuth();
+    const firestore = useFirestore();
     const { user, isUserLoading } = useUser();
-    const { role, isLoading: isResLoading, hasRestaurant } = useRestaurant();
+    const { restaurantId, role, isLoading: isResLoading, hasRestaurant } = useRestaurant();
     const { isMobile, setOpenMobile } = useSidebar();
+
+    // 🔒 Contador de pedidos abertos para indicador visual
+    const openOrdersQuery = useMemoFirebase(() => {
+        if (!restaurantId || !firestore) return null;
+        return query(
+            collection(firestore, `restaurants/${restaurantId}/orders`),
+            where('status', '==', 'aberto')
+        );
+    }, [restaurantId, firestore]);
+
+    const { data: openOrders } = useCollection(openOrdersQuery);
+    const openOrdersCount = openOrders?.length || 0;
 
     const isActive = (href: string) => pathname === href;
 
@@ -92,9 +107,16 @@ export function AppSidebar() {
                                      isActive={isActive(item.href)}
                                      tooltip={{ children: item.label, side: "right" }}
                                  >
-                                     <Link href={item.href} onClick={handleLinkClick}>
+                                     <Link href={item.href} onClick={handleLinkClick} className="relative">
                                         <item.icon />
                                         <span>{item.label}</span>
+                                        
+                                        {/* Indicador visual de pedidos pendentes */}
+                                        {item.label === "Pedidos" && openOrdersCount > 0 && (
+                                            <Badge className="ml-auto bg-blue-600 hover:bg-blue-700 text-[10px] h-4 px-1.5 min-w-4 flex items-center justify-center font-black animate-in zoom-in duration-300">
+                                                {openOrdersCount}
+                                            </Badge>
+                                        )}
                                      </Link>
                                  </SidebarMenuButton>
                              </SidebarMenuItem>
