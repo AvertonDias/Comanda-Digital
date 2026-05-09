@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -123,7 +122,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const [showKitchenPrint, setShowKitchenPrint] = useState(false);
     const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
-    // 🔒 ISOLAMENTO: Busca apenas pedidos com o MESMO STATUS
     const relatedOrdersQuery = useMemoFirebase(() => {
         if (!order?.tableId || !order?.restaurantId || !firestore) return null;
         return query(
@@ -240,13 +238,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const isFinalizing = order.status === 'pronto';
     const isFullyPaid = accumulatedPaid >= (combinedTotal || 0) - 0.05;
 
-    const getCategoryName = (menuItemId: string) => {
-        const menuItem = items?.find(i => i.id === menuItemId);
-        if (!menuItem) return '';
-        const category = categories?.find(c => c.id === menuItem.categoryId);
-        return category?.name || '';
-    };
-
     const handleRegisterPart = () => {
         if (!paymentMethod) return toast({ variant: "destructive", title: "Selecione o pagamento" });
         if (currentPartAmount <= 0 || currentPartAmount > remainingBalance + 0.05) return toast({ variant: "destructive", title: "Valor inválido" });
@@ -335,12 +326,11 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         });
         await Promise.all(promises);
         
-        // Ativa o modal de impressão e aguarda um pouco mais para o QR Code carregar
         setShowKitchenPrint(true);
         setTimeout(() => {
             window.print();
             setShowKitchenPrint(false);
-        }, 500); // 500ms garantem o carregamento da imagem externa
+        }, 500); 
     };
 
     const handleActionClick = () => {
@@ -430,7 +420,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                 <span className="text-xs font-black text-muted-foreground mt-0.5">{item.quantity}x</span>
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-[11px] font-bold uppercase truncate leading-tight">
-                                                        <span className="text-muted-foreground mr-1">[{getCategoryName(item.menuItemId)}]</span>
                                                         {item.name}
                                                     </p>
                                                     {item.addons?.map((a: any, ai: number) => (
