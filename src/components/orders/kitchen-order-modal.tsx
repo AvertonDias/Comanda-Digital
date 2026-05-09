@@ -1,3 +1,4 @@
+
 'use client';
 import type { Restaurant, MenuItem, MenuItemCategory, Order } from "@/lib/types";
 import { format } from "date-fns";
@@ -6,7 +7,7 @@ import { collection, query } from "firebase/firestore";
 
 /**
  * Componente que renderiza a comanda de produção customizada.
- * Agora inclui informações de entrega e financeiras conforme solicitado.
+ * Otimizado para visualização clara na cozinha/balcão.
  */
 export function KitchenOrderModal({ 
     order, 
@@ -37,7 +38,7 @@ export function KitchenOrderModal({
 
     const getCategoryName = (menuItemId: string) => {
         const menuItem = menuItems?.find(i => i.id === menuItemId);
-        if (!confirm) return '';
+        if (!menuItem) return '';
         const category = categories?.find(c => c.id === menuItem?.categoryId);
         return category?.name || '';
     };
@@ -54,10 +55,10 @@ export function KitchenOrderModal({
                 <p className="text-sm font-bold">#{orderNum} • {format(new Date(), "dd/MM/yy HH:mm")}</p>
             </div>
 
-            {/* Banner de Entrega / Identificação */}
+            {/* Banner de Identificação - Ajustado para garantir visibilidade do texto */}
             <div className="mb-3">
-                <div className="bg-black text-white px-2 py-2 text-center mb-2">
-                    <p className="text-lg font-black uppercase">
+                <div className="border-4 border-black px-2 py-2 text-center mb-2">
+                    <p className="text-2xl font-black uppercase">
                         {isDelivery ? 'ENTREGA' : order.destination === 'retirada' ? 'RETIRADA' : `MESA: ${order.tableName?.replace(/\D/g, '') || order.tableName}`}
                     </p>
                 </div>
@@ -129,18 +130,15 @@ export function KitchenOrderModal({
                 </p>
             </div>
 
-            {/* Seção Financeira (Pedida pelo usuário na comanda de cozinha) */}
+            {/* Seção Financeira */}
             <div className="space-y-1 text-right">
                 {order.deliveryFee > 0 && (
                     <p className="text-xs font-bold uppercase">TAXA ENTREGA: R$ {order.deliveryFee.toFixed(2)}</p>
                 )}
                 <p className="text-xl font-black uppercase">TOTAL: R$ {order.total.toFixed(2)}</p>
-                <p className="text-[10px] font-black bg-gray-200 px-2 inline-block uppercase">
-                    PAGAMENTO: {order.paymentMethod === 'multiplos' ? 'DIVERSOS' : (order.paymentMethod || 'A PAGAR').toUpperCase()}
-                </p>
             </div>
 
-            {/* QR Code Pix (Se disponível) */}
+            {/* QR Code Pix (Abaixo do valor, conforme solicitado) */}
             {pixPayload && (
                 <div className="mt-6 flex flex-col items-center border-t-2 border-black border-dashed pt-4">
                     <p className="text-[10px] font-black uppercase mb-2">PAGUE COM PIX:</p>
