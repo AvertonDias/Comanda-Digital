@@ -40,6 +40,7 @@ import { useToast } from "@/hooks/use-toast";
 import { MenuItemSelectionDialog } from "./menu-item-selection-dialog";
 import { OrderReceiptModal } from "./order-receipt-modal";
 import { KitchenOrderModal } from "./kitchen-order-modal";
+import { useRestaurant } from "@/hooks/use-restaurant";
 
 const PAYMENT_METHODS = [
     { id: 'pix', label: 'Pix', icon: QrCode },
@@ -99,6 +100,7 @@ function generatePixPayload(key: string, amount: number, name: string, txid: str
 export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange }: OrderDetailsModalProps) {
     const firestore = useFirestore();
     const { toast } = useToast();
+    const { role } = useRestaurant();
 
     const [lastOpenedOrderId, setLastOpenedOrderId] = useState<string | null>(null);
     const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
