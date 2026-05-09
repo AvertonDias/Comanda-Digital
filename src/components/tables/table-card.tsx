@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Table } from "@/lib/types";
@@ -5,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { QrCodeModal } from "./qr-code-modal";
 import { Button } from "../ui/button";
-import { Edit2, Trash2, MoreVertical, LogIn } from "lucide-react";
+import { Edit2, Trash2, MoreVertical, LogIn, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { useFirestore, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { doc, updateDoc, deleteDoc } from "firebase/firestore";
@@ -119,6 +120,14 @@ export function TableCard({ table }: TableCardProps) {
                                 <DropdownMenuItem onClick={() => handleStatusUpdate('ocupada')}>Marcar como Ocupada</DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleStatusUpdate('fechando')}>Marcar como Fechando</DropdownMenuItem>
                                 
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem asChild>
+                                    <a href={`/${table.restaurantId}/${table.id}`} target="_blank" rel="noopener noreferrer">
+                                        <ExternalLink className="mr-2 h-4 w-4" />
+                                        Ver Cardápio
+                                    </a>
+                                </DropdownMenuItem>
+
                                 {isAdmin && (
                                     <>
                                         <DropdownMenuSeparator />
