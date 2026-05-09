@@ -1,3 +1,4 @@
+
 'use client';
 import {
     Dialog,
@@ -7,7 +8,7 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Printer, Share2, CheckCircle2, X, MessageCircle, Info } from "lucide-react";
+import { Printer, Share2, CheckCircle2, X, MessageCircle, Info, MapPin, Phone, User } from "lucide-react";
 import type { Order, Restaurant, MenuItem, MenuItemCategory } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -88,15 +89,14 @@ ${groupedItems.map(i => {
 }).join('\n')}
 ---`;
 
+        if (order.destination === 'entrega') {
+            text += `\n📍 *ENTREGA:* ${order.deliveryAddress || 'Não informado'}`;
+        }
+
         if (order.splitPayments && order.splitPayments.length > 0) {
             text += `\n📊 *RESUMO DA DIVISÃO:*`;
             order.splitPayments.forEach(p => {
                 text += `\n👤 *Parte ${p.part}: R$ ${p.amount.toFixed(2)}* (${p.method.toUpperCase()})`;
-                if (p.items && p.items.length > 0) {
-                    p.items.forEach(item => {
-                        text += `\n  - ${item.quantity}x ${item.name}`;
-                    });
-                }
             });
             text += `\n---`;
         }
@@ -138,16 +138,9 @@ Obrigado pela preferência!
         } else {
             try {
                 await navigator.clipboard.writeText(text);
-                toast({ 
-                    title: "Texto copiado!", 
-                    description: "O resumo do recibo foi copiado. Agora você pode colar no WhatsApp ou onde desejar." 
-                });
+                toast({ title: "Texto copiado!" });
             } catch (err) {
-                toast({ 
-                    variant: "destructive", 
-                    title: "Erro ao copiar", 
-                    description: "Não foi possível copiar o texto automaticamente." 
-                });
+                toast({ variant: "destructive", title: "Erro ao copiar" });
             }
         }
     };
@@ -164,11 +157,6 @@ Obrigado pela preferência!
                             {isFinished ? 'Pedido Finalizado!' : 'Recibo do Pedido'}
                         </DialogTitle>
                         <p className="text-sm text-muted-foreground text-center font-medium">O que deseja fazer com o cupom do pedido #{orderNum}?</p>
-                        {order.splitPayments && order.splitPayments.length > 0 && (
-                            <Badge variant="secondary" className="mt-2 font-black uppercase text-[10px] gap-2">
-                                <Info className="h-3 w-3" /> Conta Dividida em {order.splitPayments.length} partes
-                            </Badge>
-                        )}
                     </DialogHeader>
 
                     <div className="py-6 space-y-3">
@@ -207,42 +195,63 @@ Obrigado pela preferência!
                 </DialogContent>
             </Dialog>
 
-            {/* ÁREA DE IMPRESSÃO CLIENTE (CONTA / RECIBO COM PAGAMENTO) */}
-            <div id="print-receipt-area" className="hidden print:block bg-white text-black p-4">
-                <div className="text-center space-y-1 mb-4">
-                    <h1 className="text-lg font-bold uppercase text-black">{restaurant?.name || 'RECIBO DE VENDA'}</h1>
-                    {restaurant?.phone && <p className="text-xs font-bold text-black">TEL: {restaurant.phone}</p>}
-                    <p className="text-[9px] font-bold text-black">{format(new Date(), "dd/MM/yyyy HH:mm")}</p>
+            {/* ÁREA DE IMPRESSÃO CLIENTE (RECIBO DETALHADO) */}
+            <div id="print-receipt-area" className="hidden print:block bg-white text-black p-2 font-mono">
+                <div className="text-center space-y-1 mb-4 border-b-2 border-black pb-2">
+                    <h1 className="text-lg font-bold uppercase">{restaurant?.name || 'RECIBO DE VENDA'}</h1>
+                    {restaurant?.phone && <p className="text-xs font-bold">TEL: {restaurant.phone}</p>}
+                    <p className="text-[10px] font-bold">{format(new Date(), "dd/MM/yyyy HH:mm")}</p>
                 </div>
-
-                <div className="border-t border-black border-dashed my-2" />
                 
-                <div className="text-xs space-y-1 mb-4 font-bold text-black">
-                    <p>PEDIDO: #{orderNum}</p>
-                    {order.tableName && <p>LOCAL: {order.tableName}</p>}
-                    {order.customerName && <p>CLIENTE: {order.customerName}</p>}
+                <div className="text-xs space-y-1 mb-4 font-bold">
+                    <p className="text-sm font-black uppercase">PEDIDO: #{orderNum}</p>
+                    
+                    {/* Informações Específicas por Tipo */}
+                    {order.destination === 'entrega' ? (
+                        <div className="mt-2 p-1 border border-black space-y-1">
+                            <p className="bg-black text-white px-1 inline-block">MÉTODO: ENTREGA</p>
+                            <p>CLIENTE: {order.customerName?.toUpperCase()}</p>
+                            <p>TEL: {order.customerPhone}</p>
+                            <p className="leading-tight">ENDEREÇO: {order.deliveryAddress?.toUpperCase()}</p>
+                        </div>
+                    ) : order.destination === 'retirada' ? (
+                        <div className="mt-2 p-1 border border-black space-y-1">
+                            <p className="bg-black text-white px-1 inline-block">MÉTODO: RETIRADA</p>
+                            <p>CLIENTE: {order.customerName?.toUpperCase()}</p>
+                            <p>TEL: {order.customerPhone}</p>
+                        </div>
+                    ) : order.origin === 'balcao' ? (
+                        <div className="mt-2 p-1 border border-black space-y-1">
+                            <p className="bg-black text-white px-1 inline-block">MÉTODO: BALCÃO</p>
+                            {order.customerName && <p>CLIENTE: {order.customerName?.toUpperCase()}</p>}
+                        </div>
+                    ) : (
+                        <div className="mt-2 p-1 border border-black">
+                            <p className="text-lg font-black text-center">MESA: {order.tableName?.replace(/\D/g, '') || order.tableName || '---'}</p>
+                        </div>
+                    )}
                 </div>
 
                 <div className="border-t border-black border-dashed my-2" />
 
-                <table className="w-full text-[11px] mb-4 font-bold text-black">
+                <table className="w-full text-[11px] mb-4 font-bold">
                     <thead>
                         <tr className="border-b border-black border-dashed">
-                            <th className="text-left py-1 font-bold">DESCRIÇÃO</th>
-                            <th className="text-right py-1 font-bold">TOTAL</th>
+                            <th className="text-left py-1">DESCRIÇÃO</th>
+                            <th className="text-right py-1">TOTAL</th>
                         </tr>
                     </thead>
                     <tbody>
                         {groupedItems.map((item, idx) => (
                             <tr key={idx} className="border-b border-gray-100 last:border-0">
-                                <td className="py-2">
+                                <td className="py-2 pr-2">
                                     <span className="font-bold">{item.quantity}x</span> 
-                                    [{getCategoryName(item.menuItemId).toUpperCase()}] {item.name.toUpperCase()}
+                                    {item.name.toUpperCase()}
                                     {item.addons?.map((a: any, ai: number) => (
                                         <div key={ai} className="text-[9px] font-bold ml-2">+ {a.name.toUpperCase()}</div>
                                     ))}
                                 </td>
-                                <td className="text-right py-2 font-bold">
+                                <td className="text-right py-2 whitespace-nowrap">
                                     {(item.priceAtOrder * item.quantity).toFixed(2)}
                                 </td>
                             </tr>
@@ -250,34 +259,33 @@ Obrigado pela preferência!
                     </tbody>
                 </table>
 
-                {order.splitPayments && order.splitPayments.length > 0 && (
-                    <>
-                        <div className="border-t border-black border-dashed my-2" />
-                        <div className="text-[9px] font-bold uppercase mb-2 text-black">RESUMO DA DIVISÃO:</div>
-                        {order.splitPayments.map((p, idx) => (
-                            <div key={idx} className="mb-2 pl-2 border-l-2 border-black text-black">
-                                <div className="flex justify-between font-bold">
-                                    <span>PARTE {p.part} ({p.method.toUpperCase()}):</span>
-                                    <span>R$ {p.amount.toFixed(2)}</span>
-                                </div>
-                                {p.items?.map((item: any, iidx: number) => (
-                                    <div key={iidx} className="text-[9px] font-bold">- {item.quantity}x {item.name.toUpperCase()}</div>
-                                ))}
-                            </div>
-                        ))}
-                    </>
-                )}
-
                 <div className="border-t border-black border-dashed my-2" />
 
-                <div className="space-y-1 text-right text-black">
-                    <p className="text-base font-bold">VALOR TOTAL: R$ {order.total.toFixed(2)}</p>
-                    <p className="text-[11px] uppercase font-bold">PAGAMENTO: {order.paymentMethod?.toUpperCase() || (isFinished ? 'PAGO' : 'PENDENTE')}</p>
+                <div className="space-y-1 text-right">
+                    {order.deliveryFee > 0 && (
+                        <p className="text-[10px] font-bold">TAXA ENTREGA: R$ {order.deliveryFee.toFixed(2)}</p>
+                    )}
+                    <p className="text-lg font-black">TOTAL: R$ {order.total.toFixed(2)}</p>
+                    <p className="text-[11px] uppercase font-bold bg-gray-100 p-1 inline-block">
+                        PAGAMENTO: {order.paymentMethod?.toUpperCase() || (isFinished ? 'PAGO' : 'PENDENTE')}
+                    </p>
                 </div>
+
+                {order.splitPayments && order.splitPayments.length > 0 && (
+                    <div className="mt-4 border-t border-black border-dashed pt-2">
+                        <p className="text-[9px] font-black uppercase mb-1">DETALHES DA DIVISÃO:</p>
+                        {order.splitPayments.map((p, idx) => (
+                            <div key={idx} className="flex justify-between text-[10px] font-bold border-l-2 border-black pl-1 mb-1">
+                                <span>PARTE {p.part} ({p.method.toUpperCase()}):</span>
+                                <span>R$ {p.amount.toFixed(2)}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
 
                 {!isFinished && pixPayload && (
                     <div className="mt-6 flex flex-col items-center border-t-2 border-black border-dashed pt-4">
-                        <p className="text-[9px] font-bold uppercase mb-2">Pague agora com Pix:</p>
+                        <p className="text-[10px] font-black uppercase mb-2">Pague com Pix:</p>
                         <div className="bg-white p-2">
                              <img 
                                 src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(pixPayload)}`}
@@ -289,9 +297,9 @@ Obrigado pela preferência!
                     </div>
                 )}
 
-                <div className="mt-6 text-center text-[10px] uppercase font-bold space-y-1 text-black">
+                <div className="mt-8 text-center text-[10px] uppercase font-black space-y-1 border-t border-black pt-4">
                     <p>Obrigado pela preferência!</p>
-                    <p>Volte sempre</p>
+                    <p>Sistema Comanda Digital</p>
                 </div>
             </div>
         </>
