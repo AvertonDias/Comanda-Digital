@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -21,7 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -315,8 +316,8 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     return (
         <>
             <Dialog open={isOpen} onOpenChange={onOpenChange}>
-                <DialogContent className="max-w-full w-full h-[100dvh] sm:h-auto sm:max-w-md flex flex-col p-0 overflow-hidden border-none sm:border [&>button:last-child]:hidden">
-                    <DialogHeader className="p-6 pb-0 flex flex-row items-center gap-2 space-y-0">
+                <DialogContent className="max-w-full w-full h-[100dvh] sm:h-[90vh] sm:max-w-md flex flex-col p-0 overflow-hidden border-none sm:border [&>button:last-child]:hidden">
+                    <DialogHeader className="p-6 pb-0 flex flex-row items-center gap-2 space-y-0 shrink-0">
                         <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2" onClick={() => onOpenChange(false)}>
                             <ChevronLeft className="h-5 w-5" />
                         </Button>
@@ -355,7 +356,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                         </div>
                     </DialogHeader>
                     
-                    <ScrollArea className="flex-1">
+                    <ScrollArea className="flex-1 overflow-y-auto">
                         <div className="p-6 space-y-6">
                             {!isSplitting && (
                                 <div className="grid grid-cols-2 gap-4 text-[10px] font-black uppercase">
@@ -615,9 +616,10 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                 </div>
                             )}
                         </div>
+                        <ScrollBar orientation="vertical" />
                     </ScrollArea>
 
-                    <div className="p-6 bg-muted/20 border-t mt-auto">
+                    <div className="p-6 bg-muted/20 border-t mt-auto shrink-0">
                         <div className="flex justify-between items-center text-lg font-black uppercase mb-4">
                             <span>Total Comanda</span>
                             <span className="text-primary">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(combinedTotal)}</span>
@@ -697,14 +699,14 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
 
             <Dialog open={isMenuOpen} onOpenChange={setIsMenuOpen}>
                 <DialogContent className="max-w-full w-full h-[100dvh] sm:h-[80vh] sm:max-w-[450px] p-0 flex flex-col border-none sm:border overflow-hidden [&>button:last-child]:hidden">
-                    <DialogHeader className="p-4 border-b flex flex-row items-center gap-2 space-y-0">
+                    <DialogHeader className="p-4 border-b flex flex-row items-center gap-2 space-y-0 shrink-0">
                         <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2" onClick={() => setIsMenuOpen(false)}>
                             <ChevronLeft className="h-5 w-5" />
                         </Button>
                         <DialogTitle className="text-sm font-black uppercase">Adicionar Item Extra</DialogTitle>
                     </DialogHeader>
 
-                    <div className="p-4 bg-muted/10 border-b space-y-3">
+                    <div className="p-4 bg-muted/10 border-b space-y-3 shrink-0">
                         <Label className="text-[10px] font-black uppercase text-muted-foreground">1. Escolha a Categoria</Label>
                         <Select value={selectedMenuCategoryId || ""} onValueChange={setSelectedMenuCategoryId}>
                             <SelectTrigger className="h-12 border-2 bg-background font-bold text-xs uppercase shadow-sm">
@@ -748,6 +750,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                 <p className="text-[11px] font-black uppercase">Aguardando Categoria</p>
                             </div>
                         )}
+                        <ScrollBar orientation="vertical" />
                     </ScrollArea>
                 </DialogContent>
             </Dialog>
