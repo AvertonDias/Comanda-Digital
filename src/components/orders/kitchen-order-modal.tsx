@@ -93,6 +93,10 @@ export function KitchenOrderModal({
                                     </div>
                                 )}
 
+                                {item.ingredientExtrasPrice > 0 && (
+                                    <p className="text-[8px] font-bold text-primary ml-1">+ EXTRA (+R$ {item.ingredientExtrasPrice.toFixed(2)})</p>
+                                )}
+
                                 {item.notes && (
                                     <div className="mt-1 p-1 bg-gray-50 border-l-2 border-black">
                                         <p className="text-[9px] font-bold uppercase leading-tight italic">

@@ -123,6 +123,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const [showKitchenPrint, setShowKitchenPrint] = useState(false);
     const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
+    // Consulta apenas pedidos com o MESMO status para isolamento
     const relatedOrdersQuery = useMemoFirebase(() => {
         if (!order?.tableId || !order?.restaurantId || !firestore) return null;
         return query(
@@ -304,7 +305,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                     status: 'pendente' as const,
                     printSectorId: data.item.printSectorId,
                     addons: data.addons?.map(a => ({ name: a.name, price: a.price })) || [],
-                    ingredientExtrasPrice: data.ingredientExtrasPrice || 0,
+                    ingredientExtrasPrice: data.ingredientsExtraPrice || 0,
                     preparationTimeAtOrder: data.item.preparationTime || 0
                 }]
             };

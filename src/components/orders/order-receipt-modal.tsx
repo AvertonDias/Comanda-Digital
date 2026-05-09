@@ -7,14 +7,14 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Printer, Share2, CheckCircle2, MessageCircle, CreditCard, Wallet } from "lucide-react";
+import { Printer, Share2, CheckCircle2, MessageCircle } from "lucide-react";
 import type { Order, Restaurant } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
 /**
- * Agrupa itens idênticos para o recibo.
+ * Agrupa itens idênticos para o recibo, considerando extras para conferência exata.
  */
 function consolidateItems(items: any[]) {
     if (!items) return [];
@@ -81,12 +81,10 @@ ${groupedItems.map(i => {
         text += `\n*TOTAL: R$ ${order.total.toFixed(2)}*`;
 
         if (hasSplits) {
-            text += `\n\n*PAGAMENTOS:*`;
+            text += `\n\n*RATEIO DA CONTA:*`;
             order.splitPayments?.forEach(p => {
                 text += `\n- Parte ${p.part}: R$ ${p.amount.toFixed(2)} (${p.method.toUpperCase()})`;
             });
-        } else if (order.paymentMethod) {
-            text += `\n\nPagamento: ${order.paymentMethod.toUpperCase()}`;
         }
 
         return text.trim();
@@ -239,9 +237,9 @@ ${groupedItems.map(i => {
                         </div>
                     </div>
 
-                    {/* SEÇÃO DE PAGAMENTO / DIVISÃO */}
+                    {/* SEÇÃO DE RATEIO DE CONTA */}
                     <div className="mt-4 pt-2 border-t-2 border-black border-double">
-                        <h2 className="text-[10px] font-black uppercase mb-2 text-center">RESUMO DA DIVISÃO</h2>
+                        <h2 className="text-[10px] font-black uppercase mb-2 text-center">RATEIO DA CONTA</h2>
                         
                         {hasSplits ? (
                             <div className="space-y-1">
@@ -251,19 +249,15 @@ ${groupedItems.map(i => {
                                         <span>R$ {p.amount.toFixed(2)}</span>
                                     </div>
                                 ))}
-                                <div className="text-center mt-2 bg-black text-white py-1 font-black text-[9px] uppercase">
-                                    CONTA DIVIDIDA EM {order.splitPayments?.length} PARTES
-                                </div>
                             </div>
                         ) : (
-                            <div className="flex justify-between text-[10px] font-bold">
-                                <span>MÉTODO:</span>
-                                <span>{(order.paymentMethod || 'A DEFINIR').toUpperCase()}</span>
+                            <div className="text-center bg-black text-white py-1 font-black text-[9px] uppercase">
+                                PAGAMENTO ÚNICO
                             </div>
                         )}
                     </div>
 
-                    {(!isFinished && pixPayload && order.origin !== 'mesa' && !order.tableId) && (
+                    {(pixPayload && order.origin !== 'mesa' && !order.tableId) && (
                         <div className="mt-6 flex flex-col items-center border-t-2 border-black border-dashed pt-4">
                             <p className="text-[9px] font-black uppercase mb-2">Pague com Pix aqui:</p>
                             <div className="bg-white p-2 border border-black">
