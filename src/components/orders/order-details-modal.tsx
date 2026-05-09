@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -42,7 +43,7 @@ import { OrderReceiptModal } from "./order-receipt-modal";
 import { KitchenOrderModal } from "./kitchen-order-modal";
 import { useRestaurant } from "@/hooks/use-restaurant";
 
-const PAYMENT_METHODS = [
+export const PAYMENT_METHODS = [
     { id: 'pix', label: 'Pix', icon: QrCode },
     { id: 'credit', label: 'Crédito', icon: CreditCard },
     { id: 'debit', label: 'Débito', icon: CreditCard },
@@ -315,6 +316,24 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         }
     };
 
+    const handlePrintKitchen = async () => {
+        // Marca como impresso no banco para parar o pulse
+        const idsToUpdate = allGroupedOrders.map(o => o.id);
+        const promises = idsToUpdate.map(id => {
+            const orderRef = doc(firestore, `restaurants/${order.restaurantId}/orders`, id);
+            return updateDoc(orderRef, { isPrinted: true }).catch(() => {});
+        });
+
+        await Promise.all(promises);
+
+        // Prepara e dispara a impressão
+        setShowKitchenPrint(true);
+        setTimeout(() => {
+            window.print();
+            setShowKitchenPrint(false);
+        }, 150);
+    };
+
     return (
         <>
             <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -334,20 +353,18 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                             </DialogDescription>
                         </div>
                         <div className="flex gap-2">
-                            {/* Botão Cozinha: Aparece apenas para Pedidos Novos (Abertos) */}
                             {order.status === 'aberto' && (
                                 <Button 
                                     variant="outline" 
                                     size="icon" 
                                     className="h-9 w-9 shrink-0 border-2 border-orange-200 text-orange-600 hover:bg-orange-50 transition-all" 
-                                    onClick={() => setShowKitchenPrint(true)}
+                                    onClick={handlePrintKitchen}
                                     title="Imprimir para Cozinha"
                                 >
                                     <ChefHat className="h-4 w-4" />
                                 </Button>
                             )}
 
-                            {/* Botão Cliente: Aparece apenas para Pedidos Prontos */}
                             {order.status === 'pronto' && (
                                 <Button 
                                     variant="outline" 
@@ -415,11 +432,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                 <div className="space-y-3 bg-muted/20 p-4 rounded-xl border-2">
                                                     <div className="flex justify-between items-center mb-1">
                                                         <Label className="text-[10px] font-black uppercase text-muted-foreground">Itens Pendentes</Label>
-                                                        {order.status === 'aberto' && (
-                                                            <Button variant="ghost" size="sm" className="h-7 text-[8px] font-black uppercase text-primary" onClick={() => setIsMenuOpen(true)}>
-                                                                <Plus className="h-3 w-3 mr-1" /> Adicionar Item
-                                                            </Button>
-                                                        )}
                                                     </div>
                                                     <div className="space-y-2">
                                                         {itemsBalance.map((item, idx) => item.remainingQty > 0 && (
@@ -503,7 +515,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
 
                                                     {paymentMethod === 'pix' && qrCodeUrl && (
                                                         <div className="p-4 bg-white rounded-xl border-2 border-primary/20 flex flex-col items-center gap-3 animate-in zoom-in-95 duration-300">
-                                                            <p className="text-[10px] font-black uppercase text-primary">Pagar Parte {paidPartsCount + 1} com Pix</p>
+                                                            <p className="text-[10px] font-black uppercase text-primary">Pagar Parte {paidPartsCount + 1} con Pix</p>
                                                             <div className="relative h-40 w-40 bg-white p-2 rounded-lg shadow-inner">
                                                                 <Image 
                                                                     src={qrCodeUrl} 
@@ -542,11 +554,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                         <div className="space-y-4">
                                             <div className="flex justify-between items-center">
                                                 <p className="font-black text-[10px] uppercase text-primary flex items-center gap-2"><CreditCard className="h-3 w-3" /> Forma de Pagamento</p>
-                                                {order.status === 'aberto' && (
-                                                    <Button variant="ghost" size="sm" className="h-7 text-[8px] font-black uppercase text-primary" onClick={() => setIsMenuOpen(true)}>
-                                                        <Plus className="h-3 w-3 mr-1" /> Adicionar Item
-                                                    </Button>
-                                                )}
                                             </div>
                                             <div className="grid grid-cols-2 gap-2">
                                                 {PAYMENT_METHODS.map((method) => (
@@ -786,16 +793,16 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                 }}
             />
 
-            <KitchenOrderModal 
-                isOpen={showKitchenPrint}
-                onClose={() => setShowKitchenPrint(false)}
-                restaurant={restaurant}
-                order={{
-                    ...order,
-                    items: combinedItems
-                }}
-                orderIds={allGroupedOrders.map(o => o.id)}
-            />
+            {/* Somente renderiza a área de impressão necessária no momento do print */}
+            {showKitchenPrint && (
+                <KitchenOrderModal 
+                    restaurant={restaurant}
+                    order={{
+                        ...order,
+                        items: combinedItems
+                    }}
+                />
+            )}
         </>
     );
 }

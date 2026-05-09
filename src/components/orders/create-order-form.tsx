@@ -15,7 +15,6 @@ import { collection, query, addDoc, serverTimestamp, doc, updateDoc, orderBy, ge
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MenuItemSelectionDialog } from './menu-item-selection-dialog';
-import { KitchenOrderModal } from './kitchen-order-modal';
 import { cn } from '@/lib/utils';
 
 type SelectionAddon = { name: string; price: number; groupId: string };
@@ -53,10 +52,6 @@ export function CreateOrderForm({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
     
-    // Estados para o fluxo de impressão da cozinha
-    const [showKitchenPrint, setShowKitchenPrint] = useState(false);
-    const [createdOrderData, setCreatedOrderData] = useState<any>(null);
-
     const restaurantRef = useMemoFirebase(() => restaurantId ? doc(firestore, 'restaurants', restaurantId) : null, [firestore, restaurantId]);
     const { data: restaurant } = useDoc<Restaurant>(restaurantRef);
 
@@ -75,7 +70,6 @@ export function CreateOrderForm({
         return query(collection(firestore, `restaurants/${restaurantId}/tables`), orderBy('name', 'asc'));
     }, [restaurantId, firestore]);
 
-    // Query para calcular tempo de espera (pedidos em preparo)
     const preparingOrdersQuery = useMemoFirebase(() => {
         if (!restaurantId || !firestore) return null;
         return query(
@@ -89,17 +83,12 @@ export function CreateOrderForm({
     const { data: tables, isLoading: isTablesLoading } = useCollection<Table>(tablesQuery);
     const { data: activeOrders } = useCollection<Order>(preparingOrdersQuery);
 
-    // Cálculo do tempo de espera levando em conta a fila e o pedido atual
     const estimatedWaitTime = useMemo(() => {
-        // 1. Soma o tempo de todos os itens em todos os pedidos que já estão sendo preparados
         const backlogTime = activeOrders?.reduce((total, order) => {
             const orderWait = order.items.reduce((sum, item) => sum + ((item.preparationTimeAtOrder || 0) * item.quantity), 0);
             return total + orderWait;
         }, 0) || 0;
-
-        // 2. Soma o tempo dos itens que o garçom está selecionando agora
         const currentOrderTime = orderItems.reduce((sum, item) => sum + (item.preparationTime * item.quantity), 0);
-
         return backlogTime + currentOrderTime;
     }, [activeOrders, orderItems]);
 
@@ -211,7 +200,7 @@ export function CreateOrderForm({
                 }))
             };
             
-            const docRef = await addDoc(ordersCol, orderData);
+            await addDoc(ordersCol, orderData);
             
             if (orderType === 'mesa' && tableId) {
                 await updateDoc(doc(firestore, `restaurants/${restaurantId}/tables`, tableId), { status: 'ocupada' });
@@ -219,8 +208,8 @@ export function CreateOrderForm({
             
             toast({ title: `Pedido #${nextOrderNumber.toString().padStart(3, '0')} enviado!` });
             
-            setCreatedOrderData({ ...orderData, id: docRef.id });
-            setShowKitchenPrint(true);
+            // Sucesso! Fecha o formulário imediatamente sem modal de confirmação.
+            onSuccess();
 
         } catch (error) {
             console.error(error);
@@ -295,7 +284,6 @@ export function CreateOrderForm({
                         ))}
                     </div>
                     
-                    {/* Alerta de Tempo Estimado de Espera */}
                     {estimatedWaitTime > 0 && (
                         <div className="flex items-center justify-center gap-2 bg-orange-100 text-orange-800 py-1.5 px-4 rounded-full self-center border border-orange-200 animate-in fade-in duration-500">
                             <Clock className="h-3.5 w-3.5" />
@@ -564,22 +552,11 @@ export function CreateOrderForm({
                 </div>
             </div>
 
-            {/* Modais de suporte renderizados fora da árvore de conteúdo principal para evitar travamentos */}
             <MenuItemSelectionDialog 
                 item={selectedItem} 
                 isOpen={!!selectedItem} 
                 onClose={() => setSelectedItem(null)}
                 onConfirm={handleAddConfirmed}
-            />
-
-            <KitchenOrderModal 
-                isOpen={showKitchenPrint}
-                onClose={() => {
-                    setShowKitchenPrint(false);
-                    onSuccess();
-                }}
-                order={createdOrderData}
-                restaurant={restaurant}
             />
         </>
     );
