@@ -76,6 +76,13 @@ export function OrderReceiptModal({
     const groupedItems = consolidateItems(order.items);
     const isFinished = order.status === 'finalizado';
 
+    const handlePrint = () => {
+        setTimeout(() => {
+            window.print();
+            onClose(); 
+        }, 150);
+    };
+
     const getReceiptText = () => {
         let text = `
 🧾 *${restaurant?.name || 'Recibo de Venda'}*
@@ -92,28 +99,13 @@ ${groupedItems.map(i => {
             text += `\n📍 *ENTREGA:* ${order.deliveryAddress || 'Não informado'}`;
         }
 
-        if (order.splitPayments && order.splitPayments.length > 0) {
-            text += `\n📊 *RESUMO DA DIVISÃO:*`;
-            order.splitPayments.forEach(p => {
-                text += `\n👤 *Parte ${p.part}: R$ ${p.amount.toFixed(2)}* (${p.method.toUpperCase()})`;
-            });
-            text += `\n---`;
-        }
-
         text += `
 💰 *Total: R$ ${order.total.toFixed(2)}*
-💳 Status: ${order.paymentMethod?.toUpperCase() || (isFinished ? 'PAGO' : 'PAGAMENTO PENDENTE')}
+💳 Status: ${isFinished ? 'PAGO' : 'PAGAMENTO PENDENTE'}
 
 Obrigado pela preferência!
         `.trim();
         return text;
-    };
-
-    const handlePrint = () => {
-        setTimeout(() => {
-            window.print();
-            onClose(); 
-        }, 150);
     };
 
     const handleWhatsApp = () => {
@@ -207,11 +199,11 @@ Obrigado pela preferência!
                     
                     {/* Informações Específicas por Tipo */}
                     {order.destination === 'entrega' ? (
-                        <div className="mt-2 p-1 border border-black space-y-1">
-                            <p className="bg-black text-white px-1 inline-block">MÉTODO: ENTREGA</p>
-                            <p>CLIENTE: {order.customerName?.toUpperCase()}</p>
-                            <p>TEL: {order.customerPhone}</p>
-                            <p className="leading-tight">ENDEREÇO: {order.deliveryAddress?.toUpperCase()}</p>
+                        <div className="mt-2 p-1 border-2 border-black space-y-1">
+                            <p className="bg-black text-white px-2 py-0.5 inline-block font-black text-xs">MÉTODO: ENTREGA</p>
+                            <p className="text-xs mt-1">CLIENTE: {order.customerName?.toUpperCase()}</p>
+                            <p className="text-xs">TEL: {order.customerPhone}</p>
+                            <p className="leading-tight text-xs border-t border-black pt-1 mt-1">ENDEREÇO: {order.deliveryAddress?.toUpperCase()}</p>
                         </div>
                     ) : order.destination === 'retirada' ? (
                         <div className="mt-2 p-1 border border-black space-y-1">
@@ -241,20 +233,23 @@ Obrigado pela preferência!
                         </tr>
                     </thead>
                     <tbody>
-                        {groupedItems.map((item, idx) => (
-                            <tr key={idx} className="border-b border-gray-100 last:border-0">
-                                <td className="py-2 pr-2">
-                                    <span className="font-bold">{item.quantity}x</span> 
-                                    {item.name.toUpperCase()}
-                                    {item.addons?.map((a: any, ai: number) => (
-                                        <div key={ai} className="text-[8px] font-bold ml-2">+ {a.name.toUpperCase()}</div>
-                                    ))}
-                                </td>
-                                <td className="text-right py-2 whitespace-nowrap">
-                                    {(item.priceAtOrder * item.quantity).toFixed(2)}
-                                </td>
-                            </tr>
-                        ))}
+                        {groupedItems.map((item, idx) => {
+                            const cat = getCategoryName(item.menuItemId);
+                            return (
+                                <tr key={idx} className="border-b border-gray-100 last:border-0">
+                                    <td className="py-2 pr-2">
+                                        <span className="font-bold">{item.quantity}x</span> 
+                                        <span className="ml-1 text-[7px] opacity-70">[{cat.toUpperCase()}]</span> {item.name.toUpperCase()}
+                                        {item.addons?.map((a: any, ai: number) => (
+                                            <div key={ai} className="text-[8px] font-bold ml-2">+ {a.name.toUpperCase()}</div>
+                                        ))}
+                                    </td>
+                                    <td className="text-right py-2 whitespace-nowrap">
+                                        {(item.priceAtOrder * item.quantity).toFixed(2)}
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
 
@@ -265,34 +260,18 @@ Obrigado pela preferência!
                         <p className="text-[9px] font-bold">TAXA ENTREGA: R$ {order.deliveryFee.toFixed(2)}</p>
                     )}
                     <p className="text-base font-black">TOTAL: R$ {order.total.toFixed(2)}</p>
-                    <p className="text-[10px] uppercase font-bold bg-gray-100 p-1 inline-block">
-                        PAGAMENTO: {order.paymentMethod?.toUpperCase() || (isFinished ? 'PAGO' : 'PENDENTE')}
-                    </p>
                 </div>
-
-                {order.splitPayments && order.splitPayments.length > 0 && (
-                    <div className="mt-4 border-t border-black border-dashed pt-2">
-                        <p className="text-[8px] font-black uppercase mb-1">DETALHES DA DIVISÃO:</p>
-                        {order.splitPayments.map((p, idx) => (
-                            <div key={idx} className="flex justify-between text-[8px] font-bold border-l-2 border-black pl-1 mb-1">
-                                <span>PARTE {p.part} ({p.method.toUpperCase()}):</span>
-                                <span>R$ {p.amount.toFixed(2)}</span>
-                            </div>
-                        ))}
-                    </div>
-                )}
 
                 {!isFinished && pixPayload && (
                     <div className="mt-6 flex flex-col items-center border-t-2 border-black border-dashed pt-4">
                         <p className="text-[9px] font-black uppercase mb-2">Pague com Pix:</p>
-                        <div className="bg-white p-2">
+                        <div className="bg-white p-2 border border-black">
                              <img 
                                 src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(pixPayload)}`}
                                 alt="Pix QR Code"
                                 className="w-24 h-24"
                             />
                         </div>
-                        <p className="text-[7px] mt-2 max-w-[180px] text-center break-all font-bold">CHAVE: {restaurant?.pixKey}</p>
                     </div>
                 )}
 

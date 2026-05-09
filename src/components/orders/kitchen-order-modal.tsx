@@ -58,7 +58,7 @@ export function KitchenOrderModal({
             <div className="mb-3">
                 {isDelivery ? (
                     <div className="border-[4px] border-black p-2 text-center mb-3">
-                        <p className="text-2xl font-black uppercase leading-none">ENTREGA</p>
+                        <p className="text-2xl font-black uppercase leading-none">MÉTODO: ENTREGA</p>
                     </div>
                 ) : (
                     <div className="border-2 border-black px-2 py-2 text-center mb-2">
@@ -146,7 +146,7 @@ export function KitchenOrderModal({
                 </div>
             </div>
 
-            {/* QR Code Pix Otimizado */}
+            {/* QR Code Pix Otimizado (Sem chave escrita) */}
             {pixPayload && (
                 <div className="mt-6 flex flex-col items-center border-t-2 border-black border-dashed pt-4 pb-4">
                     <p className="text-[8px] font-black uppercase mb-3">PAGUE COM PIX:</p>
