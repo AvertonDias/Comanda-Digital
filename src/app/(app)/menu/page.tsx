@@ -119,20 +119,20 @@ export default function MenuPage() {
                       Novo
                   </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-full w-full h-[100dvh] sm:h-auto sm:max-w-[800px] p-0 overflow-hidden flex flex-col gap-0 border-none sm:border">
+              <DialogContent className="max-w-full w-full h-[100dvh] sm:h-[90vh] sm:max-w-[800px] p-0 overflow-hidden flex flex-col gap-0 border-none sm:border">
                   <DialogHeader className="p-4 border-b bg-background sticky top-0 z-10 sm:static flex flex-row items-center gap-2 space-y-0">
                       <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2" onClick={() => setIsItemDialogOpen(false)}>
                           <ChevronLeft className="h-5 w-5" />
                       </Button>
                       <DialogTitle>Novo Item</DialogTitle>
                   </DialogHeader>
-                  <ScrollArea className="flex-1 p-4 sm:p-6">
+                  <div className="flex-1 overflow-hidden">
                       <MenuItemForm 
                           restaurantId={restaurantId!} 
                           categories={categories || []} 
                           onSuccess={() => setIsItemDialogOpen(false)}
                       />
-                  </ScrollArea>
+                  </div>
               </DialogContent>
             </Dialog>
           </div>

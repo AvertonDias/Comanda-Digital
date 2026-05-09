@@ -16,6 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Switch } from '@/components/ui/switch';
 import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const formSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres."),
@@ -150,282 +151,286 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 pb-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
-          {/* Coluna 1: Informações e Ingredientes */}
-          <div className="space-y-6">
-            <h3 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
-              <span className="h-4 w-1 bg-primary rounded-full" />
-              1. Informações Básicas
-            </h3>
-            
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-[10px] font-black uppercase">Nome do Prato</FormLabel>
-                  <FormControl><Input placeholder="Ex: Hambúrguer Artesanal" className="h-11" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full overflow-hidden">
+        <ScrollArea className="flex-1">
+          <div className="p-4 sm:p-6 space-y-8 pb-10">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+              {/* Coluna 1: Informações e Ingredientes */}
+              <div className="space-y-6">
+                <h3 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                  <span className="h-4 w-1 bg-primary rounded-full" />
+                  1. Informações Básicas
+                </h3>
+                
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-black uppercase">Nome do Prato</FormLabel>
+                      <FormControl><Input placeholder="Ex: Hambúrguer Artesanal" className="h-11" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            <div className="space-y-4">
-                <FormLabel className="text-[10px] font-black uppercase">Foto do Prato</FormLabel>
-                <div className="flex flex-col gap-4">
-                    {imagePreview ? (
-                        <div className="relative h-48 w-full rounded-xl overflow-hidden border-2 border-primary/20 shadow-inner bg-muted">
-                            <img src={imagePreview} className="object-cover w-full h-full" alt="Preview" />
-                            <Button 
-                                type="button" 
-                                variant="destructive" 
-                                size="icon" 
-                                className="absolute top-2 right-2 h-8 w-8 rounded-full shadow-lg"
-                                onClick={() => setImagePreview(null)}
-                            >
-                                <X className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    ) : (
-                        <label className="flex flex-col items-center justify-center h-48 w-full border-2 border-dashed border-muted-foreground/30 rounded-xl cursor-pointer hover:bg-muted/30 transition-all bg-muted/10 group">
-                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                                    <Camera className="h-6 w-6 text-primary" />
-                                </div>
-                                <p className="text-[10px] font-black uppercase text-muted-foreground">Clique para tirar foto</p>
-                                <p className="text-[8px] font-bold text-muted-foreground/60 uppercase mt-1">ou escolher da galeria</p>
+                <div className="space-y-4">
+                    <FormLabel className="text-[10px] font-black uppercase">Foto do Prato</FormLabel>
+                    <div className="flex flex-col gap-4">
+                        {imagePreview ? (
+                            <div className="relative h-48 w-full rounded-xl overflow-hidden border-2 border-primary/20 shadow-inner bg-muted">
+                                <img src={imagePreview} className="object-cover w-full h-full" alt="Preview" />
+                                <Button 
+                                    type="button" 
+                                    variant="destructive" 
+                                    size="icon" 
+                                    className="absolute top-2 right-2 h-8 w-8 rounded-full shadow-lg"
+                                    onClick={() => setImagePreview(null)}
+                                >
+                                    <X className="h-4 w-4" />
+                                </Button>
                             </div>
-                            <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
-                        </label>
-                    )}
-                </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="price"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-[10px] font-black uppercase">Preço Base (R$)</FormLabel>
-                    <FormControl><Input type="number" step="0.01" className="h-11" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="preparationTime"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-[10px] font-black uppercase flex items-center gap-1">
-                        <Clock className="h-3 w-3" /> Tempo Preparo (Min)
-                    </FormLabel>
-                    <FormControl><Input type="number" className="h-11" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="space-y-3 bg-muted/10 p-4 rounded-xl border-2 border-dashed border-muted">
-              <FormLabel className="text-primary text-[10px] font-black uppercase">Ingredientes e Valor de Extra (+)</FormLabel>
-              <div className="flex flex-col gap-2">
-                <div className="flex gap-2">
-                  <Input 
-                    placeholder="Nome (Ex: Bacon)" 
-                    value={newIngName} 
-                    className="h-10 text-sm flex-[2]"
-                    onChange={e => setNewIngName(e.target.value)}
-                  />
-                  <div className="relative flex-1">
-                    <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-                    <Input 
-                      placeholder="Extra (R$)" 
-                      value={newIngPrice} 
-                      type="number"
-                      step="0.01"
-                      className="h-10 text-sm pl-6"
-                      onChange={e => setNewIngPrice(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddIngredient())}
-                    />
-                  </div>
-                  <Button type="button" size="icon" onClick={handleAddIngredient} className="shrink-0 h-10 w-10">
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="space-y-2 pt-2">
-                {ingredientFields.map((field, idx) => (
-                  <div key={field.id} className="flex items-center justify-between bg-background border-2 rounded-lg p-2 group">
-                    <div className="flex flex-col">
-                        <span className="text-[10px] font-black uppercase">{form.watch(`ingredients.${idx}.name`)}</span>
-                        <span className="text-[9px] text-primary font-bold">VALOR EXTRA: R$ {form.watch(`ingredients.${idx}.extraPrice`)?.toFixed(2)}</span>
-                    </div>
-                    <Button 
-                      type="button" 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => removeIng(idx)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <FormField
-                control={form.control}
-                name="categoryId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-[10px] font-black uppercase">Categoria</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="h-11">
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {categories.map(cat => (
-                          <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-          </div>
-
-          {/* Coluna 2: Adicionais */}
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                <span className="h-4 w-1 bg-primary rounded-full" />
-                2. Grupos de Adicionais
-              </h3>
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm" 
-                className="h-8 font-bold text-[10px] uppercase border-2"
-                onClick={() => appendGroup({ 
-                  id: Math.random().toString(36).substr(2, 9),
-                  name: "", 
-                  isMandatory: false, 
-                  minQuantity: 0, 
-                  maxQuantity: 1, 
-                  options: [] 
-                })}
-              >
-                <Plus className="mr-1 h-3 w-3" /> Novo Grupo
-              </Button>
-            </div>
-
-            <div className="space-y-4">
-              {addonGroups.map((group, groupIdx) => (
-                <Card key={group.id} className="p-4 space-y-4 relative bg-muted/5 border-2 shadow-none overflow-hidden">
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
-                    size="icon" 
-                    className="absolute top-2 right-2 h-7 w-7 text-destructive"
-                    onClick={() => removeGroup(groupIdx)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-
-                  <div className="space-y-3 pr-8">
-                    <FormField
-                      control={form.control}
-                      name={`addonGroups.${groupIdx}.name`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[9px] uppercase font-black text-muted-foreground">Título do Grupo</FormLabel>
-                          <FormControl><Input {...field} className="h-9 text-xs font-bold" placeholder="Ex: Escolha o queijo" /></FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    <div className="flex flex-wrap items-center gap-4">
-                      <FormField
-                        control={form.control}
-                        name={`addonGroups.${groupIdx}.isMandatory`}
-                        render={({ field }) => (
-                          <FormItem className="flex items-center gap-2 space-y-0">
-                            <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                            <FormLabel className="text-[9px] font-black uppercase cursor-pointer">Obrigatório</FormLabel>
-                          </FormItem>
+                        ) : (
+                            <label className="flex flex-col items-center justify-center h-48 w-full border-2 border-dashed border-muted-foreground/30 rounded-xl cursor-pointer hover:bg-muted/30 transition-all bg-muted/10 group">
+                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                                        <Camera className="h-6 w-6 text-primary" />
+                                    </div>
+                                    <p className="text-[10px] font-black uppercase text-muted-foreground">Clique para tirar foto</p>
+                                    <p className="text-[8px] font-bold text-muted-foreground/60 uppercase mt-1">ou escolher da galeria</p>
+                                </div>
+                                <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+                            </label>
                         )}
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="price"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase">Preço Base (R$)</FormLabel>
+                        <FormControl><Input type="number" step="0.01" className="h-11" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="preparationTime"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase flex items-center gap-1">
+                            <Clock className="h-3 w-3" /> Tempo Preparo (Min)
+                        </FormLabel>
+                        <FormControl><Input type="number" className="h-11" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="space-y-3 bg-muted/10 p-4 rounded-xl border-2 border-dashed border-muted">
+                  <FormLabel className="text-primary text-[10px] font-black uppercase">Ingredientes e Valor de Extra (+)</FormLabel>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex gap-2">
+                      <Input 
+                        placeholder="Nome (Ex: Bacon)" 
+                        value={newIngName} 
+                        className="h-10 text-sm flex-[2]"
+                        onChange={e => setNewIngName(e.target.value)}
                       />
-                      <div className="flex items-center gap-2">
-                        <Label className="text-[9px] font-black uppercase text-muted-foreground">Limite Máx:</Label>
+                      <div className="relative flex-1">
+                        <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
                         <Input 
-                          type="number" 
-                          {...form.register(`addonGroups.${groupIdx}.maxQuantity`, { valueAsNumber: true })} 
-                          className="h-7 w-12 text-center p-0 text-xs font-bold" 
+                          placeholder="Extra (R$)" 
+                          value={newIngPrice} 
+                          type="number"
+                          step="0.01"
+                          className="h-10 text-sm pl-6"
+                          onChange={e => setNewIngPrice(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddIngredient())}
                         />
                       </div>
+                      <Button type="button" size="icon" onClick={handleAddIngredient} className="shrink-0 h-10 w-10">
+                        <Plus className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-
-                  <Separator />
-
-                  <div className="space-y-2">
-                    {form.watch(`addonGroups.${groupIdx}.options`)?.map((_, optIdx) => (
-                      <div key={optIdx} className="flex gap-2 items-center">
-                        <Input 
-                          placeholder="Opção (Ex: Cheddar)" 
-                          {...form.register(`addonGroups.${groupIdx}.options.${optIdx}.name`)} 
-                          className="h-9 text-xs font-medium"
-                        />
-                        <div className="flex items-center gap-1 border rounded-md px-2 bg-background h-9">
-                          <span className="text-[10px] font-bold text-muted-foreground">R$</span>
-                          <Input 
-                            type="number" 
-                            placeholder="0,00" 
-                            {...form.register(`addonGroups.${groupIdx}.options.${optIdx}.price`, { valueAsNumber: true })} 
-                            className="border-none h-full w-14 p-0 text-xs font-black shadow-none focus-visible:ring-0"
-                          />
+                  
+                  <div className="space-y-2 pt-2">
+                    {ingredientFields.map((field, idx) => (
+                      <div key={field.id} className="flex items-center justify-between bg-background border-2 rounded-lg p-2 group">
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-black uppercase">{form.watch(`ingredients.${idx}.name`)}</span>
+                            <span className="text-[9px] text-primary font-bold">VALOR EXTRA: R$ {form.watch(`ingredients.${idx}.extraPrice`)?.toFixed(2)}</span>
                         </div>
                         <Button 
                           type="button" 
                           variant="ghost" 
                           size="icon" 
-                          className="h-9 w-9 text-destructive shrink-0"
-                          onClick={() => {
-                            const options = form.getValues(`addonGroups.${groupIdx}.options`);
-                            form.setValue(`addonGroups.${groupIdx}.options`, options.filter((_, i) => i !== optIdx));
-                          }}
+                          className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => removeIng(idx)}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     ))}
-                    <Button 
-                      type="button" 
-                      variant="ghost" 
-                      size="sm" 
-                      className="w-full h-10 border-dashed border-2 text-[9px] font-black uppercase mt-2 hover:bg-primary/5 hover:border-primary/50 transition-all"
-                      onClick={() => {
-                        const options = form.getValues(`addonGroups.${groupIdx}.options`) || [];
-                        form.setValue(`addonGroups.${groupIdx}.options`, [...options, { name: "", price: 0 }]);
-                      }}
-                    >
-                      <Plus className="h-3 w-3 mr-1" /> Adicionar Opção
-                    </Button>
                   </div>
-                </Card>
-              ))}
+                </div>
+
+                <FormField
+                    control={form.control}
+                    name="categoryId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase">Categoria</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger className="h-11">
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {categories.map(cat => (
+                              <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+              </div>
+
+              {/* Coluna 2: Adicionais */}
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                    <span className="h-4 w-1 bg-primary rounded-full" />
+                    2. Grupos de Adicionais
+                  </h3>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-8 font-bold text-[10px] uppercase border-2"
+                    onClick={() => appendGroup({ 
+                      id: Math.random().toString(36).substr(2, 9),
+                      name: "", 
+                      isMandatory: false, 
+                      minQuantity: 0, 
+                      maxQuantity: 1, 
+                      options: [] 
+                    })}
+                  >
+                    <Plus className="mr-1 h-3 w-3" /> Novo Grupo
+                  </Button>
+                </div>
+
+                <div className="space-y-4">
+                  {addonGroups.map((group, groupIdx) => (
+                    <Card key={group.id} className="p-4 space-y-4 relative bg-muted/5 border-2 shadow-none overflow-hidden">
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="icon" 
+                        className="absolute top-2 right-2 h-7 w-7 text-destructive"
+                        onClick={() => removeGroup(groupIdx)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+
+                      <div className="space-y-3 pr-8">
+                        <FormField
+                          control={form.control}
+                          name={`addonGroups.${groupIdx}.name`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-[9px] uppercase font-black text-muted-foreground">Título do Grupo</FormLabel>
+                              <FormControl><Input {...field} className="h-9 text-xs font-bold" placeholder="Ex: Escolha o queijo" /></FormControl>
+                            </FormItem>
+                          )}
+                        />
+                        <div className="flex flex-wrap items-center gap-4">
+                          <FormField
+                            control={form.control}
+                            name={`addonGroups.${groupIdx}.isMandatory`}
+                            render={({ field }) => (
+                              <FormItem className="flex items-center gap-2 space-y-0">
+                                <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                <FormLabel className="text-[9px] font-black uppercase cursor-pointer">Obrigatório</FormLabel>
+                              </FormItem>
+                            )}
+                          />
+                          <div className="flex items-center gap-2">
+                            <Label className="text-[9px] font-black uppercase text-muted-foreground">Limite Máx:</Label>
+                            <Input 
+                              type="number" 
+                              {...form.register(`addonGroups.${groupIdx}.maxQuantity`, { valueAsNumber: true })} 
+                              className="h-7 w-12 text-center p-0 text-xs font-bold" 
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <Separator />
+
+                      <div className="space-y-2">
+                        {form.watch(`addonGroups.${groupIdx}.options`)?.map((_, optIdx) => (
+                          <div key={optIdx} className="flex gap-2 items-center">
+                            <Input 
+                              placeholder="Opção (Ex: Cheddar)" 
+                              {...form.register(`addonGroups.${groupIdx}.options.${optIdx}.name`)} 
+                              className="h-9 text-xs font-medium"
+                            />
+                            <div className="flex items-center gap-1 border rounded-md px-2 bg-background h-9">
+                              <span className="text-[10px] font-bold text-muted-foreground">R$</span>
+                              <Input 
+                                type="number" 
+                                placeholder="0,00" 
+                                {...form.register(`addonGroups.${groupIdx}.options.${optIdx}.price`, { valueAsNumber: true })} 
+                                className="border-none h-full w-14 p-0 text-xs font-black shadow-none focus-visible:ring-0"
+                              />
+                            </div>
+                            <Button 
+                              type="button" 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-9 w-9 text-destructive shrink-0"
+                              onClick={() => {
+                                const options = form.getValues(`addonGroups.${groupIdx}.options`);
+                                form.setValue(`addonGroups.${groupIdx}.options`, options.filter((_, i) => i !== optIdx));
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="sm" 
+                          className="w-full h-10 border-dashed border-2 text-[9px] font-black uppercase mt-2 hover:bg-primary/5 hover:border-primary/50 transition-all"
+                          onClick={() => {
+                            const options = form.getValues(`addonGroups.${groupIdx}.options`) || [];
+                            form.setValue(`addonGroups.${groupIdx}.options`, [...options, { name: "", price: 0 }]);
+                          }}
+                        >
+                          <Plus className="h-3 w-3 mr-1" /> Adicionar Opção
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        </ScrollArea>
 
-        <div className="sticky bottom-0 left-0 right-0 pt-6 pb-2 bg-background/95 backdrop-blur-sm border-t mt-auto flex flex-col gap-3">
+        <div className="p-4 sm:p-6 bg-background/95 backdrop-blur-sm border-t flex flex-col gap-3 shrink-0">
           <Button type="submit" size="lg" className="w-full bg-primary font-black uppercase py-6 shadow-xl active:scale-95 transition-all">
             {initialData ? "Salvar Alterações" : "Cadastrar no Cardápio"}
           </Button>
