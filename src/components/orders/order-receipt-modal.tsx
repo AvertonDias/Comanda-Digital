@@ -113,7 +113,7 @@ Obrigado pela preferência!
     const handlePrint = () => {
         setTimeout(() => {
             window.print();
-            onClose(); // Fecha automaticamente após imprimir
+            onClose(); 
         }, 150);
     };
 
@@ -207,12 +207,12 @@ Obrigado pela preferência!
                 </DialogContent>
             </Dialog>
 
-            {/* ÁREA DE IMPRESSÃO (OTIMIZADA PARA CONTRASTE MÁXIMO EM TÉRMICA 80MM) */}
+            {/* ÁREA DE IMPRESSÃO CLIENTE (CONTA / RECIBO COM PAGAMENTO) */}
             <div id="print-receipt-area" className="hidden print:block bg-white text-black p-4">
                 <div className="text-center space-y-1 mb-4">
-                    <h1 className="text-xl font-bold uppercase text-black">{restaurant?.name || 'RECIBO DE VENDA'}</h1>
-                    {restaurant?.phone && <p className="text-sm font-bold text-black">TEL: {restaurant.phone}</p>}
-                    <p className="text-[10px] font-bold text-black">{format(new Date(), "dd/MM/yyyy HH:mm:ss")}</p>
+                    <h1 className="text-lg font-bold uppercase text-black">{restaurant?.name || 'RECIBO DE VENDA'}</h1>
+                    {restaurant?.phone && <p className="text-xs font-bold text-black">TEL: {restaurant.phone}</p>}
+                    <p className="text-[9px] font-bold text-black">{format(new Date(), "dd/MM/yyyy HH:mm")}</p>
                 </div>
 
                 <div className="border-t border-black border-dashed my-2" />
@@ -225,7 +225,7 @@ Obrigado pela preferência!
 
                 <div className="border-t border-black border-dashed my-2" />
 
-                <table className="w-full text-[12px] mb-4 font-bold text-black">
+                <table className="w-full text-[11px] mb-4 font-bold text-black">
                     <thead>
                         <tr className="border-b border-black border-dashed">
                             <th className="text-left py-1 font-bold">DESCRIÇÃO</th>
@@ -239,7 +239,7 @@ Obrigado pela preferência!
                                     <span className="font-bold">{item.quantity}x</span> 
                                     [{getCategoryName(item.menuItemId).toUpperCase()}] {item.name.toUpperCase()}
                                     {item.addons?.map((a: any, ai: number) => (
-                                        <div key={ai} className="text-[10px] font-bold ml-2">+ {a.name.toUpperCase()}</div>
+                                        <div key={ai} className="text-[9px] font-bold ml-2">+ {a.name.toUpperCase()}</div>
                                     ))}
                                 </td>
                                 <td className="text-right py-2 font-bold">
@@ -253,7 +253,7 @@ Obrigado pela preferência!
                 {order.splitPayments && order.splitPayments.length > 0 && (
                     <>
                         <div className="border-t border-black border-dashed my-2" />
-                        <div className="text-[10px] font-bold uppercase mb-2 text-black">RESUMO DA DIVISÃO:</div>
+                        <div className="text-[9px] font-bold uppercase mb-2 text-black">RESUMO DA DIVISÃO:</div>
                         {order.splitPayments.map((p, idx) => (
                             <div key={idx} className="mb-2 pl-2 border-l-2 border-black text-black">
                                 <div className="flex justify-between font-bold">
@@ -261,7 +261,7 @@ Obrigado pela preferência!
                                     <span>R$ {p.amount.toFixed(2)}</span>
                                 </div>
                                 {p.items?.map((item: any, iidx: number) => (
-                                    <div key={iidx} className="text-[10px] font-bold">- {item.quantity}x {item.name.toUpperCase()}</div>
+                                    <div key={iidx} className="text-[9px] font-bold">- {item.quantity}x {item.name.toUpperCase()}</div>
                                 ))}
                             </div>
                         ))}
@@ -271,26 +271,25 @@ Obrigado pela preferência!
                 <div className="border-t border-black border-dashed my-2" />
 
                 <div className="space-y-1 text-right text-black">
-                    <p className="text-lg font-bold">VALOR TOTAL: R$ {order.total.toFixed(2)}</p>
-                    <p className="text-[12px] uppercase font-bold">PAGAMENTO: {order.paymentMethod?.toUpperCase() || (isFinished ? 'PAGO' : 'PENDENTE')}</p>
+                    <p className="text-base font-bold">VALOR TOTAL: R$ {order.total.toFixed(2)}</p>
+                    <p className="text-[11px] uppercase font-bold">PAGAMENTO: {order.paymentMethod?.toUpperCase() || (isFinished ? 'PAGO' : 'PENDENTE')}</p>
                 </div>
 
-                {/* SEÇÃO DO QR CODE PIX PARA PEDIDOS NÃO PAGOS */}
                 {!isFinished && pixPayload && (
                     <div className="mt-6 flex flex-col items-center border-t-2 border-black border-dashed pt-4">
-                        <p className="text-[10px] font-bold uppercase mb-2">Pague agora com Pix:</p>
+                        <p className="text-[9px] font-bold uppercase mb-2">Pague agora com Pix:</p>
                         <div className="bg-white p-2">
                              <img 
-                                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pixPayload)}`}
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(pixPayload)}`}
                                 alt="Pix QR Code"
-                                className="w-40 h-40"
+                                className="w-32 h-32"
                             />
                         </div>
-                        <p className="text-[8px] mt-2 max-w-[200px] text-center break-all font-bold">CHAVE: {restaurant?.pixKey}</p>
+                        <p className="text-[8px] mt-2 max-w-[180px] text-center break-all font-bold">CHAVE: {restaurant?.pixKey}</p>
                     </div>
                 )}
 
-                <div className="mt-8 text-center text-[11px] uppercase font-bold space-y-1 text-black">
+                <div className="mt-6 text-center text-[10px] uppercase font-bold space-y-1 text-black">
                     <p>Obrigado pela preferência!</p>
                     <p>Volte sempre</p>
                 </div>

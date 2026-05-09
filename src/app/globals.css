@@ -125,9 +125,9 @@ html, body {
     padding: 2mm;
     background: white !important;
     color: black !important;
-    /* Fonte mais robusta para térmica */
+    /* Fonte reduzida para caber melhor na fita térmica */
     font-family: 'Inter', system-ui, sans-serif;
-    font-size: 11pt;
+    font-size: 10pt;
     line-height: 1.1;
   }
   /* Força cores pretas e negrito em tudo para evitar tons de cinza apagados */
