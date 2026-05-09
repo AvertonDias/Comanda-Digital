@@ -7,14 +7,10 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Printer, Share2, CheckCircle2, X, MessageCircle, Info, MapPin, Phone, User } from "lucide-react";
-import type { Order, Restaurant, MenuItem, MenuItemCategory } from "@/lib/types";
+import { Printer, Share2, CheckCircle2, MessageCircle } from "lucide-react";
+import type { Order, Restaurant } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { Badge } from "../ui/badge";
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query } from "firebase/firestore";
 
 /**
  * Agrupa itens idênticos para o recibo.
@@ -47,30 +43,9 @@ export function OrderReceiptModal({
     isOpen: boolean; 
     onClose: () => void 
 }) {
-    const firestore = useFirestore();
     const { toast } = useToast();
 
-    const categoriesQuery = useMemoFirebase(() => {
-        if (!order?.restaurantId || !firestore) return null;
-        return query(collection(firestore, `restaurants/${order.restaurantId}/menuItemCategories`));
-    }, [order?.restaurantId, firestore]);
-
-    const itemsQuery = useMemoFirebase(() => {
-        if (!order?.restaurantId || !firestore) return null;
-        return query(collection(firestore, `restaurants/${order.restaurantId}/menuItems`));
-    }, [order?.restaurantId, firestore]);
-
-    const { data: categories } = useCollection<MenuItemCategory>(categoriesQuery);
-    const { data: menuItems } = useCollection<MenuItem>(itemsQuery);
-
     if (!order) return null;
-
-    const getCategoryName = (menuItemId: string) => {
-        const menuItem = menuItems?.find(i => i.id === menuItemId);
-        if (!menuItem) return '';
-        const category = categories?.find(c => c.id === menuItem.categoryId);
-        return category?.name || '';
-    };
 
     const orderNum = order.orderNumber?.toString().padStart(3, '0') || order.id?.slice(-4).toUpperCase() || '---';
     const groupedItems = consolidateItems(order.items);
@@ -90,8 +65,7 @@ export function OrderReceiptModal({
 📅 ${format(new Date(), "dd/MM/yy HH:mm")}
 ---
 ${groupedItems.map(i => {
-    const cat = getCategoryName(i.menuItemId);
-    return `${i.quantity}x [${cat.toUpperCase()}] ${i.name} - R$ ${(i.priceAtOrder * i.quantity).toFixed(2)}`;
+    return `${i.quantity}x ${i.name} - R$ ${(i.priceAtOrder * i.quantity).toFixed(2)}`;
 }).join('\n')}
 ---`;
 
@@ -101,7 +75,7 @@ ${groupedItems.map(i => {
 
         text += `
 💰 *Total: R$ ${order.total.toFixed(2)}*
-💳 Status: ${isFinished ? 'PAGO' : 'PAGAMENTO PENDENTE'}
+Status: ${isFinished ? 'CONCLUÍDO' : 'PENDENTE'}
 
 Obrigado pela preferência!
         `.trim();
@@ -124,7 +98,7 @@ Obrigado pela preferência!
                     text: text,
                 });
             } catch (err) {
-                console.log('Compartilhamento cancelado ou falhou', err);
+                console.log('Compartilhamento cancelado', err);
             }
         } else {
             try {
@@ -200,20 +174,20 @@ Obrigado pela preferência!
                     {/* Informações Específicas por Tipo */}
                     {order.destination === 'entrega' ? (
                         <div className="mt-2 p-1 border-2 border-black space-y-1">
-                            <p className="bg-black text-white px-2 py-0.5 inline-block font-black text-xs">MÉTODO: ENTREGA</p>
+                            <p className="bg-black text-white px-2 py-0.5 inline-block font-black text-xs">ENTREGA</p>
                             <p className="text-xs mt-1">CLIENTE: {order.customerName?.toUpperCase()}</p>
                             <p className="text-xs">TEL: {order.customerPhone}</p>
                             <p className="leading-tight text-xs border-t border-black pt-1 mt-1">ENDEREÇO: {order.deliveryAddress?.toUpperCase()}</p>
                         </div>
                     ) : order.destination === 'retirada' ? (
                         <div className="mt-2 p-1 border border-black space-y-1">
-                            <p className="bg-black text-white px-1 inline-block">MÉTODO: RETIRADA</p>
+                            <p className="bg-black text-white px-1 inline-block">RETIRADA</p>
                             <p>CLIENTE: {order.customerName?.toUpperCase()}</p>
                             <p>TEL: {order.customerPhone}</p>
                         </div>
                     ) : order.origin === 'balcao' ? (
                         <div className="mt-2 p-1 border border-black space-y-1">
-                            <p className="bg-black text-white px-1 inline-block">MÉTODO: BALCÃO</p>
+                            <p className="bg-black text-white px-1 inline-block">BALCÃO</p>
                             {order.customerName && <p>CLIENTE: {order.customerName?.toUpperCase()}</p>}
                         </div>
                     ) : (
@@ -234,12 +208,11 @@ Obrigado pela preferência!
                     </thead>
                     <tbody>
                         {groupedItems.map((item, idx) => {
-                            const cat = getCategoryName(item.menuItemId);
                             return (
                                 <tr key={idx} className="border-b border-gray-100 last:border-0">
                                     <td className="py-2 pr-2">
                                         <span className="font-bold">{item.quantity}x</span> 
-                                        <span className="ml-1 text-[7px] opacity-70">[{cat.toUpperCase()}]</span> {item.name.toUpperCase()}
+                                        <span className="ml-1">{item.name.toUpperCase()}</span>
                                         {item.addons?.map((a: any, ai: number) => (
                                             <div key={ai} className="text-[8px] font-bold ml-2">+ {a.name.toUpperCase()}</div>
                                         ))}

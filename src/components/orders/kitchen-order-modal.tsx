@@ -1,12 +1,12 @@
 'use client';
 import type { Restaurant, MenuItem, MenuItemCategory, Order } from "@/lib/types";
 import { format } from "date-fns";
-import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
-import { collection, query } from "firebase/firestore";
+import { useUser } from "@/firebase";
 
 /**
  * Componente que renderiza a comanda de produção customizada.
  * Otimizado para visualização clara na cozinha/balcão.
+ * Removido: Categorias nos itens, chaves Pix e termo 'pagamento'.
  */
 export function KitchenOrderModal({ 
     order, 
@@ -17,30 +17,9 @@ export function KitchenOrderModal({
     restaurant?: Restaurant | null;
     pixPayload?: string | null;
 }) {
-    const firestore = useFirestore();
     const { user } = useUser();
 
-    const categoriesQuery = useMemoFirebase(() => {
-        if (!order?.restaurantId || !firestore) return null;
-        return query(collection(firestore, `restaurants/${order.restaurantId}/menuItemCategories`));
-    }, [order?.restaurantId, firestore]);
-
-    const itemsQuery = useMemoFirebase(() => {
-        if (!order?.restaurantId || !firestore) return null;
-        return query(collection(firestore, `restaurants/${order.restaurantId}/menuItems`));
-    }, [order?.restaurantId, firestore]);
-
-    const { data: categories } = useCollection<MenuItemCategory>(categoriesQuery);
-    const { data: menuItems } = useCollection<MenuItem>(itemsQuery);
-
     if (!order) return null;
-
-    const getCategoryName = (menuItemId: string) => {
-        const menuItem = menuItems?.find(i => i.id === menuItemId);
-        if (!menuItem) return '';
-        const category = categories?.find(c => c.id === menuItem?.categoryId);
-        return category?.name || '';
-    };
 
     const orderNum = order.orderNumber?.toString() || '---';
     const waiterName = user?.displayName || user?.email?.split('@')[0] || 'SISTEMA';
@@ -54,11 +33,11 @@ export function KitchenOrderModal({
                 <p className="text-xs font-bold">#{orderNum} • {format(new Date(), "dd/MM/yy HH:mm")}</p>
             </div>
 
-            {/* Cabeçalho de Identificação Customizado */}
+            {/* Cabeçalho de Identificação */}
             <div className="mb-3">
                 {isDelivery ? (
                     <div className="border-[4px] border-black p-2 text-center mb-3">
-                        <p className="text-2xl font-black uppercase leading-none">MÉTODO: ENTREGA</p>
+                        <p className="text-2xl font-black uppercase leading-none">ENTREGA</p>
                     </div>
                 ) : (
                     <div className="border-2 border-black px-2 py-2 text-center mb-2">
@@ -93,10 +72,9 @@ export function KitchenOrderModal({
                 <span className="text-right">VALOR</span>
             </div>
 
-            {/* Lista de Itens Otimizada */}
+            {/* Lista de Itens (Sem categorias) */}
             <div className="space-y-3">
                 {order.items?.map((item: any, idx: number) => {
-                    const categoryName = getCategoryName(item.menuItemId);
                     const itemTotal = (item.priceAtOrder + (item.ingredientExtrasPrice || 0)) * item.quantity;
                     
                     return (
@@ -104,7 +82,6 @@ export function KitchenOrderModal({
                             <span className="text-xl font-black leading-none">{item.quantity}x</span>
                             <div className="space-y-1">
                                 <p className="text-xs font-black uppercase leading-tight">
-                                    {categoryName && <span className="text-[8px] mr-1">[{categoryName.toUpperCase()}]</span>}
                                     {item.name}
                                 </p>
                                 
@@ -146,7 +123,7 @@ export function KitchenOrderModal({
                 </div>
             </div>
 
-            {/* QR Code Pix Otimizado (Sem chave escrita) */}
+            {/* QR Code Pix (Apenas imagem) */}
             {pixPayload && (
                 <div className="mt-6 flex flex-col items-center border-t-2 border-black border-dashed pt-4 pb-4">
                     <p className="text-[8px] font-black uppercase mb-3">PAGUE COM PIX:</p>
