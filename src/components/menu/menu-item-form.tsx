@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, X, DollarSign, Clock } from 'lucide-react';
+import { Plus, Trash2, X, DollarSign, Clock, Camera, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -12,7 +12,7 @@ import type { MenuItem, MenuItemCategory } from '@/lib/types';
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Switch } from '@/components/ui/switch';
 import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -52,6 +52,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
   const firestore = useFirestore();
   const [newIngName, setNewIngName] = useState("");
   const [newIngPrice, setNewIngPrice] = useState("");
+  const [imagePreview, setImagePreview] = useState<string | null>(initialData?.imageUrl || null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -77,6 +78,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
         isAvailable: initialData.isAvailable,
         addonGroups: initialData.addonGroups || []
       });
+      setImagePreview(initialData.imageUrl);
     }
   }, [initialData, form]);
 
@@ -89,6 +91,17 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
     control: form.control,
     name: "addonGroups"
   });
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleAddIngredient = () => {
     if (!newIngName.trim()) return;
@@ -106,7 +119,7 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
       description: initialData?.description || "", 
       restaurantId,
       updatedAt: serverTimestamp(),
-      imageUrl: initialData?.imageUrl || `https://picsum.photos/seed/${values.name}/600/400`, 
+      imageUrl: imagePreview || `https://picsum.photos/seed/${values.name}/600/400`, 
       imageHint: initialData?.imageHint || "food plate",
       printSectorId: initialData?.printSectorId || "default", 
     };
@@ -157,6 +170,37 @@ export function MenuItemForm({ restaurantId, categories, onSuccess, initialData 
                 </FormItem>
               )}
             />
+
+            <div className="space-y-4">
+                <FormLabel className="text-[10px] font-black uppercase">Foto do Prato</FormLabel>
+                <div className="flex flex-col gap-4">
+                    {imagePreview ? (
+                        <div className="relative h-48 w-full rounded-xl overflow-hidden border-2 border-primary/20 shadow-inner bg-muted">
+                            <img src={imagePreview} className="object-cover w-full h-full" alt="Preview" />
+                            <Button 
+                                type="button" 
+                                variant="destructive" 
+                                size="icon" 
+                                className="absolute top-2 right-2 h-8 w-8 rounded-full shadow-lg"
+                                onClick={() => setImagePreview(null)}
+                            >
+                                <X className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    ) : (
+                        <label className="flex flex-col items-center justify-center h-48 w-full border-2 border-dashed border-muted-foreground/30 rounded-xl cursor-pointer hover:bg-muted/30 transition-all bg-muted/10 group">
+                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                                    <Camera className="h-6 w-6 text-primary" />
+                                </div>
+                                <p className="text-[10px] font-black uppercase text-muted-foreground">Clique para tirar foto</p>
+                                <p className="text-[8px] font-bold text-muted-foreground/60 uppercase mt-1">ou escolher da galeria</p>
+                            </div>
+                            <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+                        </label>
+                    )}
+                </div>
+            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <FormField
