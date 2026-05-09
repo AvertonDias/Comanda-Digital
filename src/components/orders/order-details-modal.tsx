@@ -578,7 +578,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                         <DialogFooter className="flex-row gap-2">
                             <Button variant="ghost" className="flex-1 font-black uppercase text-[10px] h-11 border-2" onClick={() => onOpenChange(false)}>Fechar</Button>
                             
-                            {order.status === 'aberto' && (
+                            {(order.status === 'aberto' || order.status === 'preparando') && (
                                 <Button variant="destructive" className="flex-1 font-black uppercase text-[10px] h-11" onClick={() => setShowCancelConfirm(true)}>
                                     <Trash2 className="mr-2 h-3 w-3"/> Cancelar
                                 </Button>

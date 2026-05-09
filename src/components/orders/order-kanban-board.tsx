@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import type { Order, OrderStatus, Restaurant } from '@/lib/types';
@@ -257,7 +258,7 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
     });
 
     // 🔒 LÓGICA DE MESA LIVRE: Só libera a mesa se não houver NENHUM outro pedido ativo (Aberto/Prep/Pronto)
-    if (newStatus === 'finalizado' && targetTableId) {
+    if ((newStatus === 'finalizado' || newStatus === 'cancelado') && targetTableId) {
         const otherActiveOrders = orders?.filter(o => 
             o.tableId === targetTableId && 
             !ids.includes(o.id) && 
