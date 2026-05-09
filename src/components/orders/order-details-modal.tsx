@@ -25,12 +25,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Order, OrderStatus, Restaurant, SplitPaymentPart, MenuItem, MenuItemCategory } from "@/lib/types";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowRight, ChefHat, Bike, ShoppingBag, Trash2, QrCode, Copy, Check, Users, Minus, Plus, Wallet, CreditCard, Banknote, ListChecks, DollarSign, UserPlus, Search, ChevronLeft, Printer } from "lucide-react";
+import { ArrowRight, ChefHat, Bike, ShoppingBag, Trash2, QrCode, Copy, Check, Users, Minus, Plus, Wallet, CreditCard, Banknote, ListChecks, DollarSign, Printer, ChevronLeft, Search } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import { doc, updateDoc, arrayUnion, increment, query, collection, orderBy, where } from "firebase/firestore";
@@ -294,7 +293,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
             quantity: data.quantity,
             priceAtOrder: data.item.price,
             notes: data.notes || null,
-            status: 'pendente',
+            status: 'pendente' as const,
             printSectorId: data.item.printSectorId,
             addons: data.addons?.map(a => ({ name: a.name, price: a.price })) || [],
             ingredientExtrasPrice: data.ingredientExtrasPrice || 0
@@ -325,6 +324,11 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                             <DialogTitle className="font-black uppercase tracking-tight text-xl">
                                 {isGrouped ? `Comanda ${order.tableName || 'Mesa'}` : `Pedido #${displayOrderNumber}`}
                             </DialogTitle>
+                            <DialogDescription className="text-muted-foreground text-[10px] font-bold uppercase">
+                                {isGrouped 
+                                    ? "Esta mesa possui vários pedidos ativos agrupados abaixo." 
+                                    : `Gerenciando o pedido individual #${displayOrderNumber}`}
+                            </DialogDescription>
                         </div>
                         <div className="flex gap-2">
                             <Button 
@@ -358,7 +362,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                     <div className="space-y-1">
                                         <span className="text-muted-foreground">Status Geral</span>
                                         <Badge className={`${cn(order.status === 'aberto' ? 'bg-blue-500' : order.status === 'preparando' ? 'bg-yellow-500' : order.status === 'pronto' ? 'bg-green-500' : order.status === 'finalizado' ? 'bg-gray-500' : 'bg-red-500')} text-white w-full justify-center h-6`}>
-                                            {isGrouped ? 'Múltiplos' : order.status.toUpperCase()}
+                                            {isGrouped ? 'VÁRIOS PEDIDOS' : order.status.toUpperCase()}
                                         </Badge>
                                     </div>
                                     <div className="space-y-1">
@@ -488,7 +492,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                         </div>
                                                     </div>
 
-                                                    {/* QR Code Pix para Divisão */}
                                                     {paymentMethod === 'pix' && qrCodeUrl && (
                                                         <div className="p-4 bg-white rounded-xl border-2 border-primary/20 flex flex-col items-center gap-3 animate-in zoom-in-95 duration-300">
                                                             <p className="text-[10px] font-black uppercase text-primary">Pagar Parte {paidPartsCount + 1} com Pix</p>
@@ -547,7 +550,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                 ))}
                                             </div>
 
-                                            {/* QR Code Pix para Pagamento Único */}
                                             {paymentMethod === 'pix' && qrCodeUrl && (
                                                 <div className="mt-4 p-4 bg-white rounded-xl border-2 border-primary/20 flex flex-col items-center gap-3 animate-in zoom-in-95 duration-300">
                                                     <p className="text-[10px] font-black uppercase text-primary">Escaneie para Pagar (Total)</p>
