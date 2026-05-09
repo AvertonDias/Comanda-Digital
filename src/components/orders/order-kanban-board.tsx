@@ -87,9 +87,6 @@ const OrderCard = ({
                  <span className="text-base font-black">
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}
                  </span>
-                 <div className="flex gap-1">
-                    <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold uppercase">Ver Detalhes</Button>
-                 </div>
             </CardFooter>
         </Card>
     )
