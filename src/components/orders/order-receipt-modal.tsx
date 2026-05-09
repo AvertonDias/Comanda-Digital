@@ -1,4 +1,3 @@
-
 'use client';
 import {
     Dialog,
@@ -198,13 +197,13 @@ Obrigado pela preferência!
             {/* ÁREA DE IMPRESSÃO CLIENTE (RECIBO DETALHADO) */}
             <div id="print-receipt-area" className="hidden print:block bg-white text-black p-2 font-mono">
                 <div className="text-center space-y-1 mb-4 border-b-2 border-black pb-2">
-                    <h1 className="text-lg font-bold uppercase">{restaurant?.name || 'RECIBO DE VENDA'}</h1>
-                    {restaurant?.phone && <p className="text-xs font-bold">TEL: {restaurant.phone}</p>}
-                    <p className="text-[10px] font-bold">{format(new Date(), "dd/MM/yyyy HH:mm")}</p>
+                    <h1 className="text-base font-bold uppercase">{restaurant?.name || 'RECIBO DE VENDA'}</h1>
+                    {restaurant?.phone && <p className="text-[10px] font-bold">TEL: {restaurant.phone}</p>}
+                    <p className="text-[9px] font-bold">{format(new Date(), "dd/MM/yyyy HH:mm")}</p>
                 </div>
                 
                 <div className="text-xs space-y-1 mb-4 font-bold">
-                    <p className="text-sm font-black uppercase">PEDIDO: #{orderNum}</p>
+                    <p className="text-xs font-black uppercase">PEDIDO: #{orderNum}</p>
                     
                     {/* Informações Específicas por Tipo */}
                     {order.destination === 'entrega' ? (
@@ -227,14 +226,14 @@ Obrigado pela preferência!
                         </div>
                     ) : (
                         <div className="mt-2 p-1 border border-black">
-                            <p className="text-lg font-black text-center">MESA: {order.tableName?.replace(/\D/g, '') || order.tableName || '---'}</p>
+                            <p className="text-base font-black text-center">MESA: {order.tableName?.replace(/\D/g, '') || order.tableName || '---'}</p>
                         </div>
                     )}
                 </div>
 
                 <div className="border-t border-black border-dashed my-2" />
 
-                <table className="w-full text-[11px] mb-4 font-bold">
+                <table className="w-full text-[9px] mb-4 font-bold">
                     <thead>
                         <tr className="border-b border-black border-dashed">
                             <th className="text-left py-1">DESCRIÇÃO</th>
@@ -248,7 +247,7 @@ Obrigado pela preferência!
                                     <span className="font-bold">{item.quantity}x</span> 
                                     {item.name.toUpperCase()}
                                     {item.addons?.map((a: any, ai: number) => (
-                                        <div key={ai} className="text-[9px] font-bold ml-2">+ {a.name.toUpperCase()}</div>
+                                        <div key={ai} className="text-[8px] font-bold ml-2">+ {a.name.toUpperCase()}</div>
                                     ))}
                                 </td>
                                 <td className="text-right py-2 whitespace-nowrap">
@@ -263,19 +262,19 @@ Obrigado pela preferência!
 
                 <div className="space-y-1 text-right">
                     {order.deliveryFee > 0 && (
-                        <p className="text-[10px] font-bold">TAXA ENTREGA: R$ {order.deliveryFee.toFixed(2)}</p>
+                        <p className="text-[9px] font-bold">TAXA ENTREGA: R$ {order.deliveryFee.toFixed(2)}</p>
                     )}
-                    <p className="text-lg font-black">TOTAL: R$ {order.total.toFixed(2)}</p>
-                    <p className="text-[11px] uppercase font-bold bg-gray-100 p-1 inline-block">
+                    <p className="text-base font-black">TOTAL: R$ {order.total.toFixed(2)}</p>
+                    <p className="text-[10px] uppercase font-bold bg-gray-100 p-1 inline-block">
                         PAGAMENTO: {order.paymentMethod?.toUpperCase() || (isFinished ? 'PAGO' : 'PENDENTE')}
                     </p>
                 </div>
 
                 {order.splitPayments && order.splitPayments.length > 0 && (
                     <div className="mt-4 border-t border-black border-dashed pt-2">
-                        <p className="text-[9px] font-black uppercase mb-1">DETALHES DA DIVISÃO:</p>
+                        <p className="text-[8px] font-black uppercase mb-1">DETALHES DA DIVISÃO:</p>
                         {order.splitPayments.map((p, idx) => (
-                            <div key={idx} className="flex justify-between text-[10px] font-bold border-l-2 border-black pl-1 mb-1">
+                            <div key={idx} className="flex justify-between text-[8px] font-bold border-l-2 border-black pl-1 mb-1">
                                 <span>PARTE {p.part} ({p.method.toUpperCase()}):</span>
                                 <span>R$ {p.amount.toFixed(2)}</span>
                             </div>
@@ -285,19 +284,19 @@ Obrigado pela preferência!
 
                 {!isFinished && pixPayload && (
                     <div className="mt-6 flex flex-col items-center border-t-2 border-black border-dashed pt-4">
-                        <p className="text-[10px] font-black uppercase mb-2">Pague com Pix:</p>
+                        <p className="text-[9px] font-black uppercase mb-2">Pague com Pix:</p>
                         <div className="bg-white p-2">
                              <img 
                                 src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(pixPayload)}`}
                                 alt="Pix QR Code"
-                                className="w-32 h-32"
+                                className="w-24 h-24"
                             />
                         </div>
-                        <p className="text-[8px] mt-2 max-w-[180px] text-center break-all font-bold">CHAVE: {restaurant?.pixKey}</p>
+                        <p className="text-[7px] mt-2 max-w-[180px] text-center break-all font-bold">CHAVE: {restaurant?.pixKey}</p>
                     </div>
                 )}
 
-                <div className="mt-8 text-center text-[10px] uppercase font-black space-y-1 border-t border-black pt-4">
+                <div className="mt-8 text-center text-[8px] uppercase font-black space-y-1 border-t border-black pt-4">
                     <p>Obrigado pela preferência!</p>
                     <p>Sistema Comanda Digital</p>
                 </div>

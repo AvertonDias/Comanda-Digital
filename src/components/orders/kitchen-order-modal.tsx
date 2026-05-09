@@ -1,4 +1,3 @@
-
 'use client';
 import type { Restaurant, MenuItem, MenuItemCategory, Order } from "@/lib/types";
 import { format } from "date-fns";
@@ -51,19 +50,19 @@ export function KitchenOrderModal({
     return (
         <div id="print-receipt-area" className="hidden print:block bg-white text-black font-mono p-2">
             <div className="text-center border-b-2 border-black pb-2 mb-2">
-                <h1 className="text-xl font-black uppercase tracking-tighter">ORDEM DE PRODUÇÃO</h1>
-                <p className="text-sm font-bold">#{orderNum} • {format(new Date(), "dd/MM/yy HH:mm")}</p>
+                <h1 className="text-lg font-black uppercase tracking-tighter">ORDEM DE PRODUÇÃO</h1>
+                <p className="text-xs font-bold">#{orderNum} • {format(new Date(), "dd/MM/yy HH:mm")}</p>
             </div>
 
             {/* Cabeçalho de Identificação Customizado */}
             <div className="mb-3">
                 {isDelivery ? (
-                    <div className="border-[6px] border-black p-2 text-center mb-3">
-                        <p className="text-4xl font-black uppercase leading-none">ENTREGA</p>
+                    <div className="border-[4px] border-black p-2 text-center mb-3">
+                        <p className="text-2xl font-black uppercase leading-none">ENTREGA</p>
                     </div>
                 ) : (
-                    <div className="border-4 border-black px-2 py-2 text-center mb-2">
-                        <p className="text-2xl font-black uppercase">
+                    <div className="border-2 border-black px-2 py-2 text-center mb-2">
+                        <p className="text-lg font-black uppercase">
                             {order.destination === 'retirada' ? 'RETIRADA' : `MESA: ${order.tableName?.replace(/\D/g, '') || order.tableName}`}
                         </p>
                     </div>
@@ -72,23 +71,23 @@ export function KitchenOrderModal({
                 {/* Dados do Cliente / Entrega */}
                 {(isDelivery || order.customerName) && (
                     <div className="border-2 border-black p-2 mb-2 space-y-1">
-                        <p className="text-sm font-black uppercase">CLIENTE: {order.customerName || 'NÃO INFORMADO'}</p>
-                        {order.customerPhone && <p className="text-xs font-black uppercase">TEL: {order.customerPhone}</p>}
+                        <p className="text-xs font-black uppercase">CLIENTE: {order.customerName || 'NÃO INFORMADO'}</p>
+                        {order.customerPhone && <p className="text-[10px] font-black uppercase">TEL: {order.customerPhone}</p>}
                         {isDelivery && order.deliveryAddress && (
-                            <p className="text-xs font-black uppercase leading-tight mt-1 border-t border-black pt-1">
+                            <p className="text-[10px] font-black uppercase leading-tight mt-1 border-t border-black pt-1">
                                 ENDEREÇO: {order.deliveryAddress}
                             </p>
                         )}
                     </div>
                 )}
 
-                <p className="text-[10px] font-bold uppercase">ATENDENTE: {waiterName.toUpperCase()}</p>
+                <p className="text-[8px] font-bold uppercase">ATENDENTE: {waiterName.toUpperCase()}</p>
             </div>
 
             <div className="border-b border-black border-dashed my-2" />
 
             {/* Cabeçalho da Lista */}
-            <div className="grid grid-cols-[2.5rem_1fr_4.5rem] font-bold text-[10px] mb-1 px-1">
+            <div className="grid grid-cols-[2.5rem_1fr_4.5rem] font-bold text-[8px] mb-1 px-1">
                 <span>QTD</span>
                 <span>DESCRIÇÃO</span>
                 <span className="text-right">VALOR</span>
@@ -102,15 +101,15 @@ export function KitchenOrderModal({
                     
                     return (
                         <div key={idx} className="grid grid-cols-[2.5rem_1fr_4.5rem] items-start border-b border-gray-200 pb-2">
-                            <span className="text-2xl font-black leading-none">{item.quantity}x</span>
+                            <span className="text-xl font-black leading-none">{item.quantity}x</span>
                             <div className="space-y-1">
-                                <p className="text-sm font-black uppercase leading-tight">
-                                    {categoryName && <span className="text-[10px] mr-1">[{categoryName.toUpperCase()}]</span>}
+                                <p className="text-xs font-black uppercase leading-tight">
+                                    {categoryName && <span className="text-[8px] mr-1">[{categoryName.toUpperCase()}]</span>}
                                     {item.name}
                                 </p>
                                 
                                 {item.addons?.length > 0 && (
-                                    <div className="ml-1 text-[9px] font-bold uppercase text-gray-800">
+                                    <div className="ml-1 text-[8px] font-bold uppercase text-gray-800">
                                         {item.addons.map((a: any, ai: number) => (
                                             <p key={ai}>+ {a.name}</p>
                                         ))}
@@ -119,13 +118,13 @@ export function KitchenOrderModal({
 
                                 {item.notes && (
                                     <div className="mt-1 p-1 bg-gray-50 border-l-2 border-black">
-                                        <p className="text-[10px] font-bold uppercase leading-tight italic">
+                                        <p className="text-[9px] font-bold uppercase leading-tight italic">
                                             OBS: {item.notes}
                                         </p>
                                     </div>
                                 )}
                             </div>
-                            <span className="text-right text-xs font-black">
+                            <span className="text-right text-[10px] font-black">
                                 {itemTotal.toFixed(2)}
                             </span>
                         </div>
@@ -136,12 +135,12 @@ export function KitchenOrderModal({
             {/* Resumo Financeiro */}
             <div className="mt-4 border-t-2 border-black pt-2 space-y-1">
                 {order.deliveryFee > 0 && (
-                    <div className="flex justify-between text-xs font-bold uppercase">
+                    <div className="flex justify-between text-[10px] font-bold uppercase">
                         <span>TAXA ENTREGA:</span>
                         <span>R$ {order.deliveryFee.toFixed(2)}</span>
                     </div>
                 )}
-                <div className="flex justify-between items-center text-xl font-black uppercase">
+                <div className="flex justify-between items-center text-lg font-black uppercase">
                     <span>TOTAL:</span>
                     <span>R$ {order.total.toFixed(2)}</span>
                 </div>
@@ -150,18 +149,18 @@ export function KitchenOrderModal({
             {/* QR Code Pix Otimizado */}
             {pixPayload && (
                 <div className="mt-6 flex flex-col items-center border-t-2 border-black border-dashed pt-4 pb-4">
-                    <p className="text-[10px] font-black uppercase mb-3">PAGUE COM PIX:</p>
+                    <p className="text-[8px] font-black uppercase mb-3">PAGUE COM PIX:</p>
                     <div className="bg-white p-2 border-2 border-black shadow-sm">
                          <img 
                             src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pixPayload)}`}
                             alt="Pix QR Code"
-                            className="w-40 h-40"
+                            className="w-32 h-32"
                         />
                     </div>
                 </div>
             )}
 
-            <div className="mt-4 text-center text-[10px] uppercase font-black space-y-1 border-t border-black pt-4">
+            <div className="mt-4 text-center text-[8px] uppercase font-black space-y-1 border-t border-black pt-4">
                 <p>Comanda de Produção - {restaurant?.name}</p>
                 <p>Sistema Comanda Digital</p>
             </div>
