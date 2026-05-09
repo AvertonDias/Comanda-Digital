@@ -21,7 +21,9 @@ function consolidateItems(items: any[]) {
     const groups: Record<string, any> = {};
     items.forEach(item => {
         const addonsKey = item.addons?.map((a: any) => a.name).sort().join(',') || '';
-        const key = `${item.menuItemId}-${addonsKey}-${item.notes || ''}`;
+        const notesKey = item.notes?.trim() || '';
+        const extraKey = item.ingredientExtrasPrice || 0;
+        const key = `${item.menuItemId}-${addonsKey}-${notesKey}-${extraKey}`;
         if (groups[key]) {
             groups[key].quantity += item.quantity;
         } else {
@@ -67,7 +69,8 @@ export function OrderReceiptModal({
 📅 ${format(new Date(), "dd/MM/yy HH:mm")}
 ---
 ${groupedItems.map(i => {
-    return `${i.quantity}x ${i.name} - R$ ${(i.priceAtOrder * i.quantity).toFixed(2)}`;
+    const itemTotal = (i.priceAtOrder + (i.ingredientExtrasPrice || 0)) * i.quantity;
+    return `${i.quantity}x ${i.name} - R$ ${itemTotal.toFixed(2)}`;
 }).join('\n')}
 ---`;
 
@@ -201,8 +204,11 @@ ${groupedItems.map(i => {
                                             <span className="font-bold">{item.quantity}x</span> 
                                             <span className="ml-1">{item.name.toUpperCase()}</span>
                                             {item.addons?.map((a: any, ai: number) => (
-                                                <div key={ai} className="text-[8px] font-bold ml-2 text-gray-700">+ {a.name.toUpperCase()}</div>
+                                                <div key={ai} className="text-[8px] font-bold ml-2 text-gray-700">+ {a.name.toUpperCase()} (+R$ {a.price.toFixed(2)})</div>
                                             ))}
+                                            {item.ingredientExtrasPrice > 0 && (
+                                                <div className="text-[8px] font-bold ml-2 text-primary">+ EXTRA (+R$ {item.ingredientExtrasPrice.toFixed(2)})</div>
+                                            )}
                                             {item.notes && <div className="text-[8px] italic ml-2">* {item.notes.toUpperCase()}</div>}
                                         </td>
                                         <td className="text-right py-2 whitespace-nowrap">
@@ -235,7 +241,7 @@ ${groupedItems.map(i => {
 
                     {/* SEÇÃO DE PAGAMENTO / DIVISÃO */}
                     <div className="mt-4 pt-2 border-t-2 border-black border-double">
-                        <h2 className="text-[10px] font-black uppercase mb-2 text-center">Informaçōes de Pagamento</h2>
+                        <h2 className="text-[10px] font-black uppercase mb-2 text-center">RESUMO DA DIVISÃO</h2>
                         
                         {hasSplits ? (
                             <div className="space-y-1">
@@ -257,7 +263,7 @@ ${groupedItems.map(i => {
                         )}
                     </div>
 
-                    {!isFinished && pixPayload && (
+                    {(!isFinished && pixPayload && order.origin !== 'mesa' && !order.tableId) && (
                         <div className="mt-6 flex flex-col items-center border-t-2 border-black border-dashed pt-4">
                             <p className="text-[9px] font-black uppercase mb-2">Pague com Pix aqui:</p>
                             <div className="bg-white p-2 border border-black">

@@ -60,7 +60,8 @@ function consolidateItems(items: any[]) {
     items.forEach(item => {
         const addonsKey = item.addons?.map((a: any) => a.name).sort().join(',') || '';
         const notesKey = item.notes?.trim() || '';
-        const key = `${item.menuItemId}-${addonsKey}-${notesKey}`;
+        const extraKey = item.ingredientExtrasPrice || 0;
+        const key = `${item.menuItemId}-${addonsKey}-${notesKey}-${extraKey}`;
         if (groups[key]) {
             groups[key].quantity += item.quantity;
         } else {
@@ -423,8 +424,11 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                         {item.name}
                                                     </p>
                                                     {item.addons?.map((a: any, ai: number) => (
-                                                        <p key={ai} className="text-[9px] text-muted-foreground font-bold uppercase">+ {a.name}</p>
+                                                        <p key={ai} className="text-[9px] text-muted-foreground font-bold uppercase">+ {a.name} (+R$ {a.price.toFixed(2)})</p>
                                                     ))}
+                                                    {item.ingredientExtrasPrice > 0 && (
+                                                        <p className="text-[9px] text-muted-foreground font-bold uppercase">+ EXTRAS (+R$ {item.ingredientExtrasPrice.toFixed(2)})</p>
+                                                    )}
                                                     {item.notes && <p className="text-[9px] italic text-primary font-bold mt-0.5">Obs: {item.notes}</p>}
                                                 </div>
                                                 <span className="text-[11px] font-black shrink-0">
