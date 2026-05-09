@@ -345,11 +345,19 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                 {isGrouped ? `Comanda ${order.tableName || 'Mesa'}` : `Pedido #${displayOrderNumber}`}
                             </DialogTitle>
                         </div>
-                        {order.status !== 'preparando' && (
-                            <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 border-2" onClick={handlePrintComanda}>
-                                <Printer className="h-4 w-4" />
-                            </Button>
-                        )}
+                        <div className="flex gap-2">
+                            {/* Botão de re-imprimir para cozinha sempre disponível para garçom */}
+                            {(order.status === 'aberto' || order.status === 'preparando') && (
+                                <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 border-2 border-orange-200 text-orange-600" onClick={() => setShowKitchenPrint(true)}>
+                                    <ChefHat className="h-4 w-4" />
+                                </Button>
+                            )}
+                            {order.status !== 'preparando' && (
+                                <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 border-2" onClick={handlePrintComanda}>
+                                    <Printer className="h-4 w-4" />
+                                </Button>
+                            )}
+                        </div>
                     </DialogHeader>
                     
                     <ScrollArea className="flex-1">
@@ -747,8 +755,8 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                     ...order,
                     items: combinedItems,
                     total: combinedTotal,
-                    splitPayments: recordedSplitParts.length > 0 ? recordedSplitParts : (order.splitPayments || []),
-                    paymentMethod: recordedSplitParts.length > 0 ? 'multiplos' : (paymentMethod || order.paymentMethod || 'A Pagar')
+                    splitPayments: recordedSplitPayments.length > 0 ? recordedSplitPayments : (order.splitPayments || []),
+                    paymentMethod: recordedSplitPayments.length > 0 ? 'multiplos' : (paymentMethod || order.paymentMethod || 'A Pagar')
                 }}
             />
 
