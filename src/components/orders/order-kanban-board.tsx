@@ -17,6 +17,7 @@ import { collection, query, doc, updateDoc, orderBy, where, serverTimestamp } fr
 import { Skeleton } from '../ui/skeleton';
 import { Printer, Bell, BellRing } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useRestaurant } from '@/hooks/use-restaurant';
 
 const STATUS_CONFIG: Record<OrderStatus, { title: string; color: string }> = {
     'aberto': { title: 'Abertos', color: 'bg-blue-500' },
@@ -114,6 +115,7 @@ const OrderCard = ({
 
 export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: string, tableId?: string }) {
   const firestore = useFirestore();
+  const { role } = useRestaurant();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [lastFinalizedOrder, setLastFinalizedOrder] = useState<Order | null>(null);
   const [orderToQuickPrint, setOrderToQuickPrint] = useState<Order | null>(null);
@@ -144,7 +146,8 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
 
   // Sistema de alerta sonoro para novos pedidos (trabalhando com IDs para evitar disparo em refresh)
   useEffect(() => {
-    if (orders && !isLoading) {
+    // Só toca som para administradores
+    if (orders && !isLoading && role === 'admin') {
         const currentAbertoOrders = orders.filter(o => o.status === 'aberto');
         
         if (!initialLoadDone.current) {
@@ -167,7 +170,7 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
             audioRef.current.play().catch(e => console.log('Áudio bloqueado pelo navegador'));
         }
     }
-  }, [orders, soundEnabled, isLoading]);
+  }, [orders, soundEnabled, isLoading, role]);
 
   const groupedOrdersByStatus = useMemo(() => {
     const result: Record<OrderStatus, Order[]> = {
@@ -299,24 +302,27 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
       {/* Alerta de som invisível */}
       <audio ref={audioRef} src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto" />
 
-      <div className="flex items-center justify-between px-4 mb-2 bg-muted/20 py-2 border-b md:rounded-t-lg">
-          <div className="flex items-center gap-2">
-            <Bell className="h-4 w-4 text-muted-foreground" />
-            <span className="text-[10px] font-black uppercase text-muted-foreground">Alertas de Balcão</span>
-          </div>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className={cn(
-                "h-7 px-3 gap-2 text-[9px] font-black uppercase transition-all",
-                soundEnabled ? 'text-green-600' : 'text-muted-foreground'
-            )}
-            onClick={() => setSoundAlertEnabled(!soundEnabled)}
-          >
-            {soundEnabled ? <BellRing className="h-3 w-3" /> : <Bell className="h-3 w-3" />}
-            {soundEnabled ? 'Som Ativado' : 'Som Mudo'}
-          </Button>
-      </div>
+      {/* Somente administradores vêem o controle de som */}
+      {role === 'admin' && (
+        <div className="flex items-center justify-between px-4 mb-2 bg-muted/20 py-2 border-b md:rounded-t-lg">
+            <div className="flex items-center gap-2">
+              <Bell className="h-4 w-4 text-muted-foreground" />
+              <span className="text-[10px] font-black uppercase text-muted-foreground">Alertas de Balcão</span>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className={cn(
+                  "h-7 px-3 gap-2 text-[9px] font-black uppercase transition-all",
+                  soundEnabled ? 'text-green-600' : 'text-muted-foreground'
+              )}
+              onClick={() => setSoundAlertEnabled(!soundEnabled)}
+            >
+              {soundEnabled ? <BellRing className="h-3 w-3" /> : <Bell className="h-3 w-3" />}
+              {soundEnabled ? 'Som Ativado' : 'Som Mudo'}
+            </Button>
+        </div>
+      )}
 
       <Tabs defaultValue={statusesToShow[0]} className="w-full h-full flex flex-col">
           <TabsList className="grid w-full grid-cols-3 bg-muted/50 rounded-none h-12 sticky top-0 z-10 px-4">
