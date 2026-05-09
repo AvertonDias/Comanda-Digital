@@ -43,15 +43,15 @@ export function KitchenOrderModal({
                 ) : (
                     <div className="border-2 border-black px-2 py-2 text-center mb-2">
                         <p className="text-lg font-black uppercase">
-                            {order.destination === 'retirada' ? 'RETIRADA' : `MESA: ${order.tableName?.replace(/\D/g, '') || order.tableName}`}
+                            {order.destination === 'retirada' ? 'RETIRADA' : isTableOrder ? `MESA: ${order.tableName?.replace(/\D/g, '') || order.tableName}` : 'BALCÃO'}
                         </p>
                     </div>
                 )}
                 
-                {/* Dados do Cliente / Entrega */}
-                {(isDelivery || order.customerName) && (
+                {/* Dados do Cliente / Entrega - SEMPRE EXIBE SE HOUVER INFO */}
+                {(order.customerName || order.customerPhone || isDelivery) && (
                     <div className="border-2 border-black p-2 mb-2 space-y-1">
-                        <p className="text-xs font-black uppercase">CLIENTE: {order.customerName || 'NÃO INFORMADO'}</p>
+                        {order.customerName && <p className="text-xs font-black uppercase">CLIENTE: {order.customerName}</p>}
                         {order.customerPhone && <p className="text-[10px] font-black uppercase">TEL: {order.customerPhone}</p>}
                         {isDelivery && order.deliveryAddress && (
                             <p className="text-[10px] font-black uppercase leading-tight mt-1 border-t border-black pt-1">
@@ -100,12 +100,8 @@ export function KitchenOrderModal({
                                     </div>
                                 )}
 
-                                {item.ingredientExtrasPrice > 0 && !isTableOrder && (
-                                    <p className="text-[8px] font-bold text-primary ml-1">+ EXTRA (+R$ {item.ingredientExtrasPrice.toFixed(2)})</p>
-                                )}
-                                
-                                {item.ingredientExtrasPrice > 0 && isTableOrder && (
-                                    <p className="text-[8px] font-bold text-primary ml-1">+ EXTRA</p>
+                                {item.ingredientExtrasPrice > 0 && (
+                                    <p className="text-[8px] font-bold text-primary ml-1">+ EXTRA {!isTableOrder ? `(+R$ ${item.ingredientExtrasPrice.toFixed(2)})` : ''}</p>
                                 )}
 
                                 {item.notes && (

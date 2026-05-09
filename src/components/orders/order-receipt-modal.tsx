@@ -55,6 +55,7 @@ export function OrderReceiptModal({
     const isFinished = order.status === 'finalizado';
     const hasSplits = order.splitPayments && order.splitPayments.length > 0;
     const isDelivery = order.destination === 'entrega';
+    const isMesa = order.origin === 'mesa' || !!order.tableId;
 
     const handlePrint = () => {
         setTimeout(() => {
@@ -68,7 +69,14 @@ export function OrderReceiptModal({
 🧾 *${restaurant?.name || 'Recibo de Venda'}*
 📌 Pedido #${orderNum}
 📅 ${format(new Date(), "dd/MM/yy HH:mm")}
----
+---`;
+
+        if (!isMesa) {
+            if (order.customerName) text += `\n👤 Cliente: ${order.customerName}`;
+            if (order.customerPhone) text += `\n📞 Tel: ${order.customerPhone}`;
+        }
+
+        text += `\n---
 ${groupedItems.map(i => {
     const itemTotal = (i.priceAtOrder + (i.ingredientExtrasPrice || 0)) * i.quantity;
     return `${i.quantity}x ${i.name} - R$ ${itemTotal.toFixed(2)}`;
@@ -182,11 +190,19 @@ ${groupedItems.map(i => {
                         <p className="text-[9px] font-bold">{format(new Date(), "dd/MM/yyyy HH:mm")}</p>
                     </div>
                     
-                    <div className="text-xs space-y-1 mb-4 font-bold">
+                    <div className="text-[10px] space-y-1 mb-4 font-bold">
                         <p className="text-xs font-black uppercase">
-                            {order.origin === 'mesa' ? `MESA: ${order.tableName?.replace(/\D/g, '') || order.tableName}` : `PEDIDO: #${orderNum}`}
+                            {isMesa ? `MESA: ${order.tableName?.replace(/\D/g, '') || order.tableName}` : `PEDIDO: #${orderNum}`}
                         </p>
-                        {order.customerName && <p className="text-[10px] uppercase">CLIENTE: {order.customerName}</p>}
+                        
+                        {/* Seção Dados do Cliente Expandida */}
+                        {!isMesa && (order.customerName || order.customerPhone) && (
+                            <div className="border-l-2 border-black pl-2 space-y-0.5 my-2">
+                                {order.customerName && <p className="uppercase">CLIENTE: {order.customerName}</p>}
+                                {order.customerPhone && <p className="uppercase">TEL: {order.customerPhone}</p>}
+                            </div>
+                        )}
+
                         {isDelivery && order.deliveryAddress && (
                             <div className="border-2 border-black p-1.5 mt-2 bg-gray-50">
                                 <p className="text-[9px] font-black uppercase leading-tight mb-0.5">📍 ENDEREÇO DE ENTREGA:</p>
@@ -250,7 +266,7 @@ ${groupedItems.map(i => {
 
                     {/* SEÇÃO DE RATEIO DE CONTA */}
                     <div className="mt-4 pt-2 border-t-2 border-black border-double">
-                        <h2 className="text-[10px] font-black uppercase mb-2 text-center">RATEIO DA CONTA</h2>
+                        <h2 className="text-[10px] font-black uppercase mb-2 text-center">DETALHAMENTO FINANCEIRO</h2>
                         
                         {hasSplits ? (
                             <div className="space-y-1">
@@ -263,12 +279,12 @@ ${groupedItems.map(i => {
                             </div>
                         ) : (
                             <div className="text-center bg-black text-white py-1 font-black text-[9px] uppercase">
-                                PAGAMENTO ÚNICO
+                                PAGAMENTO INTEGRAL
                             </div>
                         )}
                     </div>
 
-                    {(pixPayload && order.origin !== 'mesa' && !order.tableId) && (
+                    {(pixPayload && !isMesa) && (
                         <div className="mt-6 flex flex-col items-center border-t-2 border-black border-dashed pt-4">
                             <div className="bg-white p-2 border border-black">
                                  <img 
