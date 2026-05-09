@@ -325,14 +325,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         }
     };
 
-    const handlePrintComanda = () => {
-        if (order.status === 'pronto' || order.status === 'finalizado') {
-            setShowReceiptPreview(true);
-        } else {
-            setShowKitchenPrint(true);
-        }
-    };
-
     return (
         <>
             <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -347,13 +339,26 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                             </DialogTitle>
                         </div>
                         <div className="flex gap-2">
-                            {(order.status === 'aberto' || order.status === 'preparando') && (
-                                <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 border-2 border-orange-200 text-orange-600" onClick={() => setShowKitchenPrint(true)}>
-                                    <ChefHat className="h-4 w-4" />
-                                </Button>
-                            )}
+                            {/* Botão Exclusivo para Cozinha */}
+                            <Button 
+                                variant="outline" 
+                                size="icon" 
+                                className="h-9 w-9 shrink-0 border-2 border-orange-200 text-orange-600 hover:bg-orange-50 transition-all" 
+                                onClick={() => setShowKitchenPrint(true)}
+                                title="Imprimir Ordem de Produção (Cozinha)"
+                            >
+                                <ChefHat className="h-4 w-4" />
+                            </Button>
+
+                            {/* Botão Exclusivo para Recibo do Cliente */}
                             {order.status !== 'preparando' && (
-                                <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 border-2" onClick={handlePrintComanda}>
+                                <Button 
+                                    variant="outline" 
+                                    size="icon" 
+                                    className="h-9 w-9 shrink-0 border-2" 
+                                    onClick={() => setShowReceiptPreview(true)}
+                                    title="Imprimir Recibo / Conta do Cliente"
+                                >
                                     <Printer className="h-4 w-4" />
                                 </Button>
                             )}
