@@ -7,10 +7,10 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Printer, ChefHat, MapPin, Clock } from "lucide-react";
+import { Printer, ChefHat, Clock } from "lucide-react";
 import type { Restaurant, MenuItem, MenuItemCategory } from "@/lib/types";
 import { format } from "date-fns";
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
 import { collection, query, doc, updateDoc } from "firebase/firestore";
 
 export function KitchenOrderModal({ 
@@ -25,6 +25,7 @@ export function KitchenOrderModal({
     onClose: () => void 
 }) {
     const firestore = useFirestore();
+    const { user } = useUser();
 
     const categoriesQuery = useMemoFirebase(() => {
         if (!order?.restaurantId || !firestore) return null;
@@ -48,21 +49,15 @@ export function KitchenOrderModal({
         return category?.name || '';
     };
 
-    const orderNum = order.orderNumber?.toString().padStart(3, '0') || '---';
-    const isDelivery = order.destination === 'entrega';
-    const isTakeaway = order.destination === 'retirada';
-    const isCounter = order.origin === 'balcao' && order.destination === 'local';
+    const orderNum = order.orderNumber?.toString() || '---';
+    const waiterName = user?.displayName || user?.email?.split('@')[0] || 'SISTEMA';
 
     const handlePrint = async () => {
-        // Marca o pedido como impresso no banco de dados para parar de piscar
         if (order.id && order.restaurantId) {
-            // Se for um ID composto (agrupado), precisamos tratar ou marcar apenas o principal
-            // No caso de grupos, o KanbanBoard já trata isso, mas garantimos aqui também.
             const orderRef = doc(firestore, `restaurants/${order.restaurantId}/orders`, order.id);
             await updateDoc(orderRef, { isPrinted: true }).catch(() => {});
         }
 
-        // Pequeno delay para garantir que o DOM de impressão esteja pronto
         setTimeout(() => {
             window.print();
             onClose();
@@ -81,7 +76,7 @@ export function KitchenOrderModal({
                             Enviar para Produção?
                         </DialogTitle>
                         <p className="text-sm text-muted-foreground text-center font-medium">
-                            O pedido #{orderNum} da {order.tableName || 'Mesa'} foi registrado.
+                            O pedido #{orderNum.padStart(3, '0')} da {order.tableName || 'Mesa'} está pronto para a cozinha.
                         </p>
                     </DialogHeader>
 
@@ -91,7 +86,7 @@ export function KitchenOrderModal({
                             onClick={handlePrint}
                         >
                             <Printer className="h-6 w-6" />
-                            Imprimir para Cozinha
+                            Imprimir Comanda
                         </Button>
                         
                         <Button 
@@ -105,70 +100,64 @@ export function KitchenOrderModal({
                 </DialogContent>
             </Dialog>
 
-            {/* ÁREA DE IMPRESSÃO DA COZINHA (VISÍVEL APENAS NA IMPRESSORA) */}
-            <div id="print-receipt-area" className="hidden print:block bg-white text-black p-2">
-                <div className="text-center border-b-2 border-black pb-2 mb-2">
-                    <h1 className="text-4xl font-black uppercase leading-none">
-                        {order.tableName || (isDelivery ? 'ENTREGA' : isTakeaway ? 'RETIRADA' : isCounter ? 'BALCÃO' : 'PEDIDO')}
-                    </h1>
-                    <div className="flex justify-between items-center mt-2 px-1">
-                        <span className="text-xl font-bold">ORDEM #{orderNum}</span>
-                        <span className="text-sm font-bold">{format(new Date(), "HH:mm:ss")}</span>
+            {/* ÁREA DE IMPRESSÃO DA COZINHA (MODELO FIEL AO FORNECIDO) */}
+            <div id="print-receipt-area" className="hidden print:block bg-white text-black font-mono">
+                <div className="space-y-0.5 mb-2">
+                    <div className="flex justify-between items-start font-bold">
+                        <span className="text-lg">COMANDA No {orderNum}</span>
+                        <span className="text-sm">{format(new Date(), "dd/MM/yyyy HH:mm:ss")}</span>
                     </div>
+                    <p className="text-base font-bold uppercase">MESA / COMANDA: {order.tableName || 'BALCAO'}</p>
+                    <p className="text-2xl font-black uppercase">Local: {order.tableName?.replace(/\D/g, '') || order.tableName || '---'}</p>
+                    <p className="text-base font-bold uppercase">GARÇOM: {waiterName.toUpperCase()}</p>
                 </div>
 
-                {isDelivery && (
-                    <div className="border-b-2 border-black pb-2 mb-2 space-y-1">
-                        <p className="text-sm font-black uppercase">📍 ENTREGA:</p>
-                        <p className="text-base font-bold leading-tight">{order.deliveryAddress}</p>
-                        <p className="text-sm font-bold">CLI: {order.customerName} - {order.customerPhone}</p>
-                    </div>
-                )}
+                <div className="border-b border-black border-dashed my-2" />
 
-                <div className="space-y-4 pt-2">
-                    <p className="text-xs font-black border-b border-black uppercase text-center">LISTA DE PRODUÇÃO</p>
+                <div className="grid grid-cols-[3rem_1fr] font-bold text-sm mb-1">
+                    <span>QTD</span>
+                    <span>DESCRICAO</span>
+                </div>
+
+                <div className="space-y-3">
                     {order.items?.map((item: any, idx: number) => {
                         const categoryName = getCategoryName(item.menuItemId);
                         return (
-                            <div key={idx} className="border-b border-gray-300 pb-3">
-                                <div className="flex items-start gap-3">
-                                    <span className="text-3xl font-black shrink-0">{item.quantity}x</span>
-                                    <div className="flex-1">
-                                        <p className="text-xl font-black uppercase leading-tight">
-                                            {categoryName && <span className="text-sm block opacity-70">[{categoryName.toUpperCase()}]</span>}
-                                            {item.name}
-                                        </p>
-                                        
-                                        {item.addons?.length > 0 && (
-                                            <div className="mt-1 space-y-0.5">
-                                                {item.addons.map((a: any, ai: number) => (
-                                                    <p key={ai} className="text-base font-bold uppercase">+ {a.name}</p>
-                                                ))}
-                                            </div>
-                                        )}
+                            <div key={idx} className="grid grid-cols-[3rem_1fr] items-start">
+                                <span className="text-xl font-black">{item.quantity}x</span>
+                                <div className="space-y-0.5">
+                                    <p className="text-lg font-black uppercase leading-none">
+                                        {item.name} [UN]
+                                    </p>
+                                    
+                                    {item.addons?.length > 0 && (
+                                        <div className="ml-1 space-y-0 text-sm font-bold uppercase">
+                                            {item.addons.map((a: any, ai: number) => (
+                                                <p key={ai}>+ {a.name}</p>
+                                            ))}
+                                        </div>
+                                    )}
 
-                                        {item.notes && (
-                                            <div className="mt-2 p-2 bg-gray-100 border-l-8 border-black">
-                                                <p className="text-base font-black uppercase leading-tight italic">
-                                                    ATENÇÃO: {item.notes}
-                                                </p>
-                                            </div>
-                                        )}
-                                    </div>
+                                    {item.notes && (
+                                        <div className="mt-1 p-1 bg-gray-100 border-l-4 border-black">
+                                            <p className="text-sm font-black uppercase leading-tight italic">
+                                                OBS: {item.notes}
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         );
                     })}
                 </div>
 
-                <div className="mt-6 border-t-2 border-black pt-4 text-center">
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                        <Clock className="h-4 w-4" />
-                        <span className="text-sm font-bold">Início: {format(new Date(), "dd/MM/yyyy HH:mm")}</span>
-                    </div>
-                    <p className="text-xs font-bold uppercase">Sistema Comanda Digital • Cozinha</p>
+                <div className="border-t border-black border-dashed my-4" />
+                
+                <div className="text-center text-[10px] font-bold uppercase">
+                    <p>Sistema Comanda Digital • Produção</p>
                 </div>
             </div>
         </>
     );
+}
 }
