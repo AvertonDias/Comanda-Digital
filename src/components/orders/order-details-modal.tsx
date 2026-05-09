@@ -101,7 +101,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const { toast } = useToast();
 
     const [lastOpenedOrderId, setLastOpenedOrderId] = useState<string | null>(null);
-    const [notifyWhatsApp, setNotifyWhatsApp] = useState(true);
     const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
     
@@ -174,7 +173,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     useEffect(() => {
         if (isOpen && order && order.id !== lastOpenedOrderId) {
             setLastOpenedOrderId(order.id);
-            setNotifyWhatsApp(true);
             setPaymentMethod(null);
             setCopied(false);
             setIsSplitting(false);
@@ -215,21 +213,25 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     }, [isSplitting, splitMode, remainingBalance, combinedTotal, peopleCount, paidPartsCount]);
 
     const txidLabel = isSplitting ? `PEDIDO${order?.orderNumber}P${paidPartsCount + 1}` : `PEDIDO${order?.orderNumber}`;
+    const amountForPix = isSplitting ? currentPartAmount : (remainingBalance || 0);
+
     const pixPayload = useMemo(() => {
-        const amountToPay = isSplitting ? currentPartAmount : (combinedTotal || 0);
-        if (restaurant?.pixKey && amountToPay > 0) {
+        if (restaurant?.pixKey && amountForPix > 0) {
             return generatePixPayload(
                 restaurant.pixKey, 
-                amountToPay, 
+                amountForPix, 
                 restaurant.name || 'Restaurante', 
                 txidLabel,
                 restaurant.city || 'SAO PAULO'
             );
         }
         return null;
-    }, [restaurant, currentPartAmount, combinedTotal, isSplitting, txidLabel]);
+    }, [restaurant, amountForPix, txidLabel]);
 
-    const qrCodeUrl = pixPayload ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(pixPayload)}` : null;
+    const qrCodeUrl = useMemo(() => {
+        if (!pixPayload) return null;
+        return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(pixPayload)}`;
+    }, [pixPayload]);
 
     if (!order) return null;
 
@@ -281,13 +283,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         const currentSelected = selectedItemsForPart[index] || 0;
         const next = Math.max(0, Math.min(item.remainingQty, currentSelected + delta));
         setSelectedItemsForPart(prev => ({ ...prev, [index]: next }));
-    };
-
-    const handleSetFraction = (index: number, divisor: number) => {
-        if (divisor <= 0) return;
-        const item = itemsBalance[index];
-        const val = Number((item.remainingQty / divisor).toFixed(2));
-        setSelectedItemsForPart(prev => ({ ...prev, [index]: val }));
     };
 
     const handleConfirmAddExtra = async (data: { item: MenuItem; quantity: number; addons: any[]; notes: string; totalPrice: number; ingredientsExtraPrice: number }) => {
@@ -493,6 +488,38 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                         </div>
                                                     </div>
 
+                                                    {/* QR Code Pix para Divisão */}
+                                                    {paymentMethod === 'pix' && qrCodeUrl && (
+                                                        <div className="p-4 bg-white rounded-xl border-2 border-primary/20 flex flex-col items-center gap-3 animate-in zoom-in-95 duration-300">
+                                                            <p className="text-[10px] font-black uppercase text-primary">Pagar Parte {paidPartsCount + 1} com Pix</p>
+                                                            <div className="relative h-40 w-40 bg-white p-2 rounded-lg shadow-inner">
+                                                                <Image 
+                                                                    src={qrCodeUrl} 
+                                                                    alt="Pix QR Code" 
+                                                                    width={160} 
+                                                                    height={160}
+                                                                    className="rounded-md"
+                                                                />
+                                                            </div>
+                                                            <Button 
+                                                                variant="outline" 
+                                                                size="sm" 
+                                                                className="w-full h-9 text-[10px] font-black uppercase gap-2 border-primary/30"
+                                                                onClick={() => {
+                                                                    if (pixPayload) {
+                                                                        navigator.clipboard.writeText(pixPayload);
+                                                                        setCopied(true);
+                                                                        toast({ title: "Código Pix copiado!" });
+                                                                        setTimeout(() => setCopied(false), 2000);
+                                                                    }
+                                                                }}
+                                                            >
+                                                                {copied ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
+                                                                {copied ? "Copiado!" : "Copiar Código Pix"}
+                                                            </Button>
+                                                        </div>
+                                                    )}
+
                                                     <Button className="w-full h-10 font-black uppercase text-[10px] bg-black hover:bg-zinc-800" onClick={handleRegisterPart}>
                                                         Confirmar Parte {paidPartsCount + 1}
                                                     </Button>
@@ -519,6 +546,38 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                                     </button>
                                                 ))}
                                             </div>
+
+                                            {/* QR Code Pix para Pagamento Único */}
+                                            {paymentMethod === 'pix' && qrCodeUrl && (
+                                                <div className="mt-4 p-4 bg-white rounded-xl border-2 border-primary/20 flex flex-col items-center gap-3 animate-in zoom-in-95 duration-300">
+                                                    <p className="text-[10px] font-black uppercase text-primary">Escaneie para Pagar (Total)</p>
+                                                    <div className="relative h-40 w-40 bg-white p-2 rounded-lg shadow-inner">
+                                                        <Image 
+                                                            src={qrCodeUrl} 
+                                                            alt="Pix QR Code" 
+                                                            width={160} 
+                                                            height={160}
+                                                            className="rounded-md"
+                                                        />
+                                                    </div>
+                                                    <Button 
+                                                        variant="outline" 
+                                                        size="sm" 
+                                                        className="w-full h-9 text-[10px] font-black uppercase gap-2 border-primary/30"
+                                                        onClick={() => {
+                                                            if (pixPayload) {
+                                                                navigator.clipboard.writeText(pixPayload);
+                                                                setCopied(true);
+                                                                toast({ title: "Código Pix copiado!" });
+                                                                setTimeout(() => setCopied(false), 2000);
+                                                            }
+                                                        }}
+                                                    >
+                                                        {copied ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
+                                                        {copied ? "Copiado!" : "Copiar Código Pix"}
+                                                    </Button>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
