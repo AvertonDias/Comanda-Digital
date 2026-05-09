@@ -123,7 +123,6 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const [showKitchenPrint, setShowKitchenPrint] = useState(false);
     const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
-    // Consulta apenas pedidos com o MESMO status para isolamento
     const relatedOrdersQuery = useMemoFirebase(() => {
         if (!order?.tableId || !order?.restaurantId || !firestore) return null;
         return query(
@@ -244,16 +243,19 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
         if (!paymentMethod) return toast({ variant: "destructive", title: "Selecione o pagamento" });
         if (currentPartAmount <= 0 || currentPartAmount > remainingBalance + 0.05) return toast({ variant: "destructive", title: "Valor inválido" });
 
+        // CRITICAL: Avoid 'undefined' in the object, spread optionally instead
         const newPart: SplitPaymentPart = {
             part: paidPartsCount + 1,
             amount: currentPartAmount,
             method: paymentMethod,
-            items: splitMode === 'items' ? Object.entries(selectedItemsForPart)
-                .filter(([_, qty]) => qty > 0)
-                .map(([idx, qty]) => ({
-                    name: itemsBalance[Number(idx)].name,
-                    quantity: qty
-                })) : undefined
+            ...(splitMode === 'items' ? {
+                items: Object.entries(selectedItemsForPart)
+                    .filter(([_, qty]) => qty > 0)
+                    .map(([idx, qty]) => ({
+                        name: itemsBalance[Number(idx)].name,
+                        quantity: qty
+                    }))
+            } : {})
         };
 
         if (splitMode === 'items') {
@@ -345,14 +347,17 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
             'pronto': 'finalizado'
         };
 
+        const newStatus = nextStatusMap[order.status];
+        if (!newStatus) return; // Safety check for undefined status transition
+
         const finalData: any = isFinalizing ? { 
-            paymentMethod: isSplitting ? 'multiplos' : paymentMethod,
+            paymentMethod: isSplitting ? 'multiplos' : (paymentMethod || 'manual'),
             splitPayments: isSplitting ? recordedSplitParts : null,
             closedAt: serverTimestamp()
         } : {};
 
         const targetIds = allGroupedOrders.map(o => o.id);
-        onStatusChange(targetIds, nextStatusMap[order.status], finalData);
+        onStatusChange(targetIds, newStatus, finalData);
     };
 
     return (

@@ -227,6 +227,7 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
 
   const handleStatusChange = (orderIds: string | string[], newStatus: OrderStatus, extraData: any = {}) => {
     const ids = Array.isArray(orderIds) ? orderIds : [orderIds];
+    if (ids.length === 0) return;
     
     let mergedOrderForReceipt: any = null;
     let targetTableId: string | null = null;
@@ -252,12 +253,21 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
 
     const batchPromises: Promise<any>[] = ids.map(id => {
         const orderRef = doc(firestore, `restaurants/${restaurantId}/orders/${id}`);
-        const updatePayload: any = { status: newStatus, ...extraData };
+        
+        // CRITICAL: Clean any undefined values from the payload
+        const updatePayload: any = { status: newStatus };
+        if (extraData) {
+            Object.keys(extraData).forEach(key => {
+                if (extraData[key] !== undefined) {
+                    updatePayload[key] = extraData[key];
+                }
+            });
+        }
+        
         if (newStatus === 'finalizado') updatePayload.closedAt = serverTimestamp();
         return updateDoc(orderRef, updatePayload);
     });
 
-    // 🔒 LÓGICA DE MESA LIVRE: Só libera a mesa se não houver NENHUM outro pedido ativo (Aberto/Prep/Pronto)
     if ((newStatus === 'finalizado' || newStatus === 'cancelado') && targetTableId) {
         const otherActiveOrders = orders?.filter(o => 
             o.tableId === targetTableId && 
