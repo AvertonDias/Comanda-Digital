@@ -100,7 +100,26 @@ export function CreateOrderForm({
     }, [initialTableId]);
 
     const handleItemClick = (item: MenuItem) => {
-        setSelectedItem(item);
+        const hasIngredients = item.ingredients && item.ingredients.length > 0;
+        const hasAddons = item.addonGroups && item.addonGroups.length > 0;
+
+        if (!hasIngredients && !hasAddons) {
+            // Adiciona direto se não tiver customização
+            setOrderItems(prev => [...prev, {
+                menuItemId: item.id,
+                name: item.name,
+                quantity: 1,
+                price: item.price,
+                printSectorId: item.printSectorId,
+                notes: "",
+                addons: [],
+                ingredientsExtraPrice: 0,
+                preparationTime: item.preparationTime || 0
+            }]);
+            toast({ title: `${item.name} adicionado!` });
+        } else {
+            setSelectedItem(item);
+        }
     };
 
     const handleAddConfirmed = (data: {

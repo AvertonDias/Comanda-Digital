@@ -87,6 +87,23 @@ export default function PublicMenuPage(props: { params: Promise<{ restaurantId: 
         toast({ title: "Adicionado ao carrinho!" });
     };
 
+    const handleItemClick = (item: MenuItem) => {
+        const hasIngredients = item.ingredients && item.ingredients.length > 0;
+        const hasAddons = item.addonGroups && item.addonGroups.length > 0;
+
+        if (!hasIngredients && !hasAddons) {
+            handleAddToCart({
+                item,
+                quantity: 1,
+                addons: [],
+                notes: "",
+                ingredientsExtraPrice: 0
+            });
+        } else {
+            setSelectedItem(item);
+        }
+    };
+
     const handleRemoveFromCart = (index: number) => {
         setCart(prev => prev.filter((_, i) => i !== index));
     };
@@ -212,7 +229,7 @@ export default function PublicMenuPage(props: { params: Promise<{ restaurantId: 
                             </h3>
                             <div className="grid grid-cols-1 gap-3">
                                 {categoryItems.map(item => (
-                                    <div key={item.id} onClick={() => setSelectedItem(item)}>
+                                    <div key={item.id} onClick={() => handleItemClick(item)}>
                                         <MenuItemCard 
                                             item={{...item, categoryName: category.name}}
                                             categories={categories || []}

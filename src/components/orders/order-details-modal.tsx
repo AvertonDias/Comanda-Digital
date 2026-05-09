@@ -746,7 +746,21 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                     <Card 
                                         key={item.id} 
                                         className="p-3 flex items-center gap-4 cursor-pointer hover:border-primary border-2 transition-all active:scale-95 shadow-sm" 
-                                        onClick={() => setSelectedItemToAdd(item)}
+                                        onClick={() => {
+                                            const hasCustomization = (item.ingredients && item.ingredients.length > 0) || (item.addonGroups && item.addonGroups.length > 0);
+                                            if (!hasCustomization) {
+                                                handleConfirmAddExtra({
+                                                    item,
+                                                    quantity: 1,
+                                                    addons: [],
+                                                    notes: "",
+                                                    totalPrice: item.price,
+                                                    ingredientsExtraPrice: 0
+                                                });
+                                            } else {
+                                                setSelectedItemToAdd(item);
+                                            }
+                                        }}
                                     >
                                         <div className="h-12 w-12 rounded-lg bg-muted overflow-hidden shrink-0 border">
                                             <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
