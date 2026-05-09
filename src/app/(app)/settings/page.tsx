@@ -8,13 +8,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { HelpCircle, Edit2, Trash2, PlusCircle, UserPlus, Copy, Link as LinkIcon, Info, Clock, Bike } from "lucide-react";
+import { HelpCircle, Edit2, Trash2, PlusCircle, UserPlus, Copy, Link as LinkIcon, Info, Clock, Bike, Plus, X, CalendarDays } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
 import { collection, doc, query, updateDoc, addDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useEffect, useState, useMemo } from "react";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
@@ -25,6 +25,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 
 const profileSchema = z.object({
     name: z.string().min(1, "Obrigatório"),
@@ -35,6 +37,151 @@ const profileSchema = z.object({
     deliveryFee: z.coerce.number().min(0, "Mínimo 0"),
 });
 type ProfileFormData = z.infer<typeof profileSchema>;
+
+const DAYS = [
+    { id: 'Seg', label: 'Seg' },
+    { id: 'Ter', label: 'Ter' },
+    { id: 'Qua', label: 'Qua' },
+    { id: 'Qui', label: 'Qui' },
+    { id: 'Sex', label: 'Sex' },
+    { id: 'Sáb', label: 'Sáb' },
+    { id: 'Dom', label: 'Dom' },
+];
+
+type ScheduleEntry = {
+    days: string[];
+    open: string;
+    close: string;
+};
+
+function OpeningHoursSelector({ value, onChange }: { value: string, onChange: (val: string) => void }) {
+    const [entries, setEntries] = useState<ScheduleEntry[]>([]);
+
+    // Tenta parsear o valor inicial caso já exista algo estruturado
+    useEffect(() => {
+        if (value && entries.length === 0) {
+            // Se for a primeira vez e tiver valor, mas não for estruturado, não fazemos nada (deixamos o usuário sobrescrever)
+            // No MVP, vamos apenas inicializar com uma linha vazia se não houver nada
+            if (!value.includes(':')) {
+                setEntries([{ days: [], open: '18:00', close: '23:00' }]);
+            } else {
+                // Lógica de parse básica para tentar recuperar (opcional para MVP)
+                // Por enquanto, apenas inicializamos um padrão se estiver vazio
+                setEntries([{ days: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'], open: '18:00', close: '23:00' }]);
+            }
+        } else if (!value && entries.length === 0) {
+            setEntries([{ days: [], open: '18:00', close: '23:00' }]);
+        }
+    }, [value]);
+
+    const updateValue = (newEntries: ScheduleEntry[]) => {
+        setEntries(newEntries);
+        const result = newEntries
+            .filter(e => e.days.length > 0)
+            .map(e => `${e.days.join(', ')}: ${e.open} às ${e.close}`)
+            .join(' | ');
+        onChange(result);
+    };
+
+    const addEntry = () => {
+        updateValue([...entries, { days: [], open: '18:00', close: '23:00' }]);
+    };
+
+    const removeEntry = (index: number) => {
+        const filtered = entries.filter((_, i) => i !== index);
+        updateValue(filtered.length > 0 ? filtered : [{ days: [], open: '18:00', close: '23:00' }]);
+    };
+
+    const toggleDay = (index: number, dayId: string) => {
+        const newEntries = [...entries];
+        const dayIdx = newEntries[index].days.indexOf(dayId);
+        if (dayIdx > -1) {
+            newEntries[index].days.splice(dayIdx, 1);
+        } else {
+            newEntries[index].days.push(dayId);
+        }
+        updateValue(newEntries);
+    };
+
+    const setTime = (index: number, field: 'open' | 'close', time: string) => {
+        const newEntries = [...entries];
+        newEntries[index][field] = time;
+        updateValue(newEntries);
+    };
+
+    return (
+        <div className="space-y-4">
+            {entries.map((entry, idx) => (
+                <Card key={idx} className="p-4 border-2 relative bg-muted/5">
+                    {entries.length > 1 && (
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="absolute top-2 right-2 h-7 w-7 text-destructive"
+                            onClick={() => removeEntry(idx)}
+                        >
+                            <X className="h-4 w-4" />
+                        </Button>
+                    )}
+                    
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Selecione os dias</Label>
+                            <div className="flex flex-wrap gap-2">
+                                {DAYS.map(day => (
+                                    <button
+                                        key={day.id}
+                                        type="button"
+                                        onClick={() => toggleDay(idx, day.id)}
+                                        className={cn(
+                                            "h-8 px-3 rounded-md text-[10px] font-black uppercase transition-all border-2",
+                                            entry.days.includes(day.id) 
+                                                ? "bg-primary border-primary text-white" 
+                                                : "bg-background border-muted text-muted-foreground hover:border-primary/50"
+                                        )}
+                                    >
+                                        {day.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase text-muted-foreground">Abre às</Label>
+                                <Input 
+                                    type="time" 
+                                    value={entry.open} 
+                                    onChange={e => setTime(idx, 'open', e.target.value)} 
+                                    className="h-10 font-bold"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase text-muted-foreground">Fecha às</Label>
+                                <Input 
+                                    type="time" 
+                                    value={entry.close} 
+                                    onChange={e => setTime(idx, 'close', e.target.value)} 
+                                    className="h-10 font-bold"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </Card>
+            ))}
+
+            <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                onClick={addEntry}
+                className="w-full h-10 border-dashed border-2 text-[10px] font-black uppercase"
+            >
+                <Plus className="h-3 w-3 mr-2" /> Adicionar Outro Período
+            </Button>
+        </div>
+    );
+}
 
 function formatPhone(value: string) {
     if (!value) return "";
@@ -51,7 +198,7 @@ function ProfileTab({ restaurantId, onDirtyChange }: { restaurantId: string, onD
     const { toast } = useToast();
     const restaurantRef = useMemoFirebase(() => doc(firestore, "restaurants", restaurantId), [firestore, restaurantId]);
     const { data, isLoading } = useDoc(restaurantRef);
-    const { register, handleSubmit, reset, setValue, formState: { isDirty } } = useForm<ProfileFormData>({ 
+    const { register, handleSubmit, reset, setValue, watch, formState: { isDirty } } = useForm<ProfileFormData>({ 
         resolver: zodResolver(profileSchema),
         defaultValues: { 
             name: '', 
@@ -62,6 +209,8 @@ function ProfileTab({ restaurantId, onDirtyChange }: { restaurantId: string, onD
             deliveryFee: 0 
         }
     });
+
+    const currentOpeningHours = watch("openingHours") || "";
 
     useEffect(() => {
         onDirtyChange(isDirty);
@@ -124,34 +273,49 @@ function ProfileTab({ restaurantId, onDirtyChange }: { restaurantId: string, onD
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                            <div className="space-y-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pt-2">
+                            <div className="space-y-4">
                                 <Label className="flex items-center gap-2">
-                                    <Clock className="h-3 w-3 text-muted-foreground" />
+                                    <Clock className="h-3 w-3 text-primary" />
                                     Horário de Funcionamento
                                 </Label>
-                                <Input 
-                                    {...register("openingHours")} 
-                                    placeholder="Ex: Seg-Sex: 18h às 23h"
+                                <OpeningHoursSelector 
+                                    value={currentOpeningHours} 
+                                    onChange={(val) => setValue("openingHours", val, { shouldDirty: true })}
                                 />
-                                <p className="text-[9px] text-muted-foreground uppercase font-bold">
-                                    Será exibido no topo do seu cardápio digital.
-                                </p>
+                                <div className="p-3 rounded-lg bg-primary/5 border-l-4 border-primary">
+                                    <p className="text-[9px] font-black uppercase text-muted-foreground mb-1">Como será exibido:</p>
+                                    <p className="text-[10px] font-bold text-primary italic">
+                                        {currentOpeningHours || "Nenhum horário configurado"}
+                                    </p>
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <Label className="flex items-center gap-2">
-                                    <Bike className="h-3 w-3 text-muted-foreground" />
-                                    Taxa de Entrega Padrão (R$)
-                                </Label>
-                                <Input 
-                                    type="number"
-                                    step="0.01"
-                                    {...register("deliveryFee")} 
-                                    placeholder="0,00"
-                                />
-                                <p className="text-[9px] text-muted-foreground uppercase font-bold">
-                                    Somada automaticamente em pedidos de "Entrega".
-                                </p>
+                            
+                            <div className="space-y-6">
+                                <div className="space-y-2">
+                                    <Label className="flex items-center gap-2">
+                                        <Bike className="h-3 w-3 text-primary" />
+                                        Taxa de Entrega Padrão (R$)
+                                    </Label>
+                                    <Input 
+                                        type="number"
+                                        step="0.01"
+                                        {...register("deliveryFee")} 
+                                        placeholder="0,00"
+                                        className="h-12 text-lg font-black"
+                                    />
+                                    <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                                        Somada automaticamente em pedidos de "Entrega".
+                                    </p>
+                                </div>
+
+                                <Alert variant="default" className="bg-accent/10 border-accent/20">
+                                    <CalendarDays className="h-4 w-4 text-accent-foreground" />
+                                    <AlertTitle className="text-[10px] font-black uppercase">Dica do Sistema</AlertTitle>
+                                    <AlertDescription className="text-[10px] text-muted-foreground uppercase leading-tight">
+                                        Mantenha seus horários atualizados para passar confiança aos clientes do cardápio digital.
+                                    </AlertDescription>
+                                </Alert>
                             </div>
                         </div>
                     </div>
@@ -199,7 +363,7 @@ function ProfileTab({ restaurantId, onDirtyChange }: { restaurantId: string, onD
                                 Você tem alterações não salvas! Clique no botão abaixo.
                             </p>
                         )}
-                        <Button type="submit" className="w-full sm:w-auto" disabled={!isDirty}>
+                        <Button type="submit" className="w-full sm:w-auto h-12 px-8 font-black uppercase shadow-xl" disabled={!isDirty}>
                             Salvar Alterações
                         </Button>
                     </div>
@@ -427,7 +591,7 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
         if (editingPri) {
             await updateDoc(doc(colRef, editingPri.id), data);
         } else {
-            await addDoc(colRef, data);
+            await addDoc(colRef, { ...data, createdAt: serverTimestamp() });
         }
         setIsPriModal(false);
         setPriName("");
