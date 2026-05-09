@@ -16,6 +16,7 @@ import { useFirestore, useCollection, useMemoFirebase, errorEmitter, FirestorePe
 import { collection, query, doc, updateDoc, orderBy, where, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '../ui/skeleton';
 import { Printer, Bell, BellRing } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const STATUS_CONFIG: Record<OrderStatus, { title: string; color: string }> = {
     'aberto': { title: 'Abertos', color: 'bg-blue-500' },
@@ -55,9 +56,14 @@ const OrderCard = ({
         : order.id.slice(-4).toUpperCase();
 
     const previewItems = useMemo(() => consolidateItems(order.items), [order.items]);
+    const isNew = order.status === 'aberto' && !order.isPrinted;
 
     return (
-        <Card className={`active:scale-[0.98] transition-all shadow-sm hover:shadow-md border-2 ${order.status === 'aberto' ? 'border-blue-100 animate-in fade-in duration-500' : 'border-transparent'}`}>
+        <Card className={cn(
+            "active:scale-[0.98] transition-all shadow-sm hover:shadow-md border-2",
+            order.status === 'aberto' ? 'border-blue-100' : 'border-transparent',
+            isNew && "animate-pulse border-blue-500 bg-blue-50/30"
+        )}>
             <CardHeader className='p-4 pb-2'>
                 <CardTitle className="text-sm flex justify-between items-start gap-2">
                     <span className="font-black uppercase leading-tight flex-1">
@@ -67,7 +73,7 @@ const OrderCard = ({
                 </CardTitle>
                 <CardDescription className="text-[10px] flex items-center gap-1">
                     {order.createdAt?.seconds ? formatDistanceToNow(new Date(order.createdAt.seconds * 1000), { addSuffix: true, locale: ptBR }) : 'Agora'}
-                    {order.status === 'aberto' && <span className="ml-2 h-2 w-2 rounded-full bg-blue-500 animate-pulse" />}
+                    {isNew && <span className="ml-2 h-2.5 w-2.5 rounded-full bg-blue-600 animate-ping" />}
                 </CardDescription>
             </CardHeader>
             <CardContent className="p-4 py-2">
@@ -88,9 +94,12 @@ const OrderCard = ({
                  </span>
                  <div className="flex gap-1">
                     <Button 
-                        variant="outline" 
+                        variant={isNew ? "default" : "outline"} 
                         size="icon" 
-                        className="h-8 w-8 text-orange-600 border-orange-200 hover:bg-orange-50" 
+                        className={cn(
+                            "h-8 w-8",
+                            isNew ? "bg-orange-600 hover:bg-orange-700 text-white" : "text-orange-600 border-orange-200 hover:bg-orange-50"
+                        )}
                         onClick={(e) => { e.stopPropagation(); onQuickPrint(order); }}
                         title="Imprimir para Cozinha"
                     >
@@ -111,7 +120,8 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
   const [autoOpened, setAutoOpened] = useState(false);
   const [soundEnabled, setSoundAlertEnabled] = useState(true);
   
-  const lastOrderCount = useRef(0);
+  const knownOrderIds = useRef<Set<string>>(new Set());
+  const initialLoadDone = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const restaurantRef = useMemoFirebase(() => 
@@ -132,16 +142,30 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
 
   const { data: orders, isLoading } = useCollection<Order>(ordersQuery);
 
-  // Sistema de alerta sonoro para novos pedidos (útil para o PC do balcão)
+  // Sistema de alerta sonoro para novos pedidos (trabalhando com IDs para evitar disparo em refresh)
   useEffect(() => {
-    if (orders) {
-        const currentCount = orders.filter(o => o.status === 'aberto').length;
-        if (currentCount > lastOrderCount.current && !isLoading) {
-            if (soundEnabled && audioRef.current) {
-                audioRef.current.play().catch(e => console.log('Áudio bloqueado pelo navegador'));
-            }
+    if (orders && !isLoading) {
+        const currentAbertoOrders = orders.filter(o => o.status === 'aberto');
+        
+        if (!initialLoadDone.current) {
+            // No primeiro carregamento, apenas populamos os IDs conhecidos
+            currentAbertoOrders.forEach(o => knownOrderIds.current.add(o.id));
+            initialLoadDone.current = true;
+            return;
         }
-        lastOrderCount.current = currentCount;
+
+        // Verifica se há algum pedido novo que não estava no set anterior
+        let hasNewOrder = false;
+        currentAbertoOrders.forEach(o => {
+            if (!knownOrderIds.current.has(o.id)) {
+                hasNewOrder = true;
+                knownOrderIds.current.add(o.id);
+            }
+        });
+
+        if (hasNewOrder && soundEnabled && audioRef.current) {
+            audioRef.current.play().catch(e => console.log('Áudio bloqueado pelo navegador'));
+        }
     }
   }, [orders, soundEnabled, isLoading]);
 
@@ -161,6 +185,7 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
         const groups: Record<string, Order> = {};
         
         statusOrders.forEach(order => {
+            // Para agrupamento em Kanban, mantemos a lógica de agrupar por mesa se for mesa
             const key = order.tableId || order.id;
             
             if (!groups[key]) {
@@ -177,6 +202,11 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
                 const newCreated = order.createdAt?.seconds || Infinity;
                 if (newCreated < currentCreated) {
                     groups[key].createdAt = order.createdAt;
+                }
+                
+                // Se qualquer um dos pedidos do grupo não foi impresso, o grupo inteiro não foi
+                if (order.status === 'aberto' && !order.isPrinted) {
+                    groups[key].isPrinted = false;
                 }
             }
         });
@@ -246,6 +276,18 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
     setSelectedOrder(null);
   };
 
+  const handleQuickPrint = async (order: Order) => {
+      // Se for um grupo de pedidos de mesa, precisamos marcar todos como impressos
+      const idsToMark = orders?.filter(o => (o.tableId && o.tableId === order.tableId && o.status === order.status) || o.id === order.id).map(o => o.id) || [order.id];
+      
+      const batchPromises = idsToMark.map(id => {
+          return updateDoc(doc(firestore, `restaurants/${restaurantId}/orders/${id}`), { isPrinted: true });
+      });
+
+      await Promise.all(batchPromises);
+      setOrderToQuickPrint(order);
+  };
+
   const getOrdersCount = (status: OrderStatus) => {
     return groupedOrdersByStatus[status].length;
   }
@@ -265,7 +307,10 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
           <Button 
             variant="ghost" 
             size="sm" 
-            className={`h-7 px-3 gap-2 text-[9px] font-black uppercase transition-all ${soundEnabled ? 'text-green-600' : 'text-muted-foreground'}`}
+            className={cn(
+                "h-7 px-3 gap-2 text-[9px] font-black uppercase transition-all",
+                soundEnabled ? 'text-green-600' : 'text-muted-foreground'
+            )}
             onClick={() => setSoundAlertEnabled(!soundEnabled)}
           >
             {soundEnabled ? <BellRing className="h-3 w-3" /> : <Bell className="h-3 w-3" />}
@@ -278,7 +323,10 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
               {statusesToShow.map(status => (
                    <TabsTrigger key={status} value={status} className="flex items-center gap-1.5 data-[state=active]:bg-background text-[10px] uppercase font-bold tracking-tight">
                       {STATUS_CONFIG[status].title}
-                      <Badge className={`${STATUS_CONFIG[status].color} hover:${STATUS_CONFIG[status].color} text-[8px] h-4 w-4 p-0 flex items-center justify-center text-white border-none`}>
+                      <Badge className={cn(
+                          "hover:opacity-90 text-[8px] h-4 w-4 p-0 flex items-center justify-center text-white border-none",
+                          STATUS_CONFIG[status].color
+                      )}>
                           {getOrdersCount(status)}
                       </Badge>
                    </TabsTrigger>
@@ -293,7 +341,7 @@ export function OrderKanbanBoard({ restaurantId, tableId }: { restaurantId: stri
                                 key={order.id} 
                                 order={order} 
                                 onDetailsClick={setSelectedOrder} 
-                                onQuickPrint={setOrderToQuickPrint}
+                                onQuickPrint={handleQuickPrint}
                               />
                           ))}
                           {getOrdersCount(status) === 0 && (

@@ -1,3 +1,4 @@
+
 'use client';
 import {
     Dialog,
@@ -10,7 +11,7 @@ import { Printer, ChefHat, MapPin, Clock } from "lucide-react";
 import type { Restaurant, MenuItem, MenuItemCategory } from "@/lib/types";
 import { format } from "date-fns";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query } from "firebase/firestore";
+import { collection, query, doc, updateDoc } from "firebase/firestore";
 
 export function KitchenOrderModal({ 
     order, 
@@ -52,7 +53,15 @@ export function KitchenOrderModal({
     const isTakeaway = order.destination === 'retirada';
     const isCounter = order.origin === 'balcao' && order.destination === 'local';
 
-    const handlePrint = () => {
+    const handlePrint = async () => {
+        // Marca o pedido como impresso no banco de dados para parar de piscar
+        if (order.id && order.restaurantId) {
+            // Se for um ID composto (agrupado), precisamos tratar ou marcar apenas o principal
+            // No caso de grupos, o KanbanBoard já trata isso, mas garantimos aqui também.
+            const orderRef = doc(firestore, `restaurants/${order.restaurantId}/orders`, order.id);
+            await updateDoc(orderRef, { isPrinted: true }).catch(() => {});
+        }
+
         // Pequeno delay para garantir que o DOM de impressão esteja pronto
         setTimeout(() => {
             window.print();

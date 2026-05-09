@@ -139,6 +139,7 @@ export type Order = {
   destination: 'local' | 'retirada' | 'entrega';
   paymentMethod?: string;
   splitPayments?: SplitPaymentPart[];
+  isPrinted?: boolean;
   createdAt: any;
   closedAt?: any;
 };
