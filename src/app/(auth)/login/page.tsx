@@ -80,10 +80,12 @@ export default function LoginPage() {
 
   return (
     <Card className="mx-auto max-w-sm w-full">
-      <CardHeader className="space-y-1 text-center">
-        <UtensilsCrossed className="mx-auto h-8 w-8 text-primary" />
+      <CardHeader className="space-y-2 text-center pb-2">
+        <div className="mx-auto size-14 rounded-2xl overflow-hidden shadow-md ring-2 ring-primary/20 bg-primary/10 flex items-center justify-center">
+          <img src="/app-icon.jpg" alt="Comanda Digital" className="size-full object-cover" referrerPolicy="no-referrer" />
+        </div>
         <CardTitle className="text-2xl font-bold">Bem-vindo!</CardTitle>
-        <CardDescription>Acesse seu painel administrativo.</CardDescription>
+        <CardDescription>Acesse seu painel administrativo da Comanda Digital.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <form onSubmit={handleLogin} className="space-y-4">

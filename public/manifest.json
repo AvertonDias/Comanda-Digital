@@ -8,15 +8,15 @@
   "theme_color": "#15803d",
   "icons": [
     {
-      "src": "https://picsum.photos/seed/comanda-icon-192/192/192",
+      "src": "/app-icon.jpg",
       "sizes": "192x192",
-      "type": "image/png",
+      "type": "image/jpeg",
       "purpose": "any maskable"
     },
     {
-      "src": "https://picsum.photos/seed/comanda-icon-512/512/512",
+      "src": "/app-icon.jpg",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/jpeg",
       "purpose": "any maskable"
     }
   ]
