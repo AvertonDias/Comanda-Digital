@@ -1,0 +1,533 @@
+
+{
+  "entities": {
+    "Restaurant": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Restaurant",
+      "type": "object",
+      "description": "Representa um restaurante gerenciado pelo sistema, incluindo seu perfil, plano de assinatura e status operacional.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "O nome oficial do restaurante."
+        },
+        "phone": {
+          "type": "string",
+          "description": "Telefone de contato do restaurante."
+        },
+        "city": {
+          "type": "string",
+          "description": "Cidade de registro do restaurante (necessário para Pix)."
+        },
+        "pixKey": {
+          "type": "string",
+          "description": "Chave Pix para recebimento de pagamentos."
+        },
+        "openingHours": {
+          "type": "string",
+          "description": "Texto livre descrevendo o horário de funcionamento (ex: Seg-Sex 18h-23h)."
+        },
+        "deliveryFee": {
+          "type": "number",
+          "description": "Valor padrão da taxa de entrega para este estabelecimento."
+        },
+        "plan": {
+          "type": "string",
+          "description": "O plano de assinatura associado ao restaurante (e.g., 'basico', 'pro', 'premium')."
+        },
+        "status": {
+          "type": "string",
+          "description": "O status operacional do restaurante (e.g., 'ativo', 'inativo')."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp de quando o restaurante foi criado.",
+          "format": "date-time"
+        }
+      },
+      "required": ["name", "plan", "status", "createdAt"]
+    },
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
+      "type": "object",
+      "description": "Dados públicos de perfil de um usuário.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "O nome de exibição do usuário."
+        },
+        "email": {
+          "type": "string",
+          "description": "O endereço de e-mail do usuário.",
+          "format": "email"
+        },
+        "avatarUrl": {
+          "type": "string",
+          "description": "URL da foto de perfil do usuário.",
+          "format": "uri"
+        },
+        "activeRestaurantId": {
+          "type": "string",
+          "description": "ID do restaurante atualmente selecionado pelo usuário."
+        }
+      },
+      "required": ["name", "email"]
+    },
+    "RestaurantUser": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "RestaurantUser",
+      "type": "object",
+      "description": "Define o papel de um usuário dentro de um restaurante específico.",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "ID do usuário do Firebase Authentication."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email do usuário para exibição."
+        },
+        "restaurantId": {
+          "type": "string",
+          "description": "ID do restaurante ao qual o usuário pertence."
+        },
+        "role": {
+          "type": "string",
+          "description": "O papel do usuário (e.g., 'admin', 'waiter').",
+          "enum": ["admin", "waiter"]
+        },
+        "isActive": {
+          "type": "boolean",
+          "description": "Indica se o acesso do usuário ao restaurante está ativo."
+        }
+      },
+      "required": ["userId", "restaurantId", "role", "isActive"]
+    },
+    "Invitation": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Invitation",
+      "type": "object",
+      "description": "Convite para um usuário ingressar em uma equipe de restaurante.",
+      "properties": {
+        "restaurantId": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "waiter"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "expired"] }
+      },
+      "required": ["restaurantId", "role", "status", "createdAt"]
+    },
+    "MenuItemCategory": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MenuItemCategory",
+      "type": "object",
+      "description": "Organiza itens do cardápio em categorias.",
+      "properties": {
+        "restaurantId": {
+          "type": "string",
+          "description": "Referência ao Restaurante."
+        },
+        "name": {
+          "type": "string",
+          "description": "Nome da categoria (e.g., 'Pizzas')."
+        },
+        "order": {
+          "type": "number",
+          "description": "Ordem de exibição da categoria."
+        }
+      },
+      "required": ["restaurantId", "name", "order"]
+    },
+    "MenuItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MenuItem",
+      "type": "object",
+      "description": "Representa um item do cardápio.",
+      "properties": {
+        "restaurantId": {
+          "type": "string",
+          "description": "Referência ao Restaurante."
+        },
+        "categoryId": {
+          "type": "string",
+          "description": "Referência à Categoria do item."
+        },
+        "printSectorId": {
+          "type": "string",
+          "description": "Referência ao Setor de Impressão."
+        },
+        "name": {
+          "type": "string",
+          "description": "Nome do item."
+        },
+        "description": {
+          "type": "string",
+          "description": "Descrição do item."
+        },
+        "ingredients": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Lista de ingredientes do item."
+        },
+        "price": {
+          "type": "number",
+          "description": "Preço de venda."
+        },
+        "isAvailable": {
+          "type": "boolean",
+          "description": "Indica se o item está disponível."
+        },
+        "imageUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL da imagem do item."
+        },
+        "preparationTime": {
+            "type": "number",
+            "description": "Tempo médio de preparo em minutos."
+        }
+      },
+      "required": ["restaurantId", "categoryId", "printSectorId", "name", "price", "isAvailable", "preparationTime"]
+    },
+    "PrintSector": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PrintSector",
+      "type": "object",
+      "description": "Define um setor para direcionar a impressão de itens de um pedido (e.g., 'cozinha', 'bar').",
+      "properties": {
+        "restaurantId": {
+          "type": "string",
+          "description": "Referência ao Restaurante."
+        },
+        "name": {
+          "type": "string",
+          "description": "Nome do setor (e.g., 'Cozinha')."
+        }
+      },
+      "required": ["restaurantId", "name"]
+    },
+    "Printer": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Printer",
+      "type": "object",
+      "description": "Representa uma impressora física e os setores que ela atende.",
+      "properties": {
+        "restaurantId": {
+          "type": "string",
+          "description": "Referência ao Restaurante."
+        },
+        "name": {
+          "type": "string",
+          "description": "Nome da impressora (e.g., 'Impressora Cozinha')."
+        },
+        "connectionType": {
+          "type": "string",
+          "enum": ["network", "usb", "bluetooth"],
+          "description": "Tipo de conexão da impressora."
+        },
+        "address": {
+          "type": "string",
+          "description": "Endereço IP, porta USB ou ID Bluetooth."
+        },
+        "printSectors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array de IDs dos setores de impressão que esta impressora atende."
+        },
+        "isActive": {
+          "type": "boolean",
+          "description": "Indica se a impressora está ativa."
+        }
+      },
+      "required": ["restaurantId", "name", "connectionType", "address", "printSectors", "isActive"]
+    },
+    "Table": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Table",
+      "type": "object",
+      "description": "Representa uma mesa física no restaurante.",
+      "properties": {
+        "restaurantId": {
+          "type": "string",
+          "description": "Referência ao Restaurante."
+        },
+        "name": {
+          "type": "string",
+          "description": "Nome/número da mesa (e.g., 'Mesa 01')."
+        },
+        "status": {
+          "type": "string",
+          "description": "Status atual da mesa.",
+          "enum": ["livre", "ocupada", "fechando"]
+        },
+        "qrCodeUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL do QR Code para acesso ao cardápio da mesa."
+        }
+      },
+      "required": ["restaurantId", "name", "status"]
+    },
+    "Customer": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Customer",
+      "type": "object",
+      "description": "Representa um cliente, usado para histórico de pedidos.",
+      "properties": {
+        "restaurantId": {
+          "type": "string",
+          "description": "Referência ao Restaurante."
+        },
+        "name": {
+          "type": "string",
+          "description": "Nome do cliente."
+        },
+        "phone": {
+          "type": "string",
+          "description": "Número de contato do cliente."
+        },
+        "lastOrderId": {
+          "type": "string",
+          "description": "ID do último pedido feito pelo cliente."
+        },
+        "totalOrders": {
+          "type": "number",
+          "description": "Número total de pedidos feitos pelo cliente."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["restaurantId", "name", "phone", "createdAt"]
+    },
+    "Order": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Order",
+      "type": "object",
+      "description": "Representa um pedido de um cliente.",
+      "properties": {
+        "restaurantId": {
+          "type": "string",
+          "description": "Referência ao Restaurante."
+        },
+        "origin": {
+          "type": "string",
+          "description": "Origem do pedido.",
+          "enum": ["mesa", "whatsapp", "balcao", "telefone"]
+        },
+        "destination": {
+          "type": "string",
+          "description": "Destino do pedido.",
+          "enum": ["local", "retirada", "entrega"]
+        },
+        "tableId": {
+          "type": "string",
+          "description": "Referência à Mesa (se aplicável)."
+        },
+        "customerId": {
+          "type": "string",
+          "description": "Referência ao Cliente (se aplicável)."
+        },
+        "status": {
+          "type": "string",
+          "description": "Status atual do pedido.",
+          "enum": ["aberto", "preparando", "pronto", "finalizado", "cancelado"]
+        },
+        "total": {
+          "type": "number",
+          "description": "Valor total do pedido."
+        },
+        "deliveryFee": {
+          "type": "number",
+          "description": "Taxa de entrega cobrada neste pedido."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "closedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["restaurantId", "origin", "destination", "status", "total", "createdAt"]
+    },
+    "OrderItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "OrderItem",
+      "type": "object",
+      "description": "Representa um item dentro de um pedido.",
+      "properties": {
+        "orderId": {
+          "type": "string",
+          "description": "Referência ao Pedido."
+        },
+        "menuItemId": {
+          "type": "string",
+          "description": "Referência ao item do cardápio."
+        },
+        "name": {
+          "type": "string",
+          "description": "Nome do item no momento da venda."
+        },
+        "priceAtOrder": {
+          "type": "number",
+          "description": "Preço do item no momento da venda."
+        },
+        "quantity": {
+          "type": "number",
+          "description": "Quantidade do item."
+        },
+        "printSectorId": {
+          "type": "string",
+          "description": "Setor de impressão do item."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Observações sobre o item."
+        },
+        "preparationTimeAtOrder": {
+            "type": "number",
+            "description": "Tempo de preparo do item no momento do pedido."
+        }
+      },
+      "required": ["orderId", "menuItemId", "name", "priceAtOrder", "quantity", "printSectorId"]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous",
+      "google.com"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/restaurants/{restaurantId}",
+        "definition": {
+          "entityName": "Restaurant",
+          "schema": {
+            "$ref": "#/entities/Restaurant"
+          },
+          "description": "Coleção principal para todos os perfis de restaurante."
+        }
+      },
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/entities/UserProfile"
+          },
+          "description": "Coleção de perfis públicos de usuários."
+        }
+      },
+      {
+        "path": "/restaurants/{restaurantId}/team/{userId}",
+        "definition": {
+          "entityName": "RestaurantUser",
+          "schema": {
+            "$ref": "#/entities/RestaurantUser"
+          },
+          "description": "Armazena o papel de um usuário em um restaurante específico."
+        }
+      },
+      {
+        "path": "/restaurants/{restaurantId}/invitations/{invitationId}",
+        "definition": {
+          "entityName": "Invitation",
+          "schema": {
+            "$ref": "#/entities/Invitation"
+          },
+          "description": "Convites ativos para novos membros."
+        }
+      },
+      {
+        "path": "/restaurants/{restaurantId}/menuItemCategories/{menuItemCategoryId}",
+        "definition": {
+          "entityName": "MenuItemCategory",
+          "schema": {
+            "$ref": "#/entities/MenuItemCategory"
+          },
+          "description": "Categorias do cardápio para um restaurante específico."
+        }
+      },
+      {
+        "path": "/restaurants/{restaurantId}/menuItems/{menuItemId}",
+        "definition": {
+          "entityName": "MenuItem",
+          "schema": {
+            "$ref": "#/entities/MenuItem"
+          },
+          "description": "Itens do cardápio para um restaurante específico."
+        }
+      },
+      {
+        "path": "/restaurants/{restaurantId}/printSectors/{printSectorId}",
+        "definition": {
+          "entityName": "PrintSector",
+          "schema": {
+            "$ref": "#/entities/PrintSector"
+          },
+          "description": "Setores de impressão (cozinha, bar) para um restaurante."
+        }
+      },
+      {
+        "path": "/restaurants/{restaurantId}/printers/{printerId}",
+        "definition": {
+          "entityName": "Printer",
+          "schema": {
+            "$ref": "#/entities/Printer"
+          },
+          "description": "Impressoras físicas configuradas para um restaurante."
+        }
+      },
+      {
+        "path": "/restaurants/{restaurantId}/tables/{tableId}",
+        "definition": {
+          "entityName": "Table",
+          "schema": {
+            "$ref": "#/entities/Table"
+          },
+          "description": "Mesas físicas de um restaurante."
+        }
+      },
+      {
+        "path": "/restaurants/{restaurantId}/customers/{customerId}",
+        "definition": {
+          "entityName": "Customer",
+          "schema": {
+            "$ref": "#/entities/Customer"
+          },
+          "description": "Clientes de um restaurante, para histórico de pedidos."
+        }
+      },
+      {
+        "path": "/restaurants/{restaurantId}/orders/{orderId}",
+        "definition": {
+          "entityName": "Order",
+          "schema": {
+            "$ref": "#/entities/Order"
+          },
+          "description": "Pedidos de um restaurante."
+        }
+      },
+      {
+        "path": "/restaurants/{restaurantId}/orders/{orderId}/items/{orderItemId}",
+        "definition": {
+          "entityName": "OrderItem",
+          "schema": {
+            "$ref": "#/entities/OrderItem"
+          },
+          "description": "Subcoleção com os itens de um pedido específico."
+        }
+      }
+    ],
+    "reasoning": "Estrutura multi-tenancy robusta com isolamento total de dados por restaurante e acesso rápido via perfil do usuário."
+  }
+}

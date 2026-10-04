@@ -1,0 +1,70 @@
+{
+  "entities": {
+    "Restaurant": {
+      "title": "Restaurant",
+      "description": "Configurações e dados cadastrais do restaurante",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "deliveryFee": { "type": "number" }
+      }
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Comanda ou pedido do salão, balcão ou entrega",
+      "type": "object",
+      "properties": {
+        "restaurantId": { "type": "string" },
+        "orderNumber": { "type": "number" },
+        "tableName": { "type": "string" },
+        "tableId": { "type": "string" },
+        "status": { "type": "string" },
+        "total": { "type": "number" },
+        "items": { "type": "array" }
+      }
+    },
+    "Table": {
+      "title": "Table",
+      "description": "Mesa do restaurante",
+      "type": "object",
+      "properties": {
+        "restaurantId": { "type": "string" },
+        "name": { "type": "string" },
+        "status": { "type": "string" }
+      }
+    },
+    "MenuItem": {
+      "title": "MenuItem",
+      "description": "Item do cardápio",
+      "type": "object",
+      "properties": {
+        "restaurantId": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "isAvailable": { "type": "boolean" }
+      }
+    }
+  },
+  "firestore": {
+    "/restaurants/{restaurantId}": {
+      "schema": "Restaurant",
+      "description": "Documento principal do restaurante"
+    },
+    "/restaurants/{restaurantId}/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Coleção de pedidos e comandas do restaurante"
+    },
+    "/restaurants/{restaurantId}/tables/{tableId}": {
+      "schema": "Table",
+      "description": "Coleção de mesas do salão"
+    },
+    "/restaurants/{restaurantId}/menuItems/{menuItemId}": {
+      "schema": "MenuItem",
+      "description": "Coleção de itens do cardápio"
+    }
+  }
+}

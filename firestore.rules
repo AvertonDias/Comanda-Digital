@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Regra para usuários e perfis
+    match /users/{userId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Regras completas para restaurantes e suas subcoleções
+    match /restaurants/{restaurantId} {
+      allow read, write: if request.auth != null;
+
+      // Pedidos e Comandas
+      match /orders/{orderId} {
+        allow read, write: if request.auth != null;
+      }
+
+      // Mesas do Salão
+      match /tables/{tableId} {
+        allow read, write: if request.auth != null;
+      }
+
+      // Itens do Cardápio (leitura pública para clientes no cardápio digital via QR Code)
+      match /menuItems/{itemId} {
+        allow read: if true;
+        allow write: if request.auth != null;
+      }
+
+      // Categorias do Cardápio (leitura pública para clientes)
+      match /menuItemCategories/{categoryId} {
+        allow read: if true;
+        allow write: if request.auth != null;
+      }
+
+      // Membros da Equipe
+      match /team/{memberId} {
+        allow read, write: if request.auth != null;
+      }
+
+      // Setores de Impressão
+      match /printSectors/{sectorId} {
+        allow read, write: if request.auth != null;
+      }
+
+      // Todas as demais subcoleções do restaurante
+      match /{allChildren=**} {
+        allow read, write: if request.auth != null;
+      }
+    }
+
+    // Fallback global para desenvolvimento garantindo acesso completo para autenticados
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

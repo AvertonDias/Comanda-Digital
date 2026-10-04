@@ -1,0 +1,148 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 135 10% 20%;
+    --card: 0 0% 100%;
+    --card-foreground: 135 10% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 135 10% 20%;
+    --primary: 135 45% 38%;
+    --primary-foreground: 120 25% 98%;
+    --secondary: 120 15% 90%;
+    --secondary-foreground: 135 10% 20%;
+    --muted: 120 15% 94%;
+    --muted-foreground: 135 5% 45%;
+    --accent: 83 67% 70%;
+    --accent-foreground: 135 45% 15%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 120 10% 92%;
+    --input: 120 10% 92%;
+    --ring: 135 45% 38%;
+    --radius: 0.8rem;
+    --chart-1: 135 45% 38%;
+    --chart-2: 83 67% 70%;
+    --chart-3: 135 30% 58%;
+    --chart-4: 83 50% 80%;
+    --chart-5: 135 10% 20%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 135 10% 20%;
+    --sidebar-primary: 135 45% 38%;
+    --sidebar-primary-foreground: 120 25% 98%;
+    --sidebar-accent: 120 23% 95%;
+    --sidebar-accent-foreground: 135 10% 20%;
+    --sidebar-border: 120 10% 88%;
+    --sidebar-ring: 135 45% 38%;
+  }
+
+  .dark {
+    --background: 135 10% 10%;
+    --foreground: 120 10% 95%;
+    --card: 135 10% 12%;
+    --card-foreground: 120 10% 95%;
+    --popover: 135 10% 12%;
+    --popover-foreground: 120 10% 95%;
+    --primary: 135 45% 38%;
+    --primary-foreground: 120 25% 98%;
+    --secondary: 135 10% 20%;
+    --secondary-foreground: 120 10% 98%;
+    --muted: 135 10% 20%;
+    --muted-foreground: 120 5% 65%;
+    --accent: 83 67% 70%;
+    --accent-foreground: 135 45% 15%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 135 10% 20%;
+    --input: 135 10% 20%;
+    --ring: 135 45% 38%;
+    --chart-1: 135 45% 38%;
+    --chart-2: 83 67% 70%;
+    --chart-3: 135 30% 58%;
+    --chart-4: 83 50% 80%;
+    --chart-5: 120 10% 95%;
+    --sidebar-background: 135 10% 12%;
+    --sidebar-foreground: 120 10% 95%;
+    --sidebar-primary: 135 45% 38%;
+    --sidebar-primary-foreground: 120 25% 98%;
+    --sidebar-accent: 135 10% 20%;
+    --sidebar-accent-foreground: 120 10% 98%;
+    --sidebar-border: 135 10% 20%;
+    --sidebar-ring: 135 45% 38%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Fix for Radix UI modal lock hang and frozen screens */
+html, body {
+  pointer-events: auto !important;
+}
+
+/* Custom Scrollbar for Categories */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Print Styles Otimizados para Térmica 80mm */
+@media print {
+  @page {
+    margin: 0;
+    size: auto;
+  }
+  body {
+    margin: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    background: white !important;
+    pointer-events: auto !important;
+  }
+  body * {
+    visibility: hidden;
+  }
+  #print-receipt-area, #print-receipt-area * {
+    visibility: visible;
+  }
+  #print-receipt-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm;
+    padding: 2mm;
+    background: white !important;
+    color: black !important;
+    /* Fonte reduzida para caber melhor na fita térmica */
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 8pt;
+    line-height: 1.1;
+  }
+  /* Força cores pretas e negrito em tudo para evitar tons de cinza apagados */
+  #print-receipt-area span, 
+  #print-receipt-area p, 
+  #print-receipt-area div, 
+  #print-receipt-area td, 
+  #print-receipt-area th,
+  #print-receipt-area h1,
+  #print-receipt-area h2 {
+    color: black !important;
+    opacity: 1 !important;
+    font-weight: 700 !important; /* Força negrito em tudo para queimar mais a fita térmica */
+  }
+  .no-print {
+    display: none !important;
+  }
+}
