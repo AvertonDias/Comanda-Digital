@@ -43,14 +43,16 @@ type MenuItemCardProps = {
 export function MenuItemCard({ item, categories }: MenuItemCardProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
-  const { role } = useRestaurant();
+  const { role, restaurantId: currentRestId } = useRestaurant();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const isAdmin = role === 'admin';
+  const targetRestaurantId = item.restaurantId || currentRestId;
 
   const handleDelete = () => {
-    const docRef = doc(firestore, `restaurants/${item.restaurantId}/menuItems`, item.id);
+    if (!targetRestaurantId) return;
+    const docRef = doc(firestore, `restaurants/${targetRestaurantId}/menuItems`, item.id);
     deleteDoc(docRef).then(() => {
         toast({ title: "Item excluído com sucesso." });
     }).catch(async () => {
@@ -126,7 +128,7 @@ export function MenuItemCard({ item, categories }: MenuItemCardProps) {
                 </DialogHeader>
                 <div className="flex-1 overflow-hidden">
                   <MenuItemForm 
-                      restaurantId={item.restaurantId}
+                      restaurantId={targetRestaurantId || ''}
                       categories={categories}
                       initialData={item}
                       onSuccess={() => setIsEditDialogOpen(false)}

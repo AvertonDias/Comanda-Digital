@@ -33,9 +33,9 @@ import { Badge } from "@/components/ui/badge";
 
 const allMenuItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ['admin'] },
-    { href: "/menu", label: "Cardápio", icon: BookOpen, roles: ['admin', 'waiter'] },
-    { href: "/orders", label: "Pedidos", icon: SquareKanban, roles: ['admin', 'waiter'] },
-    { href: "/tables", label: "Mesas", icon: ClipboardList, roles: ['admin', 'waiter'] },
+    { href: "/menu", label: "Cardápio", icon: BookOpen, roles: ['admin', 'waiter', 'ajudante'] },
+    { href: "/tables", label: "Mesas", icon: ClipboardList, roles: ['admin', 'waiter', 'ajudante'] },
+    { href: "/orders", label: "Pedidos", icon: SquareKanban, roles: ['admin', 'waiter', 'ajudante'] },
     { href: "/customers", label: "Clientes", icon: Users, roles: ['admin'] },
     { href: "/settings", label: "Configurações", icon: Settings, roles: ['admin'] },
 ];
@@ -75,10 +75,13 @@ export function AppSidebar() {
     };
 
     const filteredMenuItems = useMemo(() => {
-        if (!role) {
+        if (role === 'admin') {
             return allMenuItems;
         }
-        return allMenuItems.filter(item => item.roles.includes(role));
+        // Para os ajudantes, eles podem ver apenas as abas Cardápio, Mesas e Pedidos
+        return allMenuItems.filter(item => 
+            item.href === '/menu' || item.href === '/tables' || item.href === '/orders'
+        );
     }, [role]);
     
     const isLoading = isUserLoading;
@@ -133,9 +136,9 @@ export function AppSidebar() {
                 <SidebarSeparator />
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton tooltip={{ children: 'Logout', side: 'right' }} onClick={handleLogout}>
+                        <SidebarMenuButton tooltip={{ children: 'Sair da Conta', side: 'right' }} onClick={handleLogout}>
                             <LogOut />
-                            <span>Logout</span>
+                            <span>Sair</span>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                     <SidebarMenuItem>
@@ -155,7 +158,7 @@ export function AppSidebar() {
                                     <>
                                         <span className="truncate font-medium text-xs">{userName}</span>
                                         <span className="text-[10px] text-muted-foreground capitalize">
-                                            {role === 'admin' ? 'Administrador' : role === 'waiter' ? 'Garçom' : 'Usuário'}
+                                            {role === 'admin' ? 'Administrador' : 'Ajudante'}
                                         </span>
                                     </>
                                 )}

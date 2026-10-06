@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth, useUser, useFirestore } from '@/firebase';
 import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { collection, doc, serverTimestamp, writeBatch, getDoc } from 'firebase/firestore';
-import { UtensilsCrossed, Loader2 } from 'lucide-react';
+import { Loader2, Download, Smartphone, Share2, PlusSquare, ArrowRight, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, FormEvent, useEffect, Suspense, use } from 'react';
@@ -31,18 +31,54 @@ function RegisterContent({ inviteId, invitedRestId }: { inviteId?: string, invit
   const auth = useAuth();
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
-  const { hasRestaurant, isLoading: isResLoading } = useRestaurant();
+  const { hasRestaurant, isLoading: isResLoading, role } = useRestaurant();
   
   const router = useRouter();
   const { toast } = useToast();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [registeredRole, setRegisteredRole] = useState<string | null>(null);
+  
+  // PWA Install State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isIOS, setIsIOS] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [showIOSGuide, setShowIOSGuide] = useState(false);
 
   useEffect(() => {
-    if (!isUserLoading && !isResLoading && user && hasRestaurant) {
-      router.push('/dashboard');
+    // Detecta modo standalone
+    const standalone = 
+      window.matchMedia('(display-mode: standalone)').matches || 
+      (window.navigator as any).standalone === true;
+    setIsStandalone(standalone);
+
+    // Detecta iOS
+    const ua = window.navigator.userAgent.toLowerCase();
+    const isIOSDevice = /iphone|ipad|ipod/.test(ua);
+    setIsIOS(isIOSDevice);
+
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Só redireciona automaticamente se não estiver na tela de sucesso de cadastro
+    if (!registeredRole && !isUserLoading && !isResLoading && user && hasRestaurant) {
+      if (role === 'admin') {
+        router.push('/dashboard');
+      } else {
+        router.push('/orders');
+      }
     }
-  }, [user, isUserLoading, hasRestaurant, isResLoading, router]);
+  }, [user, isUserLoading, hasRestaurant, isResLoading, role, registeredRole, router]);
 
   const handleGoogleSignIn = async () => {
     setIsSubmitting(true);
@@ -55,6 +91,36 @@ function RegisterContent({ inviteId, invitedRestId }: { inviteId?: string, invit
       toast({ variant: 'destructive', title: 'Erro', description: 'Erro ao entrar com Google.' });
     } finally {
         setIsSubmitting(false);
+    }
+  };
+
+  const handleInstallClick = async () => {
+    if (isIOS) {
+      setShowIOSGuide(true);
+      return;
+    }
+
+    if (!deferredPrompt) {
+      toast({
+        title: "Instalação do App",
+        description: "Abra as opções do seu navegador (três pontinhos) e toque em 'Adicionar à tela inicial' ou 'Instalar aplicativo'."
+      });
+      return;
+    }
+
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      toast({ title: "Instalado!", description: "O app foi adicionado à sua tela inicial." });
+    }
+    setDeferredPrompt(null);
+  };
+
+  const handleProceedToApp = () => {
+    if (registeredRole === 'admin') {
+      router.push('/dashboard');
+    } else {
+      router.push('/orders');
     }
   };
 
@@ -126,11 +192,12 @@ function RegisterContent({ inviteId, invitedRestId }: { inviteId?: string, invit
       await batch.commit();
       
       toast({ 
-        title: 'Sucesso!', 
-        description: inviteId ? 'Você entrou para a equipe!' : 'Seu restaurante foi configurado.' 
+        title: 'Cadastro realizado!', 
+        description: inviteId ? 'Você entrou para a equipe como Garçom/Ajudante!' : 'Seu restaurante foi configurado.' 
       });
       
-      router.push('/dashboard');
+      // Exibe a tela especial de convite para instalar o App no celular
+      setRegisteredRole(targetRole);
     } catch (error: any) {
         console.error("Registration Error:", error);
         let desc = error.message || 'Ocorreu uma falha ao processar o seu registro.';
@@ -151,6 +218,99 @@ function RegisterContent({ inviteId, invitedRestId }: { inviteId?: string, invit
     }
   };
 
+  // 📲 Tela de Sucesso com Pedido de Instalação do App no Celular com Ícone Oficial
+  if (registeredRole) {
+    return (
+      <Card className="mx-auto max-w-sm w-full shadow-2xl border-2 border-primary/30 animate-in zoom-in-95 duration-500 overflow-hidden">
+        <div className="h-1.5 bg-gradient-to-r from-primary via-emerald-400 to-primary w-full" />
+        <CardHeader className="space-y-3 text-center pb-2 pt-6">
+          <div className="relative mx-auto size-20 rounded-3xl overflow-hidden shadow-xl ring-4 ring-primary/20 bg-primary/10 flex items-center justify-center">
+            <img src="/app-icon.jpg" alt="Comanda Digital" className="size-full object-cover" referrerPolicy="no-referrer" />
+            <div className="absolute bottom-0 right-0 bg-primary text-white p-1 rounded-tl-xl shadow">
+              <CheckCircle2 className="size-3.5" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-[11px] font-black uppercase">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Cadastro Concluído
+            </div>
+            <CardTitle className="text-xl font-black uppercase tracking-tight pt-1">
+              Instale a Comanda no seu Celular
+            </CardTitle>
+            <CardDescription className="text-xs font-medium">
+              Adicione o aplicativo à sua tela inicial para abrir mesas e anotar pedidos com agilidade diretamente no seu aparelho com o ícone oficial.
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4 pt-2 pb-6">
+          <div className="bg-muted/40 rounded-2xl p-4 border space-y-2 text-left">
+            <div className="flex items-center gap-2.5 text-xs font-bold">
+              <Smartphone className="h-4 w-4 text-primary shrink-0" />
+              <span>Funciona como um aplicativo nativo</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed pl-6.5">
+              Não ocupa espaço na memória, abre em tela cheia e você não precisa digitar endereço no navegador para atender as mesas.
+            </p>
+          </div>
+
+          <div className="space-y-2 pt-1">
+            <Button 
+              onClick={handleInstallClick} 
+              className="w-full h-12 text-sm font-black uppercase shadow-lg shadow-primary/25 gap-2 rounded-xl"
+            >
+              <Download className="h-4 w-4" />
+              Instalar Aplicativo no Celular
+            </Button>
+
+            <Button 
+              variant="outline" 
+              onClick={handleProceedToApp} 
+              className="w-full h-11 text-xs font-bold gap-2 rounded-xl border-2"
+            >
+              <span>{registeredRole === 'admin' ? 'Acessar Dashboard' : 'Continuar para os Pedidos'}</span>
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardContent>
+
+        {/* Modal Guia para iOS Safari */}
+        {showIOSGuide && (
+          <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+            <Card className="w-full max-w-sm rounded-3xl bg-background border-2 shadow-2xl p-6 space-y-5 text-center">
+              <div className="size-16 rounded-2xl overflow-hidden shadow-lg ring-4 ring-primary/20 mx-auto">
+                <img src="/app-icon.jpg" alt="Comanda Digital" className="size-full object-cover" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-black uppercase tracking-tight">Instalar no iPhone / iPad</h3>
+                <p className="text-xs text-muted-foreground">
+                  Para instalar a Comanda Digital com o ícone oficial:
+                </p>
+              </div>
+              <div className="bg-muted/40 rounded-2xl p-4 text-left space-y-3 text-xs">
+                <div className="flex items-start gap-3">
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-white font-bold text-xs">1</span>
+                  <p>Toque no botão de <strong>Compartilhar</strong> <Share2 className="inline h-4 w-4 text-primary ml-1" /> na barra inferior do Safari.</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-white font-bold text-xs">2</span>
+                  <p>Role a lista e toque em <strong>"Adicionar à Tela de Início"</strong> <PlusSquare className="inline h-4 w-4 text-primary ml-1" />.</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-white font-bold text-xs">3</span>
+                  <p>Toque em <strong>"Adicionar"</strong> no canto superior direito.</p>
+                </div>
+              </div>
+              <Button className="w-full h-11 font-bold rounded-xl" onClick={() => { setShowIOSGuide(false); handleProceedToApp(); }}>
+                Tudo Pronto, Abrir App!
+              </Button>
+            </Card>
+          </div>
+        )}
+      </Card>
+    );
+  }
+
   return (
     <Card className="mx-auto max-w-sm w-full">
       <CardHeader className="space-y-2 text-center pb-2">
@@ -161,7 +321,7 @@ function RegisterContent({ inviteId, invitedRestId }: { inviteId?: string, invit
             {inviteId ? 'Aceitar Convite' : 'Criar Restaurante'}
         </CardTitle>
         <CardDescription>
-            {inviteId ? 'Finalize seu perfil para começar.' : 'Configure seu negócio em segundos.'}
+            {inviteId ? 'Finalize seu perfil para começar a atender.' : 'Configure seu negócio em segundos.'}
         </CardDescription>
       </CardHeader>
       <CardContent>

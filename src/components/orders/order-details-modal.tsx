@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/select";
 import type { Order, OrderStatus, Restaurant, SplitPaymentPart, MenuItem, MenuItemCategory } from "@/lib/types";
 import { format } from "date-fns";
-import { ArrowRight, ChefHat, Bike, Trash2, QrCode, Copy, Check, Users, Minus, Plus, Wallet, CreditCard, Banknote, ListChecks, DollarSign, Printer, ChevronLeft, Search, Info, ShoppingBag, CheckCircle2, Clock, Undo2 } from "lucide-react";
+import { ArrowRight, ChefHat, Bike, Trash2, QrCode, Copy, Check, Users, Minus, Plus, Wallet, CreditCard, Banknote, ListChecks, DollarSign, Printer, ChevronLeft, Search, Info, ShoppingBag, CheckCircle2, Clock, Undo2, AlertTriangle } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import { doc, updateDoc, query, collection, orderBy, where, serverTimestamp, addDoc, getCountFromServer } from "firebase/firestore";
@@ -122,6 +122,26 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     const [showReceiptPreview, setShowReceiptPreview] = useState(false);
     const [showKitchenPrint, setShowKitchenPrint] = useState(false);
     const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+    const [localStatus, setLocalStatus] = useState<OrderStatus | undefined>(order?.status);
+
+    useEffect(() => {
+        if (order?.status) {
+            setLocalStatus(order.status);
+        }
+    }, [order?.status]);
+
+    const activeStatus = localStatus || order?.status || 'aberto';
+
+    const handleConfirmCancel = () => {
+        const targetIds = allGroupedOrders.map(o => o.id);
+        setLocalStatus('cancelado');
+        setShowCancelConfirm(false);
+        onStatusChange(targetIds, 'cancelado');
+        toast({
+            title: "Pedido cancelado!",
+            description: "O status foi alterado para cancelado e a mesa foi liberada."
+        });
+    };
 
     const relatedOrdersQuery = useMemoFirebase(() => {
         if (!order?.tableId || !order?.restaurantId || !firestore) return null;
@@ -512,7 +532,11 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
     return (
         <>
             <Dialog open={isOpen} onOpenChange={onOpenChange}>
-                <DialogContent className="max-w-full w-full h-[100dvh] sm:h-[90vh] sm:max-w-lg flex flex-col p-0 overflow-hidden border-none sm:border [&>button:last-child]:hidden">
+                <DialogContent 
+                    onPointerDownOutside={(e) => e.preventDefault()}
+                    onInteractOutside={(e) => e.preventDefault()}
+                    className="max-w-full w-full h-[100dvh] sm:h-[90vh] sm:max-w-lg flex flex-col p-0 overflow-hidden border-none sm:border [&>button:last-child]:hidden"
+                >
                     <DialogHeader className="p-4 sm:p-6 pb-3 flex flex-row items-center gap-2 space-y-0 shrink-0 bg-background z-10 border-b">
                         <Button variant="ghost" size="icon" className="h-9 w-9 -ml-1 shrink-0 rounded-xl" onClick={() => onOpenChange(false)}>
                             <ChevronLeft className="h-5 w-5" />
@@ -526,7 +550,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                             </p>
                         </div>
                         <div className="flex gap-2 shrink-0">
-                            {order.status === 'aberto' && (
+                            {role === 'admin' && activeStatus === 'aberto' && (
                                 <Button 
                                     variant="outline" 
                                     size="icon" 
@@ -537,7 +561,7 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                                     <ChefHat className="h-4 w-4" />
                                 </Button>
                             )}
-                            {order.status === 'pronto' && (
+                            {role === 'admin' && activeStatus === 'pronto' && (
                                 <Button 
                                     variant="outline" 
                                     size="icon" 
@@ -554,16 +578,28 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                     <ScrollArea className="flex-1">
                         <div className="p-4 sm:p-6 space-y-6">
                             {/* Resumo de Status e Total */}
+                            {activeStatus === 'cancelado' && (
+                                <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-300 p-4 rounded-2xl flex items-center gap-3 animate-in fade-in">
+                                    <AlertTriangle className="h-5 w-5 text-red-600 shrink-0" />
+                                    <div>
+                                        <p className="font-bold text-sm">Pedido Cancelado</p>
+                                        <p className="text-xs opacity-90">Este pedido foi cancelado e a mesa já foi liberada.</p>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="grid grid-cols-2 gap-3 sm:gap-4">
                                 <div className="space-y-1">
                                     <span className="text-[11px] font-black uppercase text-muted-foreground">Status do Pedido</span>
                                     <Badge className={cn("w-full justify-center h-8 font-black text-xs uppercase rounded-xl border-none shadow-xs", 
-                                        order.status === 'aberto' ? 'bg-blue-600 text-white' : 
-                                        order.status === 'preparando' ? 'bg-amber-500 text-white' : 
+                                        activeStatus === 'aberto' ? 'bg-blue-600 text-white' : 
+                                        activeStatus === 'preparando' ? 'bg-amber-500 text-white' : 
+                                        activeStatus === 'cancelado' ? 'bg-red-600 text-white' :
                                         'bg-emerald-600 text-white'
                                     )}>
-                                        {order.status === 'aberto' ? '⏳ Em Aberto' : 
-                                         order.status === 'preparando' ? '🍳 Em Preparo' : 
+                                        {activeStatus === 'aberto' ? '⏳ Em Aberto' : 
+                                         activeStatus === 'preparando' ? '🍳 Em Preparo' : 
+                                         activeStatus === 'cancelado' ? '❌ Cancelado' :
                                          '✅ Pronto p/ Servir'}
                                     </Badge>
                                 </div>
@@ -902,59 +938,93 @@ export function OrderDetailsModal({ order, isOpen, onOpenChange, onStatusChange 
                         </div>
 
                         <DialogFooter className="flex-row gap-2">
-                            <Button 
-                                variant="outline" 
-                                className="font-bold text-xs h-12 px-3 sm:px-4 rounded-xl border-2 shrink-0" 
-                                onClick={() => onOpenChange(false)}
-                            >
-                                Voltar
-                            </Button>
-                            
-                            {(order.status === 'aberto' || order.status === 'preparando') && (
+                            {activeStatus === 'cancelado' ? (
                                 <Button 
-                                    variant="destructive" 
-                                    className="font-bold text-xs h-12 px-3 rounded-xl shrink-0" 
-                                    onClick={() => setShowCancelConfirm(true)}
-                                    title="Cancelar comanda"
+                                    className="w-full font-black text-sm h-12 rounded-xl bg-foreground text-background hover:bg-foreground/90 shadow-md" 
+                                    onClick={() => onOpenChange(false)}
                                 >
-                                    <Trash2 className="h-4 w-4 sm:mr-1.5"/> 
-                                    <span className="hidden sm:inline">Cancelar</span>
+                                    Fechar Comanda
                                 </Button>
-                            )}
-                            
-                            {order.status !== 'finalizado' && (
-                                <Button 
-                                    className={cn(
-                                        "flex-1 min-w-0 font-black text-xs sm:text-sm h-12 rounded-xl shadow-md transition-all px-2.5 sm:px-4 flex items-center justify-center text-center",
-                                        order.status === 'pronto' ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                            ) : showCancelConfirm ? (
+                                <div className="w-full bg-red-50 dark:bg-red-950/60 border-2 border-red-200 dark:border-red-800 p-3 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in">
+                                    <div className="flex items-center gap-2 text-red-800 dark:text-red-200 font-bold text-xs">
+                                        <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
+                                        <span>Deseja realmente cancelar este pedido e liberar a mesa?</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end shrink-0">
+                                        <Button 
+                                            type="button" 
+                                            variant="outline" 
+                                            size="sm" 
+                                            className="h-10 px-4 text-xs font-bold rounded-xl" 
+                                            onClick={() => setShowCancelConfirm(false)}
+                                        >
+                                            Não
+                                        </Button>
+                                        <Button 
+                                            type="button" 
+                                            variant="destructive" 
+                                            size="sm" 
+                                            className="h-10 px-4 text-xs font-black rounded-xl bg-destructive hover:bg-destructive/90 text-white shadow-sm" 
+                                            onClick={handleConfirmCancel}
+                                        >
+                                            Sim, cancelar
+                                        </Button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    <Button 
+                                        variant="outline" 
+                                        className={cn(
+                                            "font-bold text-xs h-12 px-3 sm:px-4 rounded-xl border-2",
+                                            role === 'admin' ? "shrink-0" : "flex-1"
+                                        )}
+                                        onClick={() => onOpenChange(false)}
+                                    >
+                                        Voltar
+                                    </Button>
+                                    
+                                    {(activeStatus === 'aberto' || activeStatus === 'preparando') && (
+                                        <Button 
+                                            variant="destructive" 
+                                            className={cn(
+                                                "font-bold text-xs h-12 px-3 sm:px-4 rounded-xl",
+                                                role === 'admin' ? "shrink-0" : "flex-1"
+                                            )}
+                                            onClick={() => setShowCancelConfirm(true)}
+                                            title="Cancelar comanda"
+                                        >
+                                            <Trash2 className="h-4 w-4 mr-1.5"/> 
+                                            <span>Cancelar</span>
+                                        </Button>
                                     )}
-                                    onClick={handleActionClick}
-                                    disabled={isFinalizing && (isSplitting ? !isFullyPaid : !paymentMethod)}
-                                >
-                                    <span className="flex items-center justify-center gap-1.5 min-w-0">
-                                        {order.status === 'aberto' ? <ChefHat className="shrink-0 h-4 w-4" /> : order.status === 'preparando' ? <ShoppingBag className="shrink-0 h-4 w-4" /> : <Check className="shrink-0 h-4 w-4" />}
-                                        <span className="break-words leading-tight">
-                                            {order.status === 'aberto' ? 'Iniciar Preparo' : order.status === 'preparando' ? 'Marcar Pronto' : 'Receber e Finalizar'}
-                                        </span>
-                                        <ArrowRight className="shrink-0 h-4 w-4 ml-1 hidden xs:inline-block"/>
-                                    </span>
-                                </Button>
+                                    
+                                    {role === 'admin' && activeStatus !== 'finalizado' && (
+                                        <Button 
+                                            className={cn(
+                                                "flex-1 min-w-0 font-black text-xs sm:text-sm h-12 rounded-xl shadow-md transition-all px-2.5 sm:px-4 flex items-center justify-center text-center",
+                                                activeStatus === 'pronto' ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                                            )}
+                                            onClick={handleActionClick}
+                                            disabled={isFinalizing && (isSplitting ? !isFullyPaid : !paymentMethod)}
+                                        >
+                                            <span className="flex items-center justify-center gap-1.5 min-w-0">
+                                                {activeStatus === 'aberto' ? <ChefHat className="shrink-0 h-4 w-4" /> : activeStatus === 'preparando' ? <ShoppingBag className="shrink-0 h-4 w-4" /> : <Check className="shrink-0 h-4 w-4" />}
+                                                <span className="break-words leading-tight">
+                                                    {activeStatus === 'aberto' ? 'Iniciar Preparo' : activeStatus === 'preparando' ? 'Marcar Pronto' : 'Receber e Finalizar'}
+                                                </span>
+                                                <ArrowRight className="shrink-0 h-4 w-4 ml-1 hidden xs:inline-block"/>
+                                            </span>
+                                        </Button>
+                                    )}
+                                </>
                             )}
                         </DialogFooter>
                     </div>
 
                 </DialogContent>
             </Dialog>
-
-            <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
-                <AlertDialogContent>
-                    <AlertDialogHeader><AlertDialogTitle>Cancelar Pedido?</AlertDialogTitle><AlertDialogDescription>Tem certeza? Esta ação removerá os itens da comanda.</AlertDialogDescription></AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Não</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => { onStatusChange(allGroupedOrders.map(o => o.id), 'cancelado'); setShowCancelConfirm(false); }} className="bg-destructive">Sim, cancelar</AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
 
             <Dialog open={isMenuOpen} onOpenChange={setIsMenuOpen}>
                 <DialogContent className="max-w-full w-full h-[100dvh] sm:h-[80vh] sm:max-w-[450px] p-0 flex flex-col border-none sm:border overflow-hidden [&>button:last-child]:hidden">

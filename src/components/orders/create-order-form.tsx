@@ -78,10 +78,63 @@ export function CreateOrderForm({
         );
     }, [restaurantId, firestore]);
 
-    const { data: categories, isLoading: isCatsLoading } = useCollection<MenuItemCategory>(categoriesQuery);
-    const { data: items, isLoading: isItemsLoading } = useCollection<MenuItem>(itemsQuery);
-    const { data: tables, isLoading: isTablesLoading } = useCollection<Table>(tablesQuery);
+    const { data: rawCategories, isLoading: isCatsLoading } = useCollection<MenuItemCategory>(categoriesQuery);
+    const { data: rawItems, isLoading: isItemsLoading } = useCollection<MenuItem>(itemsQuery);
+    const { data: rawTables, isLoading: isTablesLoading } = useCollection<Table>(tablesQuery);
     const { data: activeOrders } = useCollection<Order>(preparingOrdersQuery);
+
+    const { categories, categoryIdMap } = useMemo(() => {
+        if (!rawCategories) return { categories: [], categoryIdMap: new Map<string, string[]>() };
+        const nameMap = new Map<string, MenuItemCategory>();
+        const idAliases = new Map<string, string[]>();
+
+        rawCategories.forEach(cat => {
+            const normalized = (cat.name || '').trim().toLowerCase();
+            if (!nameMap.has(normalized)) {
+                nameMap.set(normalized, cat);
+                idAliases.set(cat.id, [cat.id]);
+            } else {
+                const canonical = nameMap.get(normalized)!;
+                const currentList = idAliases.get(canonical.id) || [canonical.id];
+                currentList.push(cat.id);
+                idAliases.set(canonical.id, currentList);
+            }
+        });
+
+        return {
+            categories: Array.from(nameMap.values()).sort((a, b) => (a.order || 0) - (b.order || 0)),
+            categoryIdMap: idAliases
+        };
+    }, [rawCategories]);
+
+    const tables = useMemo(() => {
+        if (!rawTables) return [];
+        const seen = new Map<string, Table>();
+        rawTables.forEach(t => {
+            const key = (t.name || '').trim().toLowerCase();
+            if (!seen.has(key)) {
+                seen.set(key, t);
+            } else {
+                const existing = seen.get(key)!;
+                if (existing.status === 'livre' && (t.status === 'ocupada' || t.status === 'fechando')) {
+                    seen.set(key, t);
+                }
+            }
+        });
+        return Array.from(seen.values()).sort((a, b) => 
+            a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+        );
+    }, [rawTables]);
+
+    const items = useMemo(() => {
+        if (!rawItems) return [];
+        const seen = new Map<string, MenuItem>();
+        rawItems.forEach(i => {
+            const key = `${(i.name || '').trim().toLowerCase()}-${i.price}`;
+            if (!seen.has(key)) seen.set(key, i);
+        });
+        return Array.from(seen.values());
+    }, [rawItems]);
 
     const estimatedWaitTime = useMemo(() => {
         const backlogTime = activeOrders?.reduce((total, order) => {
@@ -517,10 +570,12 @@ export function CreateOrderForm({
                                     <ScrollBar orientation="horizontal" className="hidden" />
                                 </ScrollArea>
                                 
-                                {categories?.map(c => (
+                                {categories?.map(c => {
+                                    const aliasIds = categoryIdMap.get(c.id) || [c.id];
+                                    return (
                                     <TabsContent key={c.id} value={c.id} className="mt-0">
                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                            {items?.filter(i => i.categoryId === c.id && i.isAvailable).map(item => {
+                                            {items?.filter(i => aliasIds.includes(i.categoryId) && i.isAvailable).map(item => {
                                                 const currentQty = orderItems
                                                     .filter(oi => oi.menuItemId === item.id)
                                                     .reduce((sum, oi) => sum + oi.quantity, 0);
@@ -564,7 +619,8 @@ export function CreateOrderForm({
                                             })}
                                         </div>
                                     </TabsContent>
-                                ))}
+                                    );
+                                })}
                             </Tabs>
 
                             {orderItems.length > 0 && (

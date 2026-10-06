@@ -81,8 +81,64 @@ export function CategoryManager({ restaurantId }: { restaurantId: string }) {
         }
     };
 
+    const [isCleaning, setIsCleaning] = useState(false);
+
+    const { uniqueCategories, duplicateCount, duplicateDocs } = useMemo(() => {
+        if (!categories) return { uniqueCategories: [], duplicateCount: 0, duplicateDocs: [] as MenuItemCategory[] };
+        const nameMap = new Map<string, MenuItemCategory>();
+        const dupes: MenuItemCategory[] = [];
+
+        categories.forEach(c => {
+            const key = (c.name || '').trim().toLowerCase();
+            if (!nameMap.has(key)) {
+                nameMap.set(key, c);
+            } else {
+                dupes.push(c);
+            }
+        });
+
+        return {
+            uniqueCategories: Array.from(nameMap.values()),
+            duplicateCount: dupes.length,
+            duplicateDocs: dupes
+        };
+    }, [categories]);
+
+    const handleCleanDuplicates = async () => {
+        if (!restaurantId || !firestore || duplicateDocs.length === 0) return;
+        setIsCleaning(true);
+        try {
+            for (const dupe of duplicateDocs) {
+                await deleteDoc(doc(firestore, `restaurants/${restaurantId}/menuItemCategories`, dupe.id)).catch(() => {});
+            }
+            toast({
+                title: "Categorias limpas!",
+                description: `${duplicateDocs.length} categorias duplicadas foram removidas.`
+            });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro ao limpar duplicados' });
+        } finally {
+            setIsCleaning(false);
+        }
+    };
+
     return (
         <div className="space-y-4">
+            {duplicateCount > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-center justify-between text-xs text-amber-800">
+                    <span>Detectadas {duplicateCount} categorias com nomes repetidos.</span>
+                    <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={handleCleanDuplicates}
+                        disabled={isCleaning}
+                        className="text-xs h-7 font-bold text-amber-900 border-amber-300 bg-amber-100/50 hover:bg-amber-100"
+                    >
+                        {isCleaning ? "Limpando..." : `Limpar ${duplicateCount} Duplicadas`}
+                    </Button>
+                </div>
+            )}
+
             <div className="flex gap-2">
                 <Input 
                     placeholder="Ex: Pizzas, Bebidas..." 
@@ -105,7 +161,7 @@ export function CategoryManager({ restaurantId }: { restaurantId: string }) {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {categories?.map((cat) => (
+                        {uniqueCategories.map((cat) => (
                             <TableRow key={cat.id}>
                                 <TableCell>
                                     <GripVertical className="h-4 w-4 text-muted-foreground" />

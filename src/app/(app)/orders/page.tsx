@@ -47,16 +47,19 @@ function OrdersContent({ tableId }: { tableId?: string }) {
     <div className="flex flex-col h-screen bg-background">
       <AppHeader>
         <SidebarTrigger className="md:hidden" />
-        <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold">Pedidos</h1>
-            {tableId && (
-                <Badge variant="secondary" className="gap-2 px-3 py-1">
-                    Filtro: Mesa
-                    <Button variant="ghost" size="icon" className="h-4 w-4 p-0" onClick={clearFilter}>
-                        <X className="h-3 w-3" />
-                    </Button>
-                </Badge>
-            )}
+        <div className="flex items-center gap-2.5">
+          <div className="size-8 rounded-xl overflow-hidden shadow-xs ring-1 ring-primary/20 shrink-0 bg-primary/10 flex items-center justify-center">
+            <img src="/app-icon.jpg" alt="Comanda Digital" className="size-full object-cover" referrerPolicy="no-referrer" />
+          </div>
+          <h1 className="text-xl font-bold">Pedidos</h1>
+          {tableId && (
+              <Badge variant="secondary" className="gap-2 px-3 py-1">
+                  Filtro: Mesa
+                  <Button variant="ghost" size="icon" className="h-4 w-4 p-0" onClick={clearFilter}>
+                      <X className="h-3 w-3" />
+                  </Button>
+              </Badge>
+          )}
         </div>
         <div className="ml-auto">
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

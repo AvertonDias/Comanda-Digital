@@ -158,19 +158,6 @@ export function RestaurantSetupCard() {
             createdAt: serverTimestamp(),
           });
         }
-
-        // Mesas 1 a 6
-        for (let i = 1; i <= 6; i++) {
-          const tableNumStr = i < 10 ? `0${i}` : `${i}`;
-          const tableRef = doc(collection(firestore, `restaurants/${restaurantId}/tables`));
-          batch.set(tableRef, {
-            restaurantId,
-            name: `Mesa ${tableNumStr}`,
-            status: 'livre',
-            capacity: i === 4 ? 6 : i === 6 ? 8 : 4,
-            createdAt: serverTimestamp(),
-          });
-        }
       }
 
       await batch.commit();

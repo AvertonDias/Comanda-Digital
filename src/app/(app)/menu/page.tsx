@@ -1,9 +1,8 @@
-
 'use client';
 
 import { AppHeader } from '@/components/layout/app-header';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Settings2, Search, Clock, MapPin, ChevronLeft, Bike } from 'lucide-react';
+import { PlusCircle, Settings2, Search, Clock, MapPin, ChevronLeft, Bike, Sparkles, Loader2, AlertTriangle } from 'lucide-react';
 import { MenuItemCard } from '@/components/menu/menu-item-card';
 import { MenuItemForm } from '@/components/menu/menu-item-form';
 import { CategoryManager } from '@/components/menu/category-manager';
@@ -12,20 +11,23 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useRestaurant } from '@/hooks/use-restaurant';
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, orderBy, doc } from 'firebase/firestore';
+import { collection, query, orderBy, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import type { MenuItem, MenuItemCategory, Restaurant } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 export default function MenuPage() {
   const { restaurantId, isLoading: isRestLoading, role } = useRestaurant();
   const firestore = useFirestore();
+  const { toast } = useToast();
   const [isItemDialogOpen, setIsItemDialogOpen] = useState(false);
   const [isCatDialogOpen, setIsCatDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<string>('');
+  const [isCleaning, setIsCleaning] = useState(false);
 
   const restaurantRef = useMemoFirebase(() => 
     restaurantId ? doc(firestore, 'restaurants', restaurantId) : null, 
@@ -43,25 +45,136 @@ export default function MenuPage() {
     return query(collection(firestore, `restaurants/${restaurantId}/menuItems`));
   }, [restaurantId, firestore]);
 
-  const { data: categories, isLoading: isCatsLoading } = useCollection<MenuItemCategory>(categoriesQuery);
-  const { data: items, isLoading: isItemsLoading } = useCollection<MenuItem>(itemsQuery);
+  const { data: rawCategories, isLoading: isCatsLoading } = useCollection<MenuItemCategory>(categoriesQuery);
+  const { data: rawItems, isLoading: isItemsLoading } = useCollection<MenuItem>(itemsQuery);
 
   const isLoading = isRestLoading || isCatsLoading || isItemsLoading;
   const isAdmin = role === 'admin';
 
-  useMemo(() => {
-    if (categories && categories.length > 0 && !activeTab) {
-      setActiveTab(categories[0].id);
+  // Deduplicação inteligente de categorias no Frontend
+  const { uniqueCategories, duplicateCategoryDocs, categoryIdMap } = useMemo(() => {
+    if (!rawCategories) return { 
+      uniqueCategories: [], 
+      duplicateCategoryDocs: [] as MenuItemCategory[], 
+      categoryIdMap: new Map<string, string[]>() 
+    };
+
+    const nameMap = new Map<string, MenuItemCategory>();
+    const dupes: MenuItemCategory[] = [];
+    const idAliases = new Map<string, string[]>(); // canonicalId -> [canonicalId, dupId1, dupId2...]
+
+    rawCategories.forEach(cat => {
+      const normalized = (cat.name || '').trim().toLowerCase();
+      if (!nameMap.has(normalized)) {
+        nameMap.set(normalized, cat);
+        idAliases.set(cat.id, [cat.id]);
+      } else {
+        const canonical = nameMap.get(normalized)!;
+        dupes.push(cat);
+        const currentList = idAliases.get(canonical.id) || [canonical.id];
+        currentList.push(cat.id);
+        idAliases.set(canonical.id, currentList);
+      }
+    });
+
+    const uniqueList = Array.from(nameMap.values()).sort((a, b) => (a.order || 0) - (b.order || 0));
+
+    return {
+      uniqueCategories: uniqueList,
+      duplicateCategoryDocs: dupes,
+      categoryIdMap: idAliases
+    };
+  }, [rawCategories]);
+
+  // Deduplicação de itens (se o mesmo item foi gravado repetidamente com o mesmo nome e categoria)
+  const { uniqueItems, duplicateItemDocs } = useMemo(() => {
+    if (!rawItems) return { uniqueItems: [], duplicateItemDocs: [] as MenuItem[] };
+
+    const itemMap = new Map<string, MenuItem>();
+    const dupes: MenuItem[] = [];
+
+    rawItems.forEach(item => {
+      const key = `${(item.name || '').trim().toLowerCase()}-${item.price}`;
+      if (!itemMap.has(key)) {
+        itemMap.set(key, item);
+      } else {
+        dupes.push(item);
+      }
+    });
+
+    return {
+      uniqueItems: Array.from(itemMap.values()),
+      duplicateItemDocs: dupes
+    };
+  }, [rawItems]);
+
+  useEffect(() => {
+    if (uniqueCategories.length > 0 && (!activeTab || !uniqueCategories.some(c => c.id === activeTab))) {
+      setActiveTab(uniqueCategories[0].id);
     }
-  }, [categories, activeTab]);
+  }, [uniqueCategories, activeTab]);
 
   const filteredItems = useMemo(() => {
-    if (!items) return [];
-    return items.filter(item => 
+    if (!uniqueItems) return [];
+    return uniqueItems.filter(item => 
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.description?.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [items, searchQuery]);
+  }, [uniqueItems, searchQuery]);
+
+  // Função para limpar categorias e itens duplicados diretamente no banco de dados Firestore
+  const handleCleanDuplicates = async () => {
+    if (!restaurantId || !firestore) return;
+    setIsCleaning(true);
+
+    try {
+      let totalDeleted = 0;
+
+      // 1. Reassociar itens vinculados a categorias duplicadas para a categoria canônica
+      if (duplicateCategoryDocs.length > 0 && rawItems) {
+        for (const [canonicalId, aliasIds] of categoryIdMap.entries()) {
+          const duplicateIds = aliasIds.filter(id => id !== canonicalId);
+          if (duplicateIds.length > 0) {
+            const affectedItems = rawItems.filter(item => duplicateIds.includes(item.categoryId));
+            for (const item of affectedItems) {
+              const itemRef = doc(firestore, `restaurants/${restaurantId}/menuItems`, item.id);
+              await updateDoc(itemRef, { categoryId: canonicalId }).catch(() => {});
+            }
+          }
+        }
+
+        // Deletar as categorias duplicadas do Firestore
+        for (const dupe of duplicateCategoryDocs) {
+          const catRef = doc(firestore, `restaurants/${restaurantId}/menuItemCategories`, dupe.id);
+          await deleteDoc(catRef).catch(() => {});
+          totalDeleted++;
+        }
+      }
+
+      // 2. Deletar itens estritamente duplicados se houver
+      if (duplicateItemDocs.length > 0) {
+        for (const itemDupe of duplicateItemDocs) {
+          const itemRef = doc(firestore, `restaurants/${restaurantId}/menuItems`, itemDupe.id);
+          await deleteDoc(itemRef).catch(() => {});
+          totalDeleted++;
+        }
+      }
+
+      toast({
+        title: "Cardápio limpo com sucesso!",
+        description: `${totalDeleted} registros duplicados foram unificados e removidos do banco de dados.`
+      });
+    } catch (error: any) {
+      console.error("Erro ao limpar duplicados do cardápio:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao limpar",
+        description: "Ocorreu um erro ao limpar alguns itens duplicados."
+      });
+    } finally {
+      setIsCleaning(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -80,23 +193,30 @@ export default function MenuPage() {
     );
   }
 
+  const hasAnyDuplicates = duplicateCategoryDocs.length > 0 || duplicateItemDocs.length > 0;
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <AppHeader>
         <SidebarTrigger className="md:hidden" />
-        <div className="flex flex-col">
-            <h1 className="text-sm font-black uppercase tracking-tight truncate max-w-[150px]">{restaurant?.name || 'Cardápio'}</h1>
-            <div className="flex items-center gap-1">
-                <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-[10px] text-green-600 font-bold uppercase">Aberto</span>
-            </div>
+        <div className="flex items-center gap-2.5">
+          <div className="size-8 rounded-xl overflow-hidden shadow-xs ring-1 ring-primary/20 shrink-0 bg-primary/10 flex items-center justify-center">
+            <img src="/app-icon.jpg" alt="Comanda Digital" className="size-full object-cover" referrerPolicy="no-referrer" />
+          </div>
+          <div className="flex flex-col">
+              <h1 className="text-sm font-black uppercase tracking-tight truncate max-w-[150px]">{restaurant?.name || 'Cardápio'}</h1>
+              <div className="flex items-center gap-1">
+                  <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-[10px] text-green-600 font-bold uppercase">Aberto</span>
+              </div>
+          </div>
         </div>
         
         {isAdmin && (
-          <div className="ml-auto flex gap-2">
+          <div className="ml-auto flex items-center gap-2">
             <Dialog open={isCatDialogOpen} onOpenChange={setIsCatDialogOpen}>
               <DialogTrigger asChild>
-                  <Button variant="outline" size="icon" className="h-8 w-8">
+                  <Button variant="outline" size="icon" className="h-8 w-8" title="Gerenciar Categorias">
                       <Settings2 className="h-4 w-4" />
                   </Button>
               </DialogTrigger>
@@ -105,7 +225,7 @@ export default function MenuPage() {
                       <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2" onClick={() => setIsCatDialogOpen(false)}>
                           <ChevronLeft className="h-5 w-5" />
                       </Button>
-                      <DialogTitle>Categorias</DialogTitle>
+                      <DialogTitle>Categorias do Cardápio</DialogTitle>
                   </DialogHeader>
                   <ScrollArea className="flex-1 p-4">
                     <CategoryManager restaurantId={restaurantId!} />
@@ -115,9 +235,9 @@ export default function MenuPage() {
 
             <Dialog open={isItemDialogOpen} onOpenChange={setIsItemDialogOpen}>
               <DialogTrigger asChild>
-                  <Button size="sm" className="h-8 gap-1 px-2 text-[10px] font-bold uppercase" disabled={!categories || categories.length === 0}>
-                      <PlusCircle className="h-3 w-3" />
-                      Novo
+                  <Button size="sm" className="h-8 gap-1 px-2.5 text-xs font-bold uppercase" disabled={uniqueCategories.length === 0}>
+                      <PlusCircle className="h-3.5 w-3.5" />
+                      Novo Item
                   </Button>
               </DialogTrigger>
               <DialogContent className="max-w-full w-full h-[100dvh] sm:h-[90vh] sm:max-w-[800px] p-0 overflow-hidden flex flex-col gap-0 border-none sm:border">
@@ -125,12 +245,12 @@ export default function MenuPage() {
                       <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2" onClick={() => setIsItemDialogOpen(false)}>
                           <ChevronLeft className="h-5 w-5" />
                       </Button>
-                      <DialogTitle>Novo Item</DialogTitle>
+                      <DialogTitle>Novo Item do Cardápio</DialogTitle>
                   </DialogHeader>
                   <div className="flex-1 overflow-hidden">
                       <MenuItemForm 
                           restaurantId={restaurantId!} 
-                          categories={categories || []} 
+                          categories={uniqueCategories} 
                           onSuccess={() => setIsItemDialogOpen(false)}
                       />
                   </div>
@@ -140,8 +260,29 @@ export default function MenuPage() {
         )}
       </AppHeader>
 
+      {/* Aviso de duplicados com botão de correção imediata */}
+      {hasAnyDuplicates && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center justify-between text-xs text-amber-800">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+            <span>
+              Foram detectados <strong>{duplicateCategoryDocs.length} categorias</strong> e <strong>{duplicateItemDocs.length} itens duplicados</strong>. As abas abaixo já foram unificadas.
+            </span>
+          </div>
+          <Button 
+            size="sm" 
+            variant="link" 
+            onClick={handleCleanDuplicates}
+            disabled={isCleaning}
+            className="text-xs font-bold text-amber-900 underline p-0 h-auto"
+          >
+            Remover do Banco
+          </Button>
+        </div>
+      )}
+
       <main className="flex-1 pb-24">
-        {/* Banner Responsivo Otimizado */}
+        {/* Banner Responsivo */}
         <div className="relative py-8 md:py-16 bg-primary/5 overflow-hidden flex items-center justify-center border-b">
             <div className="text-center space-y-4 px-4 max-w-full z-10">
                 <h2 className="text-2xl md:text-5xl font-black uppercase tracking-tighter break-words leading-none">
@@ -166,12 +307,11 @@ export default function MenuPage() {
                     </span>
                 </div>
             </div>
-            {/* Elementos Decorativos */}
             <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-primary/10 rounded-full blur-3xl" />
             <div className="absolute -top-10 -left-10 w-40 h-40 bg-accent/20 rounded-full blur-3xl" />
         </div>
 
-        {/* Busca e Categorias Fixas */}
+        {/* Busca e Abas de Categorias Deduplicadas */}
         <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md border-b">
             <div className="max-w-3xl mx-auto px-4 py-3 space-y-3">
                 <div className="relative group">
@@ -184,14 +324,13 @@ export default function MenuPage() {
                     />
                 </div>
                 
-                {!searchQuery && categories && categories.length > 0 && (
+                {!searchQuery && uniqueCategories.length > 0 && (
                     <div className="flex overflow-x-auto gap-2 pb-1 hide-scrollbar -mx-4 px-4 scroll-smooth">
-                        {categories.map((cat) => (
+                        {uniqueCategories.map((cat) => (
                             <button
                                 key={cat.id}
                                 onClick={() => {
                                     setActiveTab(cat.id);
-                                    // Feedback tátil se disponível
                                     if (window.navigator.vibrate) window.navigator.vibrate(5);
                                 }}
                                 className={cn(
@@ -209,9 +348,13 @@ export default function MenuPage() {
             </div>
         </div>
 
+        {/* Listagem de Itens por Categoria Única */}
         <div className="max-w-3xl mx-auto p-4 space-y-10">
-            {categories?.filter(c => !activeTab || c.id === activeTab || searchQuery).map(category => {
-                const categoryItems = filteredItems.filter(i => i.categoryId === category.id);
+            {uniqueCategories
+              .filter(c => !activeTab || c.id === activeTab || searchQuery)
+              .map(category => {
+                const aliasIds = categoryIdMap.get(category.id) || [category.id];
+                const categoryItems = filteredItems.filter(i => aliasIds.includes(i.categoryId));
                 if (categoryItems.length === 0) return null;
 
                 return (
@@ -226,7 +369,7 @@ export default function MenuPage() {
                                 <MenuItemCard 
                                     key={item.id} 
                                     item={{...item, categoryName: category.name}}
-                                    categories={categories || []}
+                                    categories={uniqueCategories}
                                 />
                             ))}
                         </div>
@@ -241,7 +384,9 @@ export default function MenuPage() {
                         <p className="text-sm font-black uppercase tracking-tighter">Nenhum item encontrado</p>
                         <p className="text-xs font-bold uppercase text-muted-foreground">Tente buscar por outro nome ou categoria</p>
                     </div>
-                    <Button variant="outline" size="sm" className="font-black uppercase text-[10px]" onClick={() => setSearchQuery('')}>Limpar Busca</Button>
+                    {searchQuery && (
+                      <Button variant="outline" size="sm" className="font-black uppercase text-[10px]" onClick={() => setSearchQuery('')}>Limpar Busca</Button>
+                    )}
                 </div>
             )}
         </div>

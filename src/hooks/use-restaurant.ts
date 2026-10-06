@@ -11,7 +11,7 @@ const DEFAULT_FALLBACK_RESTAURANT_ID = 'sCYFJhpQ32PTxbESUvkF';
 type UseRestaurantReturn = {
     restaurantId: string | null;
     restaurant: Restaurant | null;
-    role: 'admin' | 'waiter' | null;
+    role: 'admin' | 'waiter' | 'ajudante' | null;
     isLoading: boolean;
     hasRestaurant: boolean;
     error: any;
@@ -105,60 +105,32 @@ export function useRestaurant(): UseRestaurantReturn {
                 const profileDocRef = doc(firestore, 'users', user.uid);
                 setDoc(profileDocRef, {
                     activeRestaurantId: restaurantId,
-                    name: user.displayName || user.email || 'Averton Silva Dias',
-                    email: user.email || 'verton3@gmail.com',
+                    name: user.displayName || user.email || 'Usuário',
+                    email: user.email || '',
                     avatarUrl: user.photoURL || ''
                 }, { merge: true }).catch(() => {});
 
                 const teamDocRef = doc(firestore, `restaurants/${restaurantId}/team`, user.uid);
-                setDoc(teamDocRef, {
+                const teamData: any = {
                     userId: user.uid,
-                    email: user.email || 'verton3@gmail.com',
-                    name: user.displayName || user.email || 'Averton Silva Dias',
-                    role: 'admin',
+                    email: user.email || '',
+                    name: user.displayName || user.email || 'Colaborador',
                     isActive: true
-                }, { merge: true }).catch(() => {});
+                };
+
+                // Preserva o papel existente (como 'waiter' ou 'ajudante') sem sobrescrever!
+                // Apenas define 'admin' para o proprietário ou se ainda não tiver papel definido
+                if (!teamMember?.role) {
+                    if (user.email === 'verton3@gmail.com') {
+                        teamData.role = 'admin';
+                    } else {
+                        teamData.role = 'waiter';
+                    }
+                }
+                setDoc(teamDocRef, teamData, { merge: true }).catch(() => {});
             }
-
-            // Verifica e cria mesas padrão se a coleção de mesas estiver vazia
-            getDocs(collection(firestore, `restaurants/${restaurantId}/tables`)).then(snap => {
-                if (snap.empty) {
-                    const defaultTables = [
-                        { name: 'Mesa 01', status: 'livre' },
-                        { name: 'Mesa 02', status: 'livre' },
-                        { name: 'Mesa 03', status: 'livre' },
-                        { name: 'Mesa 04', status: 'livre' },
-                        { name: 'Mesa 05', status: 'livre' },
-                        { name: 'Mesa 06', status: 'livre' },
-                    ];
-                    defaultTables.forEach(tbl => {
-                        const tblDoc = doc(collection(firestore, `restaurants/${restaurantId}/tables`));
-                        setDoc(tblDoc, {
-                            ...tbl,
-                            restaurantId,
-                            qrCodeUrl: `/${restaurantId}/${tblDoc.id}`
-                        }, { merge: true }).catch(() => {});
-                    });
-                }
-            }).catch(() => {});
-
-            // Verifica e cria categorias de cardápio padrão se estiver vazio
-            getDocs(collection(firestore, `restaurants/${restaurantId}/menuItemCategories`)).then(catSnap => {
-                if (catSnap.empty) {
-                    const defaultCats = [
-                        { name: 'Lanches', order: 1 },
-                        { name: 'Pizzas', order: 2 },
-                        { name: 'Bebidas', order: 3 },
-                        { name: 'Sobremesas', order: 4 },
-                    ];
-                    defaultCats.forEach(cat => {
-                        const catDoc = doc(collection(firestore, `restaurants/${restaurantId}/menuItemCategories`));
-                        setDoc(catDoc, cat, { merge: true }).catch(() => {});
-                    });
-                }
-            }).catch(() => {});
         }
-    }, [user?.uid, user?.displayName, user?.email, user?.photoURL, firestore, restaurantId]);
+    }, [user?.uid, user?.displayName, user?.email, user?.photoURL, firestore, restaurantId, teamMember?.role]);
 
     const setActiveRestaurantId = (id: string) => {
         setLocalRestaurantId(id);
@@ -170,10 +142,11 @@ export function useRestaurant(): UseRestaurantReturn {
         }
     };
 
-    const detectedRole = useMemo(() => {
+    const detectedRole = useMemo<'admin' | 'waiter' | 'ajudante'>(() => {
         if (teamMember?.role) return teamMember.role;
-        return 'admin';
-    }, [teamMember?.role]);
+        if (user?.email === 'verton3@gmail.com') return 'admin';
+        return 'waiter';
+    }, [teamMember?.role, user?.email]);
 
     const isLoading = isUserLoading;
 

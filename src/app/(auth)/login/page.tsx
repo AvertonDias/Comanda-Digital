@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, useUser } from '@/firebase';
+import { useRestaurant } from '@/hooks/use-restaurant';
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { UtensilsCrossed } from 'lucide-react';
 import Link from 'next/link';
@@ -25,15 +26,20 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
+  const { role, isLoading: isRoleLoading } = useRestaurant();
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!isUserLoading && user) {
-      router.push('/dashboard');
+    if (!isUserLoading && !isRoleLoading && user) {
+      if (role === 'admin') {
+        router.push('/dashboard');
+      } else {
+        router.push('/orders');
+      }
     }
-  }, [user, isUserLoading, router]);
+  }, [user, isUserLoading, isRoleLoading, role, router]);
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();

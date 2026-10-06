@@ -9,7 +9,7 @@ export type UserProfile = {
 export type RestaurantUserRole = {
     userId: string;
     restaurantId: string;
-    role: 'admin' | 'waiter';
+    role: 'admin' | 'waiter' | 'ajudante';
     isActive: boolean;
     email?: string;
 };
@@ -18,7 +18,7 @@ export type RestaurantUser = {
     id: string;
     userId: string;
     restaurantId: string;
-    role: 'admin' | 'waiter';
+    role: 'admin' | 'waiter' | 'ajudante';
     isActive: boolean;
     email?: string;
     name?: string;
@@ -28,7 +28,7 @@ export type RestaurantUser = {
 export type Invitation = {
   id: string;
   restaurantId: string;
-  role: 'admin' | 'waiter';
+  role: 'admin' | 'waiter' | 'ajudante';
   status: 'pending' | 'accepted' | 'expired';
   createdAt: any;
   expiresAt?: any;
@@ -79,6 +79,7 @@ export type MenuItemIngredient = {
 
 export type MenuItem = {
   id: string;
+  restaurantId?: string;
   name: string;
   description: string;
   ingredients?: MenuItemIngredient[];

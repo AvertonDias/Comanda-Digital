@@ -48,24 +48,60 @@ export default function PublicMenuPage(props: { params: Promise<{ restaurantId: 
 
     const { data: restaurant, isLoading: isRestLoading } = useDoc<Restaurant>(restaurantRef);
     const { data: table, isLoading: isTableLoading } = useDoc<Table>(tableRef);
-    const { data: categories, isLoading: isCatsLoading } = useCollection<MenuItemCategory>(categoriesQuery);
-    const { data: items, isLoading: isItemsLoading } = useCollection<MenuItem>(itemsQuery);
+    const { data: rawCategories, isLoading: isCatsLoading } = useCollection<MenuItemCategory>(categoriesQuery);
+    const { data: rawItems, isLoading: isItemsLoading } = useCollection<MenuItem>(itemsQuery);
 
     const isLoading = isRestLoading || isTableLoading || isCatsLoading || isItemsLoading;
 
+    // Deduplicação de categorias para o cliente ver abas únicas
+    const { uniqueCategories, categoryIdMap } = useMemo(() => {
+        if (!rawCategories) return { uniqueCategories: [], categoryIdMap: new Map<string, string[]>() };
+        const nameMap = new Map<string, MenuItemCategory>();
+        const idAliases = new Map<string, string[]>();
+
+        rawCategories.forEach(cat => {
+            const normalized = (cat.name || '').trim().toLowerCase();
+            if (!nameMap.has(normalized)) {
+                nameMap.set(normalized, cat);
+                idAliases.set(cat.id, [cat.id]);
+            } else {
+                const canonical = nameMap.get(normalized)!;
+                const currentList = idAliases.get(canonical.id) || [canonical.id];
+                currentList.push(cat.id);
+                idAliases.set(canonical.id, currentList);
+            }
+        });
+
+        return {
+            uniqueCategories: Array.from(nameMap.values()).sort((a, b) => (a.order || 0) - (b.order || 0)),
+            categoryIdMap: idAliases
+        };
+    }, [rawCategories]);
+
+    // Deduplicação de itens se houver duplicados
+    const uniqueItems = useMemo(() => {
+        if (!rawItems) return [];
+        const seen = new Map<string, MenuItem>();
+        rawItems.forEach(i => {
+            const key = `${(i.name || '').trim().toLowerCase()}-${i.price}`;
+            if (!seen.has(key)) seen.set(key, i);
+        });
+        return Array.from(seen.values());
+    }, [rawItems]);
+
     useEffect(() => {
-        if (categories && categories.length > 0 && !activeTab) {
-            setActiveTab(categories[0].id);
+        if (uniqueCategories.length > 0 && (!activeTab || !uniqueCategories.some(c => c.id === activeTab))) {
+            setActiveTab(uniqueCategories[0].id);
         }
-    }, [categories, activeTab]);
+    }, [uniqueCategories, activeTab]);
 
     const filteredItems = useMemo(() => {
-        if (!items) return [];
-        return items.filter(item => 
+        if (!uniqueItems) return [];
+        return uniqueItems.filter(item => 
             item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             item.description?.toLowerCase().includes(searchQuery.toLowerCase())
         );
-    }, [items, searchQuery]);
+    }, [uniqueItems, searchQuery]);
 
     const cartTotal = useMemo(() => {
         return cart.reduce((acc, item) => acc + (item.priceAtOrder + (item.ingredientExtrasPrice || 0) + item.addons.reduce((s, a) => s + a.price, 0)) * item.quantity, 0);
@@ -163,7 +199,9 @@ export default function PublicMenuPage(props: { params: Promise<{ restaurantId: 
             {/* Header / Banner */}
             <div className="relative py-8 bg-primary/5 border-b overflow-hidden">
                 <div className="text-center space-y-3 px-4 relative z-10">
-                    <UtensilsCrossed className="h-8 w-8 text-primary mx-auto mb-2" />
+                    <div className="size-16 rounded-2xl overflow-hidden shadow-md ring-2 ring-primary/20 mx-auto mb-2 bg-primary/10 flex items-center justify-center">
+                        <img src="/app-icon.jpg" alt="Comanda Digital" className="size-full object-cover" referrerPolicy="no-referrer" />
+                    </div>
                     <h1 className="text-2xl font-black uppercase tracking-tighter">{restaurant.name}</h1>
                     <div className="flex items-center justify-center gap-2">
                         <Badge variant="secondary" className="bg-primary text-white font-black uppercase text-[10px]">
@@ -193,9 +231,9 @@ export default function PublicMenuPage(props: { params: Promise<{ restaurantId: 
                         />
                     </div>
                     
-                    {!searchQuery && (
+                    {!searchQuery && uniqueCategories.length > 0 && (
                         <div className="flex overflow-x-auto gap-2 pb-1 hide-scrollbar -mx-4 px-4">
-                            {categories?.map((cat) => (
+                            {uniqueCategories.map((cat) => (
                                 <button
                                     key={cat.id}
                                     onClick={() => setActiveTab(cat.id)}
@@ -216,8 +254,9 @@ export default function PublicMenuPage(props: { params: Promise<{ restaurantId: 
 
             {/* Menu Items */}
             <main className="max-w-3xl mx-auto p-4 space-y-10 mt-4">
-                {categories?.filter(c => !activeTab || c.id === activeTab || searchQuery).map(category => {
-                    const categoryItems = filteredItems.filter(i => i.categoryId === category.id && i.isAvailable);
+                {uniqueCategories.filter(c => !activeTab || c.id === activeTab || searchQuery).map(category => {
+                    const aliasIds = categoryIdMap.get(category.id) || [category.id];
+                    const categoryItems = filteredItems.filter(i => aliasIds.includes(i.categoryId) && i.isAvailable);
                     if (categoryItems.length === 0) return null;
 
                     return (
@@ -232,7 +271,7 @@ export default function PublicMenuPage(props: { params: Promise<{ restaurantId: 
                                     <div key={item.id} onClick={() => handleItemClick(item)}>
                                         <MenuItemCard 
                                             item={{...item, categoryName: category.name}}
-                                            categories={categories || []}
+                                            categories={uniqueCategories}
                                         />
                                     </div>
                                 ))}

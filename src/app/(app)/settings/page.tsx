@@ -12,8 +12,9 @@ import { HelpCircle, Edit2, Trash2, PlusCircle, UserPlus, Copy, Link as LinkIcon
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
-import { collection, doc, query, updateDoc, addDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { collection, doc, query, updateDoc, setDoc, addDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { useEffect, useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -448,7 +449,7 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
                                     <TableCell>{u.email || u.userId}</TableCell>
                                     <TableCell>
                                         <Badge variant={u.role === 'admin' ? 'default' : 'secondary'}>
-                                            {u.role === 'admin' ? 'Administrador' : 'Garçom'}
+                                            {u.role === 'admin' ? 'Administrador' : 'Ajudante'}
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-right space-x-2">
@@ -477,8 +478,8 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
                                     <Select value={inviteRole} onValueChange={setInviteRole}>
                                         <SelectTrigger><SelectValue /></SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="admin">Administrador</SelectItem>
-                                            <SelectItem value="waiter">Garçom</SelectItem>
+                                            <SelectItem value="waiter">Ajudante (Cardápio, Mesas e Pedidos)</SelectItem>
+                                            <SelectItem value="admin">Administrador (Acesso Total)</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -495,7 +496,7 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
                                     <Button size="icon" onClick={copyToClipboard}><Copy className="h-4 w-4" /></Button>
                                 </div>
                                 <p className="text-xs text-muted-foreground">
-                                    Este link permite que o colaborador se registre como {inviteRole === 'admin' ? 'Administrador' : 'Garçom'}.
+                                    Este link permite que o colaborador se registre como {inviteRole === 'admin' ? 'Administrador' : 'Ajudante'}.
                                 </p>
                             </div>
                         )}
@@ -509,11 +510,11 @@ function UsersTab({ restaurantId }: { restaurantId: string }) {
                     {editingUser && (
                         <div className="space-y-4 py-4">
                             <Label>Função para {editingUser.email}</Label>
-                            <Select defaultValue={editingUser.role} onValueChange={(val) => handleUpdateRole(editingUser.userId, val)}>
+                            <Select defaultValue={editingUser.role || 'waiter'} onValueChange={(val) => handleUpdateRole(editingUser.userId, val)}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="admin">Administrador</SelectItem>
-                                    <SelectItem value="waiter">Garçom</SelectItem>
+                                    <SelectItem value="waiter">Ajudante (Cardápio, Mesas e Pedidos)</SelectItem>
+                                    <SelectItem value="admin">Administrador (Acesso Total)</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -762,9 +763,17 @@ function PrintingTab({ restaurantId }: { restaurantId: string }) {
 
 export default function SettingsPage() {
     const { restaurantId, isLoading, role } = useRestaurant();
+    const router = useRouter();
     const [activeTab, setActiveTab] = useState("profile");
     const [isProfileDirty, setIsProfileDirty] = useState(false);
     const [pendingTab, setPendingTab] = useState<string | null>(null);
+
+    // Ajudantes têm acesso apenas a Cardápio, Mesas e Pedidos
+    useEffect(() => {
+        if (!isLoading && role && role !== 'admin') {
+            router.replace('/orders');
+        }
+    }, [isLoading, role, router]);
 
     const handleTabChange = (value: string) => {
         if (activeTab === "profile" && isProfileDirty && value !== "profile") {
@@ -774,19 +783,29 @@ export default function SettingsPage() {
         }
     };
 
-    if (isLoading) return <Skeleton className="h-screen w-full" />;
-    
-    if (role === 'waiter') {
+    if (isLoading || !role || role !== 'admin') {
         return (
-            <div className="flex flex-col h-screen bg-background items-center justify-center">
-                <p className="text-muted-foreground">Você não tem permissão para acessar esta página.</p>
+            <div className="flex flex-col h-screen bg-background">
+                <AppHeader><SidebarTrigger /><h1 className="text-xl font-semibold">Configurações</h1></AppHeader>
+                <main className="flex-1 p-6 space-y-4">
+                    <Skeleton className="h-10 w-64" />
+                    <Skeleton className="h-64 w-full" />
+                </main>
             </div>
         );
     }
 
     return (
         <div className="flex flex-col h-screen bg-background">
-            <AppHeader><SidebarTrigger /><h1 className="text-xl font-semibold">Configurações</h1></AppHeader>
+            <AppHeader>
+                <SidebarTrigger className="md:hidden" />
+                <div className="flex items-center gap-2.5">
+                    <div className="size-8 rounded-xl overflow-hidden shadow-xs ring-1 ring-primary/20 shrink-0 bg-primary/10 flex items-center justify-center">
+                        <img src="/app-icon.jpg" alt="Comanda Digital" className="size-full object-cover" referrerPolicy="no-referrer" />
+                    </div>
+                    <h1 className="text-xl font-bold">Configurações</h1>
+                </div>
+            </AppHeader>
             <main className="flex-1 p-6 overflow-y-auto">
                 <Tabs value={activeTab} onValueChange={handleTabChange}>
                     <TabsList>

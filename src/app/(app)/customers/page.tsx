@@ -40,13 +40,26 @@ import { useFirestore, useCollection, useMemoFirebase, errorEmitter, FirestorePe
 import { collection, query, addDoc, serverTimestamp, orderBy, deleteDoc, doc } from "firebase/firestore";
 import type { Customer } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 
 export default function CustomersPage() {
-  const { restaurantId, isLoading: isRestLoading, hasRestaurant } = useRestaurant();
+  const { restaurantId, isLoading: isRestLoading, hasRestaurant, role } = useRestaurant();
+  const router = useRouter();
   const firestore = useFirestore();
   const { toast } = useToast();
+
+  // Ajudantes têm acesso apenas a Cardápio, Mesas e Pedidos
+  useEffect(() => {
+    if (!isRestLoading && role && role !== 'admin') {
+      router.replace('/orders');
+    }
+  }, [isRestLoading, role, router]);
+
+  if (!isRestLoading && role && role !== 'admin') {
+    return null;
+  }
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newName, setNewName] = useState('');
@@ -55,12 +68,12 @@ export default function CustomersPage() {
 
   // 🔒 Query blindada
   const customersQuery = useMemoFirebase(() => {
-    if (!restaurantId || !firestore) return null;
+    if (!restaurantId || !firestore || role !== 'admin') return null;
     return query(
       collection(firestore, `restaurants/${restaurantId}/customers`),
       orderBy('createdAt', 'desc')
     );
-  }, [restaurantId, firestore]);
+  }, [restaurantId, firestore, role]);
 
   const { data: customers, isLoading: isCustLoading } = useCollection<Customer>(customersQuery);
 
@@ -165,8 +178,11 @@ export default function CustomersPage() {
     <div className="flex flex-col h-screen bg-background">
       <AppHeader>
         <SidebarTrigger className="md:hidden" />
-        <div className="flex-1">
-          <h1 className="text-xl font-semibold">Clientes</h1>
+        <div className="flex items-center gap-2.5 flex-1">
+          <div className="size-8 rounded-xl overflow-hidden shadow-xs ring-1 ring-primary/20 shrink-0 bg-primary/10 flex items-center justify-center">
+            <img src="/app-icon.jpg" alt="Comanda Digital" className="size-full object-cover" referrerPolicy="no-referrer" />
+          </div>
+          <h1 className="text-xl font-bold">Clientes</h1>
         </div>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

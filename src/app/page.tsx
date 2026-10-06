@@ -36,7 +36,7 @@ function LandingPage() {
             className="text-sm font-medium hover:underline underline-offset-4"
             prefetch={false}
           >
-            Login
+            Entrar
           </Link>
           <Button asChild>
             <Link href="/login">Começar Agora</Link>
